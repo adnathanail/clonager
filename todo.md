@@ -1,1 +1,0 @@
-- Have some way to auto-remove deleted repos
