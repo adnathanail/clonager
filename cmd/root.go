@@ -33,22 +33,31 @@ func init() {
 		"config file (default $CLONAGER_CONFIG or ~/.config/clonager/config.yaml)")
 }
 
+// configFile is the config path from --config, or the default.
+func configFile() string {
+	if configPath != "" {
+		if p, err := config.ExpandHome(configPath); err == nil {
+			return p
+		}
+		return configPath
+	}
+	p, err := config.DefaultPath()
+	if err != nil {
+		return configPath
+	}
+	return p
+}
+
+// loadConfig loads the config file. A missing file gives an error wrapping
+// fs.ErrNotExist.
 func loadConfig() (*config.Config, error) {
-	path := configPath
+	path := configFile()
 	if path == "" {
-		var err error
-		if path, err = config.DefaultPath(); err != nil {
-			return nil, err
-		}
-	} else {
-		var err error
-		if path, err = config.ExpandHome(path); err != nil {
-			return nil, err
-		}
+		return nil, errors.New("can't work out where the config file is; pass --config")
 	}
 	cfg, err := config.Load(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("no config file at %s", config.TildePath(path))
+		return nil, fmt.Errorf("no config file at %s (clonager discover <dir> creates one): %w", config.TildePath(path), err)
 	}
 	return cfg, err
 }
