@@ -34,9 +34,10 @@ func (s *Status) defaultBranchName() string {
 	return name
 }
 
-// checkMerged sets Merged on branches that would otherwise be flagged
-// (local-only, deleted on the remote, or with unpushed commits), using only
-// local git data.
+// checkMerged sets Merged on every branch other than the default one that's
+// already in the default branch, using only local git data. That includes
+// pushed, up-to-date branches: a merged PR's branch often outlives the merge
+// on the remote.
 //
 // Rebase and squash merges leave no trace in the history, so they're found by
 // patch-id: a branch is rebased in if every one of its commits has a
@@ -53,7 +54,7 @@ func (s *Status) checkMerged(g git) {
 	var cands []*Branch
 	for i := range s.Branches {
 		b := &s.Branches[i]
-		if b.Name != baseName && (b.Remote == "" || b.Gone || b.Ahead > 0) {
+		if b.Name != baseName {
 			cands = append(cands, b)
 		}
 	}

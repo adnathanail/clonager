@@ -10,7 +10,7 @@ import (
 	"github.com/adnathanail/clonager/internal/config"
 )
 
-// TestCheckMerged builds a repo with a bare "remote" and one local-only
+// TestCheckMerged builds a repo with a bare "remote" and one
 // branch per way of being merged (or not), then checks each is classified.
 func TestCheckMerged(t *testing.T) {
 	dir := t.TempDir()
@@ -72,6 +72,19 @@ func TestCheckMerged(t *testing.T) {
 	run(work, "checkout", "-q", "main")
 	run(work, "cherry-pick", "partly~1")
 
+	// pushed: up to date with its remote branch, which outlived a rebase merge
+	run(work, "checkout", "-q", "-b", "pushed", "main")
+	commit("pu", "1")
+	run(work, "push", "-q", "-u", "origin", "pushed")
+	run(work, "checkout", "-q", "main")
+	commit("other2", "1")
+	run(work, "cherry-pick", "pushed")
+
+	// pushedOpen: up to date with its remote, not merged
+	run(work, "checkout", "-q", "-b", "pushedOpen", "main")
+	commit("po", "1")
+	run(work, "push", "-q", "-u", "origin", "pushedOpen")
+
 	// unmerged
 	run(work, "checkout", "-q", "-b", "unmerged", "main")
 	commit("u", "1")
@@ -87,12 +100,14 @@ func TestCheckMerged(t *testing.T) {
 		t.Errorf("default branch %q, want origin/main", s.DefaultBranch)
 	}
 	want := map[string]string{
-		"main":     "",
-		"ff":       MergedAncestor,
-		"rebased":  MergedRebased,
-		"squashed": MergedSquashed,
-		"partly":   "",
-		"unmerged": "",
+		"main":       "",
+		"ff":         MergedAncestor,
+		"rebased":    MergedRebased,
+		"squashed":   MergedSquashed,
+		"partly":     "",
+		"pushed":     MergedRebased,
+		"pushedOpen": "",
+		"unmerged":   "",
 	}
 	for _, b := range s.Branches {
 		w, ok := want[b.Name]

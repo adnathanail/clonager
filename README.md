@@ -175,9 +175,10 @@ See `clonager completion --help` for bash, fish and PowerShell.
 ## How merged branches are detected
 
 Rebase and squash merges create new commits, so a merged branch isn't
-necessarily in the default branch's history. For each branch that would
-otherwise be flagged, clonager compares it with the default branch
-(`origin/HEAD`, else `origin/main` or `origin/master`):
+necessarily in the default branch's history. For each local branch, clonager
+compares it with the default branch (`origin/HEAD`, else `origin/main` or
+`origin/master`). That includes branches that are pushed and up to date, since
+a merged PR's branch isn't always deleted from the remote:
 
 1. **Ancestor** — the branch tip is in the default branch's history (merge
    commits, fast-forwards).
@@ -191,9 +192,12 @@ branch later changed the same lines.
 
 With `--forge`, branches still unexplained are checked against merged GitHub
 PRs using `gh pr list`. A branch counts as merged if a merged PR's head is its
-local tip or contains it. If a PR for the branch was merged but doesn't contain
-the local tip, it's flagged as differing from its merged PR: there may be local
-work that never made it in. Only GitHub remotes are checked.
+local tip or contains it. If a PR for a local-only, deleted-on-remote or
+unpushed branch was merged but doesn't contain the local tip, it's flagged as
+differing from its merged PR: there may be local work that never made it in.
+(Branches up to date with their remote aren't flagged this way, as long-lived
+branches like `develop` will have had PRs merged from older commits.) Only
+GitHub remotes are checked.
 
 ## Development
 

@@ -29,7 +29,7 @@ func (s *Status) checkForge(g git) {
 	var pending []*Branch
 	for i := range s.Branches {
 		b := &s.Branches[i]
-		if b.Name != s.defaultBranchName() && b.Merged == "" && (b.Remote == "" || b.Gone || b.Ahead > 0) {
+		if b.Name != s.defaultBranchName() && b.Merged == "" {
 			pending = append(pending, b)
 		}
 	}
@@ -76,7 +76,10 @@ func (s *Status) checkForge(g git) {
 				break
 			}
 		}
-		if b.Merged == "" {
+		// Only a warning for branches that are flagged anyway: a long-lived
+		// branch that's up to date with its remote (develop, say) will have
+		// had PRs merged from older commits.
+		if b.Merged == "" && b.flagged() {
 			b.PR, b.PRDiffers = prs[0].Number, true // gh lists newest first
 		}
 	}

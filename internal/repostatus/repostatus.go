@@ -70,6 +70,10 @@ type Options struct {
 	Forge bool // ask the forge (GitHub, via gh) about merged PRs
 }
 
+// flagged is true for branches that would need attention if unmerged:
+// local-only, deleted on the remote, or with unpushed commits.
+func (b Branch) flagged() bool { return b.Remote == "" || b.Gone || b.Ahead > 0 }
+
 // unresolved is true for branches not accounted for by a merge.
 func (b Branch) unresolved() bool { return b.Merged == "" && !b.PRDiffers }
 
