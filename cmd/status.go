@@ -217,7 +217,7 @@ func buildReport(s *repostatus.Status) report {
 	if bs := s.StaleRemote(); len(bs) > 0 {
 		add(sevInfo, plural(len(bs), "stale remote ref", "stale remote refs"), remoteNames(bs, nil)...)
 	}
-	if bs := s.MergedRemote(); len(bs) > 0 {
+	if bs := s.MergedRemote(); len(bs) > 0 && ownsRemote(s) {
 		where := "on origin"
 		if s.GitHub != nil {
 			where = "on GitHub"
@@ -226,7 +226,7 @@ func buildReport(s *repostatus.Status) report {
 			return describeMerge(b.Merged, b.PR, s.DefaultBranch)
 		})...)
 	}
-	if gh := s.GitHub; gh != nil && gh.AutoDelete != nil && !*gh.AutoDelete {
+	if gh := s.GitHub; gh != nil && ownsRemote(s) && gh.AutoDelete != nil && !*gh.AutoDelete {
 		add(sevInfo, "GitHub doesn't auto-delete merged branches")
 	}
 	if bs := s.Behind(); len(bs) > 0 {

@@ -79,3 +79,38 @@ func TestEmpty(t *testing.T) {
 		t.Fatalf("got %+v, %v", cfg, err)
 	}
 }
+
+func TestMine(t *testing.T) {
+	cfg, err := Parse("test.yaml", []byte(`
+~/Documents:
+  Work:
+    mine: false
+    vip-proj: git@github.com:acmeltd/vip-proj.git
+    my-fork:
+      url: git@github.com:me/my-fork.git
+      mine: true
+    Nested:
+      deep: git@github.com:acmeltd/deep.git
+  Projects:
+    clonager: git@github.com:me/clonager.git
+    upstream-thing:
+      url: git@github.com:someone/thing.git
+      mine: false
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{"vip-proj": true, "my-fork": false, "deep": true, "clonager": false, "upstream-thing": true}
+	for _, r := range cfg.Repos {
+		if r.NotMine != want[r.Name()] {
+			t.Errorf("%s: NotMine %v, want %v", r.Name(), r.NotMine, want[r.Name()])
+		}
+	}
+	if len(cfg.Repos) != len(want) {
+		t.Errorf("got %d repos, want %d", len(cfg.Repos), len(want))
+	}
+
+	if _, err := Parse("test.yaml", []byte("~/x:\n  mine: nope\n  a: u\n")); err == nil || !strings.Contains(err.Error(), "mine") {
+		t.Errorf("bad mine value: got %v", err)
+	}
+}

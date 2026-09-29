@@ -34,10 +34,12 @@ checked-out branch and branches applied in a GitButler workspace are skipped.
 With --forge, it also prints:
   - git remote prune for refs to branches already deleted on GitHub
   - git push origin --delete for merged branches still on GitHub, commented
-    out as it changes the repo for everyone (only for repos you can push to,
-    and never for protected branches)
+    out as it changes the repo for everyone (never for protected branches)
   - gh repo edit --delete-branch-on-merge, commented out, for repos you admin
-    that don't delete merged branches automatically`,
+    that don't delete merged branches automatically
+
+The last two are only for repos that are yours: ones you can push to, and not
+marked mine: false in the config.`,
 	Args: cobra.NoArgs,
 	RunE: runPrune,
 }
@@ -112,21 +114,15 @@ func runPrune(cmd *cobra.Command, args []string) error {
 		// Merged branches still on GitHub. Only with --forge, which knows
 		// they're really there, aren't protected, and that you can push.
 		// Always commented out: deleting them affects everyone.
-		if gh := s.GitHub; gh != nil {
-			bs := s.MergedRemote()
-			switch {
-			case len(bs) > 0 && !gh.CanPush:
-				lines = append(lines, comment(fmt.Sprintf("skipped %s merged on GitHub: no push access to %s",
-					plural(len(bs), "branch", "branches"), gh.Name)))
-			case len(bs) > 0:
-				for _, b := range bs {
-					lines = append(lines, comment("git -C "+shellPath(s.Repo.Path)+" push origin --delete "+
-						shellQuote(b.Name)+"  # "+describeMerge(b.Merged, b.PR, s.DefaultBranch)))
-				}
-				onGitHub += len(bs)
+		if gh := s.GitHub; gh != nil && ownsRemote(s) {
+			for _, b := range s.MergedRemote() {
+				lines = append(lines, comment("git -C "+shellPath(s.Repo.Path)+" push origin --delete "+
+					shellQuote(b.Name)+"  # "+describeMerge(b.Merged, b.PR, s.DefaultBranch)))
+				onGitHub++
 			}
 			if gh.Admin && gh.AutoDelete != nil && !*gh.AutoDelete {
 				lines = append(lines, comment("gh repo edit "+gh.Name+" --delete-branch-on-merge  # delete branches when their PRs merge"))
+				onGitHub++
 			}
 		}
 
@@ -166,6 +162,16 @@ func runPrune(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println(comment(line))
 	return nil
+}
+
+// ownsRemote reports whether changes to the repo's remote (deleting branches,
+// settings) are the user's to make: not marked mine: false in the config, and,
+// when the forge was checked, pushable.
+func ownsRemote(s *repostatus.Status) bool {
+	if s.Repo.NotMine {
+		return false
+	}
+	return s.GitHub == nil || s.GitHub.CanPush
 }
 
 var shellSafe = regexp.MustCompile(`^[A-Za-z0-9_./@%+=:,-]+$`)

@@ -57,6 +57,7 @@ It's a YAML tree that mirrors your folders:
   Projects:
     clonager: git@github.com:adnathanail/clonager.git
   ACME:
+    mine: false               # not my repos: never suggest changing them on GitHub
     vip-proj:
       url: git@github.com:acmeltd/vip-proj.git
       gitbutler: true
@@ -76,11 +77,15 @@ It's a YAML tree that mirrors your folders:
   - `remotes` — other remotes by name (`origin` comes from `url`)
   - `gitbutler: true` — the repo should be in a GitButler workspace
   - `tags` — labels for filtering, e.g. `clonager status -t work`
-- **Any other mapping** is a folder, and can nest as deep as you like.
+  - `mine: false` — the remote isn't yours to change, so clonager won't
+    suggest deleting branches there or changing its settings (see `prune`)
+- **Any other mapping** is a folder, and can nest as deep as you like. A
+  folder can set `mine: false` for every repo inside it; a repo can override
+  it with `mine: true`.
 
 A repo's path is its chain of keys, so `vip-proj` above lives at
 `~/Documents/ACME/vip-proj`. The option names (`url`, `remotes`, `gitbutler`,
-`tags`) can't be used as folder names, and repos can't contain other repos.
+`tags`, `mine`) can't be used as folder names, and repos can't contain other repos.
 
 clonager edits this file itself (see `discover`), keeping your comments and
 ordering.
@@ -174,6 +179,10 @@ With `--forge` it also covers GitHub:
   they were merged (e.g. bots reusing a branch for their next PR).
 - `gh repo edit --delete-branch-on-merge`, commented out, for repos you admin
   that don't delete merged branches automatically.
+
+The last two are only for repos that are yours: ones you can push to, and not
+marked `mine: false`. Once you've dealt with everything you can, `prune` prints
+`# Nothing to prune`.
 
 To run everything that isn't commented out: `clonager prune -f | sh`.
 

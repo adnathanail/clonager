@@ -46,8 +46,11 @@ go build -o clonager .          # CGO_ENABLED=0 for the static release binary
   (case-insensitive) among siblings; new top-level keys are appended.
 - **Config format:** top-level keys are absolute or `~` paths; a string value is
   a repo URL; a mapping with `url` is a repo with options (`remotes`,
-  `gitbutler`, `tags`); any other mapping is a folder. Those option names are
-  reserved and can't be folder names. Child keys can't contain `/`.
+  `gitbutler`, `tags`, `mine`); any other mapping is a folder. Those option
+  names are reserved and can't be folder names. Child keys can't contain `/`.
+  Folders can set `mine` (listed in `folderKeys`) for the repos inside them;
+  it's read before the folder's children, whatever the key order. In Go it's
+  `Repo.NotMine`, so the zero value (e.g. from `discover`) means "mine".
 - **Keep git process counts per repo roughly constant**, not per branch, and
   avoid `log -p` over long histories. Repos can have 150+ remote branches, some
   forked years ago, and large diffs (notebooks, lockfiles). `classifyMerged`
@@ -58,7 +61,10 @@ go build -o clonager .          # CGO_ENABLED=0 for the static release binary
 - **Nothing that changes a shared remote is ever a runnable line in `prune`**
   (`git push --delete`, `gh repo edit`): always commented out. Only suggest
   deleting branches on GitHub with `--forge`, which knows they exist, aren't
-  protected, and that the user can push.
+  protected, and that the user can push. Never suggest remote changes for
+  repos that aren't the user's (`ownsRemote`: `mine: false`, or no push
+  access), and don't print "skipped" notes for them either: `prune` should say
+  "Nothing to prune" once everything actionable is done.
 - Colours are basic ANSI (0–7) so they follow the terminal theme. Lip Gloss
   strips them automatically when output isn't a TTY.
 

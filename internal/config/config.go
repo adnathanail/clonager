@@ -3,7 +3,8 @@
 // The file is a YAML tree that mirrors the filesystem. Top-level keys are
 // absolute paths (~ allowed). Below them, a string value is a repo (the string
 // is its clone URL), a mapping containing "url" is a repo with options, and any
-// other mapping is a folder containing more folders or repos.
+// other mapping is a folder containing more folders or repos. Folders can set
+// options their repos inherit (just "mine" for now).
 package config
 
 import (
@@ -24,6 +25,17 @@ var repoKeys = map[string]bool{
 	"remotes":   true,
 	"gitbutler": true,
 	"tags":      true,
+	"mine":      true,
+}
+
+// Repo options a folder can set for everything inside it.
+var folderKeys = map[string]bool{
+	"mine": true,
+}
+
+// inherited holds the options passed down from folders.
+type inherited struct {
+	notMine bool
 }
 
 type Remote struct {
@@ -37,7 +49,11 @@ type Repo struct {
 	Remotes   []Remote
 	GitButler bool
 	Tags      []string
-	Line      int // line in the config file, for error messages
+	// NotMine is set (by mine: false, on the repo or a folder above it) for
+	// repos whose remote isn't the user's to change, so clonager never
+	// suggests deleting branches there or changing its settings.
+	NotMine bool
+	Line    int // line in the config file, for error messages
 }
 
 // Name is the repo's directory name.
@@ -101,7 +117,7 @@ func Parse(path string, data []byte) (*Config, error) {
 			p.errorf(key, "%v", err)
 			continue
 		}
-		p.node(filepath.Clean(dir), val)
+		p.node(filepath.Clean(dir), val, inherited{})
 	}
 	cfg.Repos = p.repos
 	p.checkOverlaps()
@@ -122,42 +138,54 @@ func (p *parser) errorf(n *yaml.Node, format string, args ...any) {
 }
 
 // node handles the value found at path: a repo URL, a repo mapping or a folder.
-func (p *parser) node(path string, n *yaml.Node) {
+func (p *parser) node(path string, n *yaml.Node, in inherited) {
 	switch n.Kind {
 	case yaml.ScalarNode:
 		if n.Tag == "!!null" || n.Value == "" {
 			p.errorf(n, "%s: missing url", TildePath(path))
 			return
 		}
-		p.repos = append(p.repos, Repo{Path: path, URL: n.Value, Line: n.Line})
+		p.repos = append(p.repos, Repo{Path: path, URL: n.Value, NotMine: in.notMine, Line: n.Line})
 	case yaml.MappingNode:
 		if mappingHas(n, "url") {
-			p.repo(path, n)
+			p.repo(path, n, in)
 		} else {
-			p.folder(path, n)
+			p.folder(path, n, in)
 		}
 	default:
 		p.errorf(n, "%s: expected a url, repo options or a folder", TildePath(path))
 	}
 }
 
-func (p *parser) folder(path string, n *yaml.Node) {
+func (p *parser) folder(path string, n *yaml.Node, in inherited) {
+	// Folder options first, so they apply whatever order the keys are in.
+	for i := 0; i < len(n.Content); i += 2 {
+		key, val := n.Content[i], n.Content[i+1]
+		if key.Value == "mine" {
+			var mine bool
+			if err := val.Decode(&mine); err != nil {
+				p.errorf(val, "%s: mine: %v", TildePath(path), err)
+			}
+			in.notMine = !mine
+		}
+	}
 	for i := 0; i < len(n.Content); i += 2 {
 		key, val := n.Content[i], n.Content[i+1]
 		name := key.Value
 		switch {
+		case folderKeys[name]:
 		case repoKeys[name]:
 			p.errorf(key, "%s: %q is only valid in a repo (did you forget url?)", TildePath(path), name)
 		case name == "" || name == "." || name == ".." || strings.Contains(name, "/"):
 			p.errorf(key, "%s: %q is not a valid folder or repo name", TildePath(path), name)
 		default:
-			p.node(filepath.Join(path, name), val)
+			p.node(filepath.Join(path, name), val, in)
 		}
 	}
 }
 
-func (p *parser) repo(path string, n *yaml.Node) {
-	r := Repo{Path: path, Line: n.Line}
+func (p *parser) repo(path string, n *yaml.Node, in inherited) {
+	r := Repo{Path: path, NotMine: in.notMine, Line: n.Line}
 	for i := 0; i < len(n.Content); i += 2 {
 		key, val := n.Content[i], n.Content[i+1]
 		var err error
@@ -170,6 +198,10 @@ func (p *parser) repo(path string, n *yaml.Node) {
 			err = val.Decode(&r.Tags)
 		case "remotes":
 			r.Remotes, err = decodeRemotes(val)
+		case "mine":
+			var mine bool
+			err = val.Decode(&mine)
+			r.NotMine = !mine
 		default:
 			p.errorf(key, "%s: unknown repo option %q (repos can't contain folders)", TildePath(path), key.Value)
 			continue

@@ -105,3 +105,23 @@ func TestAddToEmpty(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+func TestAddKeepsFolderOptionsFirst(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	cfg, err := Parse("test.yaml", []byte("~/Work:\n  mine: false\n  zed: u\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cfg.Add(Repo{Path: filepath.Join(home, "Work/alpha"), URL: "v"}, filepath.Join(home, "Work")); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := cfg.encode()
+	if want := "~/Work:\n  mine: false\n  alpha: v\n  zed: u\n"; string(got) != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	for _, r := range cfg.Repos {
+		if !r.NotMine {
+			t.Errorf("%s should inherit mine: false", r.Name())
+		}
+	}
+}

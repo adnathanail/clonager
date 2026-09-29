@@ -161,7 +161,7 @@ func (c *Config) rootMapping() *yaml.Node {
 }
 
 func repoNode(r Repo) *yaml.Node {
-	if !r.GitButler && len(r.Remotes) == 0 && len(r.Tags) == 0 {
+	if !r.GitButler && len(r.Remotes) == 0 && len(r.Tags) == 0 && !r.NotMine {
 		return str(r.URL)
 	}
 	n := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
@@ -175,6 +175,9 @@ func repoNode(r Repo) *yaml.Node {
 	}
 	if r.GitButler {
 		n.Content = append(n.Content, str("gitbutler"), &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"})
+	}
+	if r.NotMine {
+		n.Content = append(n.Content, str("mine"), &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "false"})
 	}
 	if len(r.Tags) > 0 {
 		tags := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", Style: yaml.FlowStyle}
@@ -204,10 +207,14 @@ func mappingGet(n *yaml.Node, key string) *yaml.Node {
 }
 
 // insertSorted adds key: val before the first existing key that sorts after
-// it (case-insensitively), so alphabetised folders stay alphabetised.
+// it (case-insensitively), so alphabetised folders stay alphabetised. Folder
+// options like mine are left where they are, rather than sorted among repos.
 func insertSorted(n *yaml.Node, key string, val *yaml.Node) {
 	at := len(n.Content)
 	for i := 0; i < len(n.Content); i += 2 {
+		if folderKeys[n.Content[i].Value] {
+			continue
+		}
 		if strings.ToLower(n.Content[i].Value) > strings.ToLower(key) {
 			at = i
 			break
