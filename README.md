@@ -295,8 +295,9 @@ build from your own checkout.
 ### Releasing
 
 Run the **Release** workflow (Actions → Release → Run workflow) on `main`,
-with the new version, e.g. `v0.2.0`. It makes a release commit on top of
-`main` that adds a `VERSION` file, builds it with Nix (running the tests) and
+choosing `patch`, `minor` or `major`. It bumps the latest release tag by that
+(from `v0.1.0`: `v0.1.1`, `v0.2.0` or `v1.0.0`), makes a release commit on top
+of `main` that adds a `VERSION` file, builds it with Nix (running the tests) and
 checks it reports that version, then pushes the tag and creates a GitHub
 release. Only the tag is pushed: `main` never has a `VERSION` file.
 
