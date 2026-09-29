@@ -17,7 +17,7 @@ go build -o clonager .          # CGO_ENABLED=0 for the static release binary
 ## Layout
 
 - `main.go` → `cmd.Execute()`
-- `cmd/` — Cobra commands (`root.go`, `status.go`, `discover.go`) and Lip Gloss
+- `cmd/` — Cobra commands (`root.go`, `status.go`, `discover.go`, `prune.go`) and Lip Gloss
   styles (`style.go`). Rendering lives here.
 - `internal/config/` — parsing the YAML tree into a flat `[]Repo` (`config.go`)
   and editing it in place (`edit.go`)
@@ -33,6 +33,10 @@ go build -o clonager .          # CGO_ENABLED=0 for the static release binary
   match what the user sees and respect their git config. Run git with
   `GIT_OPTIONAL_LOCKS=0` and `GIT_TERMINAL_PROMPT=0` (see the `git` helper in
   `repostatus.go`).
+- **`prune` only prints commands; it must never delete anything itself.** Its
+  output must stay valid shell (`clonager prune | sh -n`), so everything that
+  isn't a command is a `#` comment, and paths and branch names go through
+  `shellQuote`/`shellPath`.
 - **`status` is read-only and never fetches.** Remote state is as of the last
   fetch. Don't add commands to it that write refs or objects (e.g. `git
   merge-tree --write-tree`, `git fetch`).

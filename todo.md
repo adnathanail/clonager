@@ -1,3 +1,4 @@
 - Integrate with gh cli for open PRs?
 - Auto clean-up branches deleted on remote, maybe using gh cli to find corresponding prs?
 - Have CLI interaction managed carefully, with whitelisted subcommands
+- loki has a local branch `fix-hack` which doesn't show up?

@@ -206,10 +206,7 @@ func buildReport(s *repostatus.Status) report {
 	}
 	if bs := s.MergedBranches(); len(bs) > 0 {
 		add(sevInfo, plural(len(bs), "branch", "branches")+" merged", branchNames(bs, func(b repostatus.Branch) string {
-			if b.Merged == repostatus.MergedPR {
-				return fmt.Sprintf("PR #%d", b.PR)
-			}
-			return b.Merged + " into " + s.DefaultBranch
+			return mergedHow(b, s.DefaultBranch)
 		})...)
 	}
 	if s.ForgeErr != nil {
@@ -262,6 +259,21 @@ func buildReport(s *repostatus.Status) report {
 		}
 	}
 	return r
+}
+
+// mergedHow describes how a merged branch got into the default branch.
+func mergedHow(b repostatus.Branch, defaultBranch string) string {
+	switch b.Merged {
+	case repostatus.MergedAncestor:
+		return "in " + defaultBranch
+	case repostatus.MergedRebased:
+		return "rebased into " + defaultBranch
+	case repostatus.MergedSquashed:
+		return "squashed into " + defaultBranch
+	case repostatus.MergedPR:
+		return fmt.Sprintf("merged in PR #%d", b.PR)
+	}
+	return b.Merged
 }
 
 func branchNames(bs []repostatus.Branch, extra func(repostatus.Branch) string) []string {

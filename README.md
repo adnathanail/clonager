@@ -131,6 +131,37 @@ Running it again only adds what's new.
 It doesn't look inside repos, or in `node_modules`, `.venv`, `Library` and
 similar.
 
+### `clonager prune`
+
+Prints the git commands to delete local branches already merged into their
+repo's default branch (see [below](#how-merged-branches-are-detected)). It
+never deletes anything itself: review the output, then run it.
+
+```
+$ clonager prune -f
+# ~/Documents/Work/work-stuff
+git -C ~/Documents/Work/work-stuff branch -D fix-login  # rebased into origin/main
+git -C ~/Documents/Work/work-stuff branch -D new-reports  # merged in PR #42
+# git -C ~/Documents/Work/work-stuff branch -D old-export  # PR #37 was merged, but not from this branch's tip; check before deleting
+
+# 2 merged branches, plus 1 commented out to review
+```
+
+- Commands use `git branch -D`, since rebase- and squash-merged branches aren't
+  in the default branch's history and `git branch -d` would refuse them.
+- Branches whose merged PR doesn't contain the local tip (only found with
+  `--forge`) are commented out: the local copy may just be stale, or may hold
+  work that never made it in.
+- The checked-out branch, and branches applied in a GitButler workspace, are
+  skipped with a note.
+
+To run the lot: `clonager prune | sh`.
+
+| Flag | |
+|---|---|
+| `-f`, `--forge` | also check GitHub for merged PRs |
+| `-t`, `--tag <tag>` | only repos with this tag (repeatable) |
+
 ### `clonager completion <shell>`
 
 Prints a shell completion script. For zsh:
