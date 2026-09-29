@@ -57,3 +57,14 @@ jobs:
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.14.0
+
+  nix:
+    name: Nix build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      # Builds the flake package (running the tests again inside the Nix
+      # build), so a stale vendorHash is caught here rather than in nix-darwin.
+      - name: nix build
+        run: nix build -L

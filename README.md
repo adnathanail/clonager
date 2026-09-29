@@ -19,6 +19,26 @@ $ clonager status
 
 ## Install
 
+### With Nix
+
+clonager is a flake. Try it with:
+
+```sh
+nix run github:adnathanail/clonager -- status
+```
+
+Or add it to a nix-darwin or Home Manager config:
+
+```nix
+# flake.nix
+inputs.clonager.url = "github:adnathanail/clonager";
+
+# then, in a Home Manager module (with inputs passed through)
+home.packages = [ inputs.clonager.packages.${pkgs.stdenv.hostPlatform.system}.default ];
+```
+
+### With Go
+
 Requires Go 1.26+.
 
 ```sh
@@ -241,9 +261,14 @@ GitHub remotes are checked.
 ## Development
 
 ```sh
+nix develop   # optional: a shell with go, goimports, golangci-lint, actionlint
 go test ./...
 go build -o clonager . && ./clonager status -c some-test-config.yaml
 ```
+
+If `go.mod` or `go.sum` change, update `vendorHash` in `flake.nix`: set it to
+`pkgs.lib.fakeHash`, run `nix build`, and copy the hash from the error. CI's
+Nix job fails until you do.
 
 ## Future plans
 
@@ -254,8 +279,6 @@ go build -o clonager . && ./clonager status -c some-test-config.yaml
 - **Finding unmanaged repos** — `discover` only looks where it's pointed.
   `status` could also report clones inside configured folders that aren't in
   the config.
-- **Packaging as a Nix flake** — so clonager can be installed with nix-darwin
-  rather than built from a checkout.
 - **How stale the data is** — `status` never fetches, so its view of remotes is
   as of each repo's last fetch. It could show when that was (e.g. "last fetched
   3 weeks ago"), from the time of the last fetch that git records, without

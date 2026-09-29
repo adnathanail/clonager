@@ -86,7 +86,9 @@ func TestOnlyPackageRunsPrograms(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() && strings.HasPrefix(d.Name(), ".") && path != root {
+		// Hidden directories, and vendored dependencies (Nix builds vendor
+		// them into the source tree), aren't clonager's code.
+		if d.IsDir() && path != root && (strings.HasPrefix(d.Name(), ".") || d.Name() == "vendor") {
 			return fs.SkipDir
 		}
 		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") || filepath.Dir(path) == here {

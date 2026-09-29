@@ -13,9 +13,13 @@ import (
 
 var configPath string
 
+// version is set at build time (see flake.nix); "dev" for plain go builds.
+var version = "dev"
+
 var rootCmd = &cobra.Command{
 	Use:           "clonager",
 	Short:         "Manage your git clones",
+	Version:       version,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 }

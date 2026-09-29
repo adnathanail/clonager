@@ -13,7 +13,13 @@ gofmt -l .                      # should print nothing
 nix run nixpkgs#golangci-lint -- run ./...   # as CI does (.github/workflows/ci.yml)
 go build -o clonager .          # CGO_ENABLED=0 for the static release binary
 ./clonager status -c test-config.yaml   # test-config.yaml is gitignored, local only
+nix build                       # the flake package; runs the tests too
 ```
+
+When `go.mod`/`go.sum` change, `vendorHash` in `flake.nix` must be updated
+(set it to `pkgs.lib.fakeHash`, `nix build`, copy the "got:" hash). Nix copies
+dependencies into `vendor/` inside the source tree when building, so anything
+that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 
 ## Layout
 
