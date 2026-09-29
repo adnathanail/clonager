@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +20,7 @@ var discoverFlags struct {
 }
 
 var discoverCmd = &cobra.Command{
-	Use:   "discover <dir>...",
+	Use:   "discover [<dir>...]",
 	Short: "Find repos that aren't in the config and add them",
 	Long: `Find git repos under each <dir> that aren't in the config, and add them.
 
@@ -31,11 +32,14 @@ A repo goes under the most specific top-level key that contains it. If none
 does, <dir> becomes a new top-level key. <dir> can also be a repo itself,
 e.g. clonager discover ~/.config/nix-darwin.
 
+With no <dir>, discover looks in the discoverPaths listed in
+~/.config/clonager/settings.json (which the Home Manager module writes from
+programs.clonager.discoverPaths), skipping any that don't exist.
+
 If the config is installed by the Home Manager module with configSource set,
 discover edits that source (e.g. a file in your nix-darwin repo, or one kept
 encrypted there, through its decrypt and encrypt commands) instead of the
 read-only installed copy. Review the diff there, then rebuild to apply it.`,
-	Args: cobra.MinimumNArgs(1),
 	RunE: runDiscover,
 }
 
@@ -56,14 +60,15 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 			"and discover will edit that instead", err)
 	}
 
+	dirs, err := discoverDirs(args)
+	if err != nil {
+		return err
+	}
+
 	type row struct{ path, detail, notes string }
 	var added, skipped []row
 	known := 0
-	for _, arg := range args {
-		dir, err := absDir(arg)
-		if err != nil {
-			return err
-		}
+	for _, dir := range dirs {
 		paths, err := discover.Find(dir, discoverFlags.depth)
 		if err != nil {
 			return err
@@ -125,6 +130,44 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 		fmt.Println(styleDim.Render("Rebuild (e.g. darwin-rebuild switch) to apply it."))
 	}
 	return nil
+}
+
+// discoverDirs returns the dirs to look in: those given, or else the
+// discoverPaths in the settings that exist.
+func discoverDirs(args []string) ([]string, error) {
+	var dirs []string
+	if len(args) > 0 {
+		for _, arg := range args {
+			dir, err := absDir(arg)
+			if err != nil {
+				return nil, err
+			}
+			dirs = append(dirs, dir)
+		}
+		return dirs, nil
+	}
+
+	settings, err := config.ReadSettings()
+	if err != nil {
+		return nil, err
+	}
+	if len(settings.DiscoverPaths) == 0 {
+		path, _ := config.SettingsPath()
+		return nil, fmt.Errorf("give the dirs to look in, or list them as discoverPaths in %s "+
+			"(programs.clonager.discoverPaths with the Home Manager module)", config.TildePath(path))
+	}
+	for _, p := range settings.DiscoverPaths {
+		dir, err := absDir(p)
+		if errors.Is(err, fs.ErrNotExist) {
+			fmt.Println(styleDim.Render("Skipping " + config.TildePath(p) + ", which doesn't exist"))
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		dirs = append(dirs, dir)
+	}
+	return dirs, nil
 }
 
 func absDir(arg string) (string, error) {

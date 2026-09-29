@@ -111,6 +111,16 @@
                 The encrypt command only runs when the config changed.
               '';
             };
+
+            discoverPaths = lib.mkOption {
+              type = lib.types.listOf lib.types.str;
+              default = [ ];
+              example = [ "~/Documents" "~/.config/nix-darwin" ];
+              description = ''
+                Where `clonager discover` looks when it's given no dirs.
+                Absolute or ~ paths; any that don't exist are skipped.
+              '';
+            };
           };
 
           config = lib.mkIf cfg.enable {
@@ -138,6 +148,9 @@
                 if builtins.isString cfg.configSource then { path = cfg.configSource; }
                 else { inherit (cfg.configSource) decrypt encrypt; }
               );
+            };
+            xdg.configFile."clonager/settings.json" = lib.mkIf (cfg.discoverPaths != [ ]) {
+              text = builtins.toJSON { inherit (cfg) discoverPaths; };
             };
           };
         };

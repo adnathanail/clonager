@@ -45,6 +45,8 @@ inputs.clonager.url = "github:adnathanail/clonager";
     configFile = ./clonager.yaml;
     # The same file in your checkout, for `clonager discover` to edit.
     configSource = "${config.home.homeDirectory}/.config/nix-darwin/clonager.yaml";
+    # Where `clonager discover` looks when given no dirs.
+    discoverPaths = [ "~/Documents" "~/.config/nix-darwin" ];
   };
 }
 ```
@@ -198,7 +200,7 @@ month, or `never`. With
 `--forge` it takes a few seconds, mostly waiting on GitHub for repos with long
 PR histories.
 
-### `clonager discover <dir>...`
+### `clonager discover [<dir>...]`
 
 Finds git repos under each `<dir>` that aren't in the config and adds them,
 with `origin` as the `url`, any other remotes, and `gitbutler: true` if the repo
@@ -208,6 +210,15 @@ there'd be nothing to clone them from.
 Each repo goes under the most specific top-level key containing it; if none
 does, `<dir>` becomes a new top-level key. `<dir>` can itself be a repo.
 Running it again only adds what's new.
+
+With no `<dir>`, it looks in the `discoverPaths` listed in
+`~/.config/clonager/settings.json`, skipping any that don't exist. The Home
+Manager module writes that file from `programs.clonager.discoverPaths`;
+without it, write it yourself:
+
+```json
+{ "discoverPaths": ["~/Documents", "~/.config/nix-darwin"] }
+```
 
 | Flag | |
 |---|---|

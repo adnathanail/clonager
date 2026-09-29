@@ -81,6 +81,10 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   symlinks, and refuses read-only configs (`Writable`): renaming over a Home
   Manager link would otherwise silently replace it. `status` notes when the
   source differs from the installed copy.
+- **clonager's own options** (as opposed to repos) go in
+  `~/.config/clonager/settings.json` (`config.ReadSettings`), which the Home
+  Manager module writes from its options (e.g. `discoverPaths`), not in the
+  YAML config.
 - **`cli.ConfigHook` is the one exception to the allowlist:** it runs the
   user's decrypt/encrypt commands with `sh -c`. Use it only for those.
 - **The config is edited as a `yaml.Node` tree** so comments and ordering
