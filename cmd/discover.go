@@ -88,7 +88,7 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 				err = cfg.Add(repo, dir)
 			}
 			if err != nil {
-				skipped = append(skipped, row{path: config.TildePath(path), detail: err.Error()})
+				skipped = append(skipped, row{path: path, detail: err.Error()})
 				continue
 			}
 			var notes []string
@@ -98,13 +98,13 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 			for _, r := range repo.Remotes {
 				notes = append(notes, styleBranch.Render("+"+r.Name))
 			}
-			added = append(added, row{config.TildePath(path), repo.URL, strings.Join(notes, " ")})
+			added = append(added, row{path, repo.URL, strings.Join(notes, " ")})
 		}
 	}
 
 	pathW := 0
 	for _, r := range append(added, skipped...) {
-		pathW = max(pathW, len(r.path))
+		pathW = max(pathW, len(config.TildePath(r.path)))
 	}
 	printRows := func(heading, icon string, rows []row) {
 		if len(rows) == 0 {
@@ -112,7 +112,8 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 		}
 		lipgloss.Println(styleHeading.Render(heading))
 		for _, r := range rows {
-			line := fmt.Sprintf("  %s %-*s  %s  %s", icon, pathW, r.path, styleDim.Render(r.detail), r.notes)
+			path := fileLink(r.path, config.TildePath(r.path))
+			line := fmt.Sprintf("  %s %s  %s  %s", icon, padRight(path, pathW), styleDim.Render(r.detail), r.notes)
 			lipgloss.Println(strings.TrimRight(line, " "))
 		}
 		lipgloss.Println()
