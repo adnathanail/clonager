@@ -77,7 +77,9 @@ go build -o clonager .          # CGO_ENABLED=0 for the static release binary
   protected, and that the user can push. Never suggest remote changes for
   repos that aren't the user's (`ownsRemote`: `mine: false`, or no push
   access), and don't print "skipped" notes for them either: `prune` should say
-  "Nothing to prune" once everything actionable is done.
+  "Nothing to prune" once everything actionable is done — and never while a
+  check failed (`uncheckable`, `ForgeErr`: report the reason instead).
+  `TestPruneOutput` checks every uncommented line is a local-only git command.
 - Colours are basic ANSI (0–7) so they follow the terminal theme. Lip Gloss
   strips them automatically when output isn't a TTY.
 

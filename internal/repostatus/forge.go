@@ -72,14 +72,33 @@ func (s *Status) checkForge(g git) {
 		return
 	}
 
+	var prs []mergedPR
+	for _, list := range prLists {
+		prs = append(prs, list...)
+	}
+	s.applyForge(forgeData{origin: origin != "", info: info, live: live, prs: prs}, g.isAncestor)
+}
+
+// forgeData is what checkForge fetched from GitHub.
+type forgeData struct {
+	origin bool                  // origin is on GitHub, so info and live are set
+	info   *GitHubRepo           // origin's settings and the user's permissions
+	live   map[string]liveBranch // origin's branches, by name
+	prs    []mergedPR            // merged PRs across all GitHub remotes, newest first
+}
+
+// applyForge updates the status with what GitHub says. isAncestor(a, b)
+// reports whether commit a is in b's history. Kept apart from the fetching so
+// it can be tested with made-up data.
+func (s *Status) applyForge(d forgeData, isAncestor func(a, b string) bool) {
 	// origin's live branches, to spot stale refs and branches pushed to since
 	// the last fetch.
 	liveTip := map[string]string{} // Ref -> commit on GitHub
-	if origin != "" {
-		s.GitHub = info
+	if d.origin {
+		s.GitHub = d.info
 		for i := range s.RemoteBranches {
 			rb := &s.RemoteBranches[i]
-			switch b, ok := live[rb.Name]; {
+			switch b, ok := d.live[rb.Name]; {
 			case !ok:
 				rb.Stale = true
 			case b.protected:
@@ -104,15 +123,13 @@ func (s *Status) checkForge(g git) {
 		}
 	}
 	byBranch := map[string][]mergedPR{}
-	for _, prs := range prLists {
-		for _, pr := range prs {
-			byBranch[pr.HeadRefName] = append(byBranch[pr.HeadRefName], pr)
-		}
+	for _, pr := range d.prs {
+		byBranch[pr.HeadRefName] = append(byBranch[pr.HeadRefName], pr)
 	}
 	// mergedPRFor finds a merged PR whose head is or contains tip.
 	mergedPRFor := func(name, tip string) (pr int, found bool) {
 		for _, p := range byBranch[name] {
-			if p.HeadRefOid == tip || g.isAncestor(tip, p.HeadRefOid) {
+			if p.HeadRefOid == tip || isAncestor(tip, p.HeadRefOid) {
 				return p.Number, true
 			}
 		}

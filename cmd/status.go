@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -11,6 +12,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 
+	"github.com/adnathanail/clonager/internal/cli"
 	"github.com/adnathanail/clonager/internal/config"
 	"github.com/adnathanail/clonager/internal/repostatus"
 )
@@ -30,9 +32,13 @@ branches that aren't on a remote, branches with unpushed commits, and
 GitButler workspace state.
 
 Branches already merged into the default branch (as a merge, fast-forward,
-rebase or squash) are listed separately and don't need attention. With
---forge, GitHub is also asked (via gh) about merged PRs, which catches squash
-merges that later changes on the default branch hide from git.
+rebase or squash) are listed separately and don't need attention, as are
+origin's merged branches.
+
+With --forge, GitHub is also asked (via gh):
+  - about merged PRs, which catches merges git alone can't see
+  - which of origin's branches still exist, to spot stale remote refs
+  - whether the repo deletes merged branches automatically
 
 Remote state is as of each repo's last fetch; status never fetches.`,
 	Args: cobra.NoArgs,
@@ -42,12 +48,15 @@ Remote state is as of each repo's last fetch; status never fetches.`,
 func init() {
 	statusCmd.Flags().BoolVarP(&statusFlags.verbose, "verbose", "v", false, "list the branches behind each count")
 	statusCmd.Flags().BoolVarP(&statusFlags.problems, "problems", "p", false, "only show repos that need attention")
-	statusCmd.Flags().BoolVarP(&statusFlags.forge, "forge", "f", false, "also check GitHub (via gh) for merged PRs")
+	statusCmd.Flags().BoolVarP(&statusFlags.forge, "forge", "f", false, "also check GitHub (via gh): merged PRs, stale refs, repo settings")
 	statusCmd.Flags().StringSliceVarP(&statusFlags.tags, "tag", "t", nil, "only show repos with this tag (repeatable)")
 	rootCmd.AddCommand(statusCmd)
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
+	if err := checkForgeAvailable(statusFlags.forge); err != nil {
+		return err
+	}
 	cfg, err := loadConfig()
 	if err != nil {
 		return err
@@ -68,6 +77,15 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		reports[i] = buildReport(s)
 	}
 	printReports(reports)
+	return nil
+}
+
+// checkForgeAvailable fails early if --forge was given without gh installed,
+// rather than reporting it for every repo.
+func checkForgeAvailable(forge bool) error {
+	if forge && !cli.Installed("gh") {
+		return errors.New("--forge needs the GitHub CLI (gh) on your PATH")
+	}
 	return nil
 }
 
