@@ -100,6 +100,10 @@ Shows every configured repo, grouped by folder: ✓ is fine, ● needs attention
   needing attention)
 - **Merged branches** — branches already in the default branch are listed
   separately, as safe to delete, rather than as local-only or unpushed
+- **Remote branches** — `origin`'s branches that are merged. With `--forge`,
+  also stale remote refs (branches already deleted on GitHub, still in your
+  clone until `git remote prune`), and repos where GitHub doesn't delete
+  merged branches automatically
 - **GitButler** — applied branches, conflicted commits, branches needing a
   force push, and repos marked `gitbutler: true` that aren't in the workspace
 
@@ -108,9 +112,11 @@ Shows every configured repo, grouped by folder: ✓ is fine, ● needs attention
 | `-v`, `--verbose` | list the branches behind each count |
 | `-p`, `--problems` | only show repos that need attention |
 | `-t`, `--tag <tag>` | only show repos with this tag (repeatable) |
-| `-f`, `--forge` | also check GitHub for merged PRs (see below) |
+| `-f`, `--forge` | also check GitHub, via `gh` (see below) |
 
-Remote state is as of each repo's last fetch: `status` never fetches.
+Remote state is as of each repo's last fetch: `status` never fetches. With
+`--forge` it takes a few seconds, mostly waiting on GitHub for repos with long
+PR histories.
 
 ### `clonager discover <dir>...`
 
@@ -133,9 +139,9 @@ similar.
 
 ### `clonager prune`
 
-Prints the git commands to delete local branches already merged into their
-repo's default branch (see [below](#how-merged-branches-are-detected)). It
-never deletes anything itself: review the output, then run it.
+Prints the commands to tidy up merged branches (see
+[below](#how-merged-branches-are-detected)). It never deletes anything itself:
+review the output, then run it.
 
 ```
 $ clonager prune -f
@@ -143,8 +149,11 @@ $ clonager prune -f
 git -C ~/Documents/Work/work-stuff branch -D fix-login  # rebased into origin/main
 git -C ~/Documents/Work/work-stuff branch -D new-reports  # merged in PR #42
 # git -C ~/Documents/Work/work-stuff branch -D old-export  # PR #37 was merged, but not from this branch's tip; check before deleting
+git -C ~/Documents/Work/work-stuff remote prune origin  # 3 refs deleted on GitHub: fix-login, new-reports, docs-typo
+# git -C ~/Documents/Work/work-stuff push origin --delete add-logging  # rebased into origin/main
+# gh repo edit acmeltd/work-stuff --delete-branch-on-merge  # delete branches when their PRs merge
 
-# 2 merged branches, plus 1 commented out to review
+# 2 merged local branches, 3 stale remote refs, 1 local commented out to review, 1 on GitHub commented out
 ```
 
 - Commands use `git branch -D`, since rebase- and squash-merged branches aren't
@@ -155,11 +164,22 @@ git -C ~/Documents/Work/work-stuff branch -D new-reports  # merged in PR #42
 - The checked-out branch, and branches applied in a GitButler workspace, are
   skipped with a note.
 
-To run the lot: `clonager prune | sh`.
+With `--forge` it also covers GitHub:
+
+- `git remote prune origin` for refs to branches already deleted on GitHub.
+  This only tidies your clone.
+- `git push origin --delete` for merged branches still on GitHub, **always
+  commented out**, as it changes the repo for everyone. Only for repos you can
+  push to, never for protected branches, and not for branches pushed to since
+  they were merged (e.g. bots reusing a branch for their next PR).
+- `gh repo edit --delete-branch-on-merge`, commented out, for repos you admin
+  that don't delete merged branches automatically.
+
+To run everything that isn't commented out: `clonager prune -f | sh`.
 
 | Flag | |
 |---|---|
-| `-f`, `--forge` | also check GitHub for merged PRs |
+| `-f`, `--forge` | also check GitHub, and cover branches there |
 | `-t`, `--tag <tag>` | only repos with this tag (repeatable) |
 
 ### `clonager completion <shell>`
@@ -175,20 +195,24 @@ See `clonager completion --help` for bash, fish and PowerShell.
 ## How merged branches are detected
 
 Rebase and squash merges create new commits, so a merged branch isn't
-necessarily in the default branch's history. For each local branch, clonager
-compares it with the default branch (`origin/HEAD`, else `origin/main` or
-`origin/master`). That includes branches that are pushed and up to date, since
-a merged PR's branch isn't always deleted from the remote:
+necessarily in the default branch's history. For each local branch, and each of
+`origin`'s branches, clonager compares it with the default branch
+(`origin/HEAD`, else `origin/main` or `origin/master`):
 
 1. **Ancestor** — the branch tip is in the default branch's history (merge
-   commits, fast-forwards).
+   commits, fast-forwards), or the only commits beyond it are merges.
 2. **Rebased** — every commit on the branch has a patch-identical commit on the
-   default branch, using `git patch-id` (as `git cherry` does).
+   default branch, using `git patch-id` (as `git cherry` does). This also
+   catches single-commit squash merges.
 3. **Squashed** — the branch's whole diff matches one commit on the default
-   branch.
+   branch. (Local branches only.)
 
-These never give false positives, but a squash merge is missed if the default
-branch later changed the same lines.
+A patch-id match is always required, so these never give false positives. To
+keep this fast, patch-ids are only computed for likely matches: default-branch
+commits with the same author and subject (ignoring a trailing `(#123)`) for
+rebases, or touching the same files for squashes. So a merge is missed if the
+default branch later changed the same lines, if the commit messages were
+reworded, or if it's more than 10,000 commits back.
 
 With `--forge`, branches still unexplained are checked against merged GitHub
 PRs using `gh pr list`. A branch counts as merged if a merged PR's head is its

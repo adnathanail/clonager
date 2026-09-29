@@ -85,6 +85,26 @@ func TestCheckMerged(t *testing.T) {
 	commit("po", "1")
 	run(work, "push", "-q", "-u", "origin", "pushedOpen")
 
+	// squashedOne: a single commit, squash-merged on GitHub (new date, PR
+	// number appended to the subject)
+	run(work, "checkout", "-q", "-b", "squashedOne", "main")
+	commit("so", "1")
+	run(work, "checkout", "-q", "main")
+	run(work, "merge", "-q", "--squash", "squashedOne")
+	run(work, "commit", "-q", "-m", "so: 1 (#12)")
+
+	// mergeOnly: nothing beyond main but a merge of main into it
+	run(work, "checkout", "-q", "-b", "mergeOnly", "main~1")
+	run(work, "merge", "-q", "--no-ff", "-m", "merge main", "main")
+
+	// orphan: unrelated history (like gh-pages), which must not stop the
+	// other branches being checked
+	run(work, "checkout", "-q", "--orphan", "orphan")
+	run(work, "rm", "-rq", "--cached", ".")
+	commit("site", "1")
+	run(work, "push", "-q", "origin", "orphan")
+	run(work, "checkout", "-q", "-f", "main")
+
 	// unmerged
 	run(work, "checkout", "-q", "-b", "unmerged", "main")
 	commit("u", "1")
@@ -100,14 +120,17 @@ func TestCheckMerged(t *testing.T) {
 		t.Errorf("default branch %q, want origin/main", s.DefaultBranch)
 	}
 	want := map[string]string{
-		"main":       "",
-		"ff":         MergedAncestor,
-		"rebased":    MergedRebased,
-		"squashed":   MergedSquashed,
-		"partly":     "",
-		"pushed":     MergedRebased,
-		"pushedOpen": "",
-		"unmerged":   "",
+		"main":        "",
+		"ff":          MergedAncestor,
+		"rebased":     MergedRebased,
+		"squashed":    MergedSquashed,
+		"partly":      "",
+		"pushed":      MergedRebased,
+		"pushedOpen":  "",
+		"squashedOne": MergedRebased, // found by fingerprint, subject suffix ignored
+		"mergeOnly":   MergedAncestor,
+		"orphan":      "",
+		"unmerged":    "",
 	}
 	for _, b := range s.Branches {
 		w, ok := want[b.Name]
@@ -130,6 +153,23 @@ func TestCheckMerged(t *testing.T) {
 	}
 	if got := strings.Join(localOnly, ","); got != "partly,unmerged" {
 		t.Errorf("local-only %q, want partly,unmerged", got)
+	}
+
+	// origin's branches get the same checks
+	wantRemote := map[string]string{"main": "", "pushed": MergedRebased, "pushedOpen": "", "orphan": ""}
+	for _, rb := range s.RemoteBranches {
+		w, ok := wantRemote[rb.Name]
+		if !ok {
+			t.Errorf("unexpected remote branch %s", rb.Ref)
+			continue
+		}
+		if rb.Merged != w {
+			t.Errorf("%s: merged %q, want %q", rb.Ref, rb.Merged, w)
+		}
+		delete(wantRemote, rb.Name)
+	}
+	for name := range wantRemote {
+		t.Errorf("remote branch origin/%s missing", name)
 	}
 }
 

@@ -29,7 +29,15 @@ the default branch's history and git branch -d would refuse them.
 
 Branches whose merged PR doesn't contain the local tip (found with --forge) are
 printed commented out, as they may hold work that never made it in. The
-checked-out branch and branches applied in a GitButler workspace are skipped.`,
+checked-out branch and branches applied in a GitButler workspace are skipped.
+
+With --forge, it also prints:
+  - git remote prune for refs to branches already deleted on GitHub
+  - git push origin --delete for merged branches still on GitHub, commented
+    out as it changes the repo for everyone (only for repos you can push to,
+    and never for protected branches)
+  - gh repo edit --delete-branch-on-merge, commented out, for repos you admin
+    that don't delete merged branches automatically`,
 	Args: cobra.NoArgs,
 	RunE: runPrune,
 }
@@ -49,7 +57,7 @@ func runPrune(cmd *cobra.Command, args []string) error {
 	statuses := inspectAll(repos, repostatus.Options{Forge: pruneFlags.forge})
 
 	comment := func(s string) string { return styleDim.Render("# " + s) }
-	deletes, review := 0, 0
+	deletes, review, stale, onGitHub := 0, 0, 0, 0
 	first := true
 	for _, s := range statuses {
 		if s.Missing || s.Err != nil {
@@ -85,6 +93,43 @@ func runPrune(cmd *cobra.Command, args []string) error {
 				deletes++
 			}
 		}
+
+		// Stale remote-tracking refs: tidying them only touches this clone.
+		if bs := s.StaleRemote(); len(bs) > 0 {
+			var names []string
+			for i, b := range bs {
+				if i == 5 {
+					names = append(names, fmt.Sprintf("and %d more", len(bs)-5))
+					break
+				}
+				names = append(names, b.Name)
+			}
+			lines = append(lines, "git -C "+shellPath(s.Repo.Path)+" remote prune origin  "+
+				comment(plural(len(bs), "ref", "refs")+" deleted on GitHub: "+strings.Join(names, ", ")))
+			stale += len(bs)
+		}
+
+		// Merged branches still on GitHub. Only with --forge, which knows
+		// they're really there, aren't protected, and that you can push.
+		// Always commented out: deleting them affects everyone.
+		if gh := s.GitHub; gh != nil {
+			bs := s.MergedRemote()
+			switch {
+			case len(bs) > 0 && !gh.CanPush:
+				lines = append(lines, comment(fmt.Sprintf("skipped %s merged on GitHub: no push access to %s",
+					plural(len(bs), "branch", "branches"), gh.Name)))
+			case len(bs) > 0:
+				for _, b := range bs {
+					lines = append(lines, comment("git -C "+shellPath(s.Repo.Path)+" push origin --delete "+
+						shellQuote(b.Name)+"  # "+describeMerge(b.Merged, b.PR, s.DefaultBranch)))
+				}
+				onGitHub += len(bs)
+			}
+			if gh.Admin && gh.AutoDelete != nil && !*gh.AutoDelete {
+				lines = append(lines, comment("gh repo edit "+gh.Name+" --delete-branch-on-merge  # delete branches when their PRs merge"))
+			}
+		}
+
 		if len(lines) == 0 {
 			continue
 		}
@@ -96,19 +141,30 @@ func runPrune(cmd *cobra.Command, args []string) error {
 		fmt.Println(strings.Join(lines, "\n"))
 	}
 
-	if deletes == 0 && review == 0 {
-		fmt.Println(comment("Nothing to prune"))
-		return nil
+	if !first {
+		fmt.Println()
 	}
-	fmt.Println()
-	summary := plural(deletes, "merged branch", "merged branches")
+	var summary []string
+	if deletes > 0 {
+		summary = append(summary, plural(deletes, "merged local branch", "merged local branches"))
+	}
+	if stale > 0 {
+		summary = append(summary, plural(stale, "stale remote ref", "stale remote refs"))
+	}
 	if review > 0 {
-		summary += fmt.Sprintf(", plus %d commented out to review", review)
+		summary = append(summary, fmt.Sprintf("%d local commented out to review", review))
 	}
+	if onGitHub > 0 {
+		summary = append(summary, fmt.Sprintf("%d on GitHub commented out", onGitHub))
+	}
+	if len(summary) == 0 {
+		summary = append(summary, "Nothing to prune")
+	}
+	line := strings.Join(summary, ", ")
 	if !pruneFlags.forge {
-		summary += " (--forge also checks GitHub for merged PRs)"
+		line += " (--forge also checks GitHub for merged PRs, stale refs and merged branches there)"
 	}
-	fmt.Println(comment(summary))
+	fmt.Println(comment(line))
 	return nil
 }
 

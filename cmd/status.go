@@ -212,6 +212,23 @@ func buildReport(s *repostatus.Status) report {
 	if s.ForgeErr != nil {
 		add(sevError, s.ForgeErr.Error())
 	}
+
+	// origin's branches
+	if bs := s.StaleRemote(); len(bs) > 0 {
+		add(sevInfo, plural(len(bs), "stale remote ref", "stale remote refs"), remoteNames(bs, nil)...)
+	}
+	if bs := s.MergedRemote(); len(bs) > 0 {
+		where := "on origin"
+		if s.GitHub != nil {
+			where = "on GitHub"
+		}
+		add(sevInfo, plural(len(bs), "merged branch", "merged branches")+" "+where, remoteNames(bs, func(b repostatus.RemoteBranch) string {
+			return describeMerge(b.Merged, b.PR, s.DefaultBranch)
+		})...)
+	}
+	if gh := s.GitHub; gh != nil && gh.AutoDelete != nil && !*gh.AutoDelete {
+		add(sevInfo, "GitHub doesn't auto-delete merged branches")
+	}
 	if bs := s.Behind(); len(bs) > 0 {
 		add(sevInfo, plural(len(bs), "branch", "branches")+" behind", branchNames(bs, func(b repostatus.Branch) string {
 			return fmt.Sprintf("-%d vs %s", b.Behind, b.Remote)
@@ -263,7 +280,11 @@ func buildReport(s *repostatus.Status) report {
 
 // mergedHow describes how a merged branch got into the default branch.
 func mergedHow(b repostatus.Branch, defaultBranch string) string {
-	switch b.Merged {
+	return describeMerge(b.Merged, b.PR, defaultBranch)
+}
+
+func describeMerge(merged string, pr int, defaultBranch string) string {
+	switch merged {
 	case repostatus.MergedAncestor:
 		return "in " + defaultBranch
 	case repostatus.MergedRebased:
@@ -271,9 +292,20 @@ func mergedHow(b repostatus.Branch, defaultBranch string) string {
 	case repostatus.MergedSquashed:
 		return "squashed into " + defaultBranch
 	case repostatus.MergedPR:
-		return fmt.Sprintf("merged in PR #%d", b.PR)
+		return fmt.Sprintf("merged in PR #%d", pr)
 	}
-	return b.Merged
+	return merged
+}
+
+func remoteNames(bs []repostatus.RemoteBranch, extra func(repostatus.RemoteBranch) string) []string {
+	out := make([]string, len(bs))
+	for i, b := range bs {
+		out[i] = b.Name
+		if extra != nil {
+			out[i] += styleDim.Render(" (" + extra(b) + ")")
+		}
+	}
+	return out
 }
 
 func branchNames(bs []repostatus.Branch, extra func(repostatus.Branch) string) []string {

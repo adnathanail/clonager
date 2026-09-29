@@ -28,6 +28,19 @@ type Branch struct {
 	PRDiffers bool   // a PR for this branch was merged, but without the local tip
 }
 
+// RemoteBranch is one of origin's branches, as of the last fetch.
+type RemoteBranch struct {
+	Name   string // branch name on the remote, e.g. fix-login
+	Ref    string // remote-tracking ref, e.g. origin/fix-login
+	Tip    string
+	Merged string // how it was merged into the default branch (Merged* consts), or empty
+	PR     int    // merged PR for this branch, when checked with the forge
+
+	// Only known when checked with the forge:
+	Stale bool // deleted on the forge; only the local remote-tracking ref is left
+	Moved bool // on the forge, but with commits beyond what was merged (e.g. a bot reusing its branch)
+}
+
 type GitButlerMode int
 
 const (
@@ -62,8 +75,19 @@ type Status struct {
 	RemoteURLs map[string]string
 	GitButler  GitButler
 
-	DefaultBranch string // e.g. origin/main; what merged checks compare against
-	ForgeErr      error  // the forge check was requested but failed
+	RemoteBranches []RemoteBranch // origin's branches, other than HEAD
+
+	DefaultBranch string      // e.g. origin/main; what merged checks compare against
+	GitHub        *GitHubRepo // origin on GitHub, when checked with the forge
+	ForgeErr      error       // the forge check was requested but failed
+}
+
+// GitHubRepo is what the forge check learns about origin on GitHub.
+type GitHubRepo struct {
+	Name       string // owner/repo
+	AutoDelete *bool  // delete head branches when PRs merge; nil if not visible (needs admin)
+	CanPush    bool
+	Admin      bool
 }
 
 type Options struct {
@@ -101,6 +125,30 @@ func (s *Status) MergedBranches() []Branch {
 // DiffersFromPR lists branches whose PR was merged without the local tip.
 func (s *Status) DiffersFromPR() []Branch {
 	return filterBranches(s.Branches, func(b Branch) bool { return b.PRDiffers })
+}
+
+// MergedRemote lists origin's branches that are merged into the default
+// branch and, as far as is known, still on the remote. Without the forge
+// check this is as of the last fetch, so may include stale refs.
+func (s *Status) MergedRemote() []RemoteBranch {
+	var out []RemoteBranch
+	for _, rb := range s.RemoteBranches {
+		if rb.Merged != "" && !rb.Stale && !rb.Moved {
+			out = append(out, rb)
+		}
+	}
+	return out
+}
+
+// StaleRemote lists remote-tracking refs for branches deleted on the forge.
+func (s *Status) StaleRemote() []RemoteBranch {
+	var out []RemoteBranch
+	for _, rb := range s.RemoteBranches {
+		if rb.Stale {
+			out = append(out, rb)
+		}
+	}
+	return out
 }
 
 // Behind lists branches their remote counterpart has moved past (as of the
@@ -188,14 +236,22 @@ func (s *Status) readWorkingTree(g git) error {
 }
 
 func (s *Status) readBranches(g git) error {
-	remoteRefs, err := g.run("for-each-ref", "--format=%(refname:short)", "refs/remotes")
+	remoteRefs, err := g.run("for-each-ref", "--format=%(refname)%00%(objectname)", "refs/remotes")
 	if err != nil {
 		return err
 	}
 	var remoteNames []string
 	onRemote := map[string]bool{}
-	for _, ref := range strings.Split(remoteRefs, "\n") {
+	for _, line := range strings.Split(remoteRefs, "\n") {
+		full, tip, ok := strings.Cut(line, "\x00")
+		if !ok || strings.HasSuffix(full, "/HEAD") {
+			continue
+		}
+		ref := strings.TrimPrefix(full, "refs/remotes/")
 		onRemote[ref] = true
+		if name, ok := strings.CutPrefix(ref, "origin/"); ok {
+			s.RemoteBranches = append(s.RemoteBranches, RemoteBranch{Name: name, Ref: ref, Tip: tip})
+		}
 	}
 	if out, err := g.run("remote"); err == nil && out != "" {
 		remoteNames = strings.Split(out, "\n")

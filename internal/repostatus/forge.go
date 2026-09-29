@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // githubRepo matches the owner/name in GitHub clone URLs: git@github.com:o/r.git,
@@ -21,28 +22,21 @@ type mergedPR struct {
 	HeadRefOid  string `json:"headRefOid"`
 }
 
-// checkForge asks GitHub, via gh, about branches the local checks couldn't
-// explain. A branch is merged if a merged PR's head is (or contains) the
-// local tip; a merged PR whose head doesn't contain the tip means there's
-// local work that never made it in.
+// checkForge asks GitHub, via gh, about what the local checks couldn't
+// settle:
+//
+//   - Local branches: merged if a merged PR's head is (or contains) the local
+//     tip. A merged PR whose head doesn't contain the tip of an otherwise
+//     flagged branch means there may be local work that never made it in.
+//   - origin's branches: whether each still exists on GitHub (if not, the
+//     local ref is stale), and whether it's merged at the commit GitHub has.
 func (s *Status) checkForge(g git) {
-	var pending []*Branch
-	for i := range s.Branches {
-		b := &s.Branches[i]
-		if b.Name != s.defaultBranchName() && b.Merged == "" {
-			pending = append(pending, b)
-		}
-	}
-	if len(pending) == 0 {
-		return
-	}
-
-	var repos []string
+	var repos []string // every GitHub remote, origin first
 	seen := map[string]bool{}
 	for _, name := range sortedKeys(s.RemoteURLs) {
-		if m := githubRepo.FindStringSubmatch(s.RemoteURLs[name]); m != nil && !seen[m[1]] {
-			seen[m[1]] = true
-			repos = append(repos, m[1])
+		if repo := githubName(s.RemoteURLs[name]); repo != "" && !seen[repo] {
+			seen[repo] = true
+			repos = append(repos, repo)
 		}
 	}
 	if len(repos) == 0 {
@@ -53,41 +47,162 @@ func (s *Status) checkForge(g git) {
 		return
 	}
 
-	byBranch := map[string][]mergedPR{}
-	for _, repo := range repos {
-		prs, err := listMergedPRs(repo)
-		if err != nil {
-			s.ForgeErr = err
-			return
+	// The API calls are independent, so run them at once: the merged PR list
+	// can take seconds for a busy repo.
+	origin := githubName(s.OriginURL)
+	var (
+		wg      sync.WaitGroup
+		info    *GitHubRepo
+		live    map[string]liveBranch
+		prLists = make([][]mergedPR, len(repos))
+		errs    = make([]error, len(repos)+2)
+	)
+	if origin != "" {
+		wg.Add(2)
+		go func() { defer wg.Done(); info, errs[0] = repoInfo(origin) }()
+		go func() { defer wg.Done(); live, errs[1] = listBranches(origin) }()
+	}
+	for i, repo := range repos {
+		wg.Add(1)
+		go func() { defer wg.Done(); prLists[i], errs[i+2] = listMergedPRs(repo) }()
+	}
+	wg.Wait()
+	if err := errors.Join(errs...); err != nil {
+		s.ForgeErr = firstError(errs)
+		return
+	}
+
+	// origin's live branches, to spot stale refs and branches pushed to since
+	// the last fetch.
+	liveTip := map[string]string{} // Ref -> commit on GitHub
+	if origin != "" {
+		s.GitHub = info
+		for i := range s.RemoteBranches {
+			rb := &s.RemoteBranches[i]
+			switch b, ok := live[rb.Name]; {
+			case !ok:
+				rb.Stale = true
+			case b.protected:
+				rb.Merged = "" // long-lived (main, develop, release branches); never suggest deleting
+			default:
+				liveTip[rb.Ref] = b.sha
+			}
 		}
+	}
+
+	var pendingLocal []*Branch
+	for i := range s.Branches {
+		if b := &s.Branches[i]; b.Name != s.defaultBranchName() && b.Merged == "" {
+			pendingLocal = append(pendingLocal, b)
+		}
+	}
+	var pendingRemote []*RemoteBranch
+	for i := range s.RemoteBranches {
+		rb := &s.RemoteBranches[i]
+		if tip, ok := liveTip[rb.Ref]; ok && rb.Ref != s.DefaultBranch && (rb.Merged == "" || tip != rb.Tip) {
+			pendingRemote = append(pendingRemote, rb)
+		}
+	}
+	byBranch := map[string][]mergedPR{}
+	for _, prs := range prLists {
 		for _, pr := range prs {
 			byBranch[pr.HeadRefName] = append(byBranch[pr.HeadRefName], pr)
 		}
 	}
-
-	for _, b := range pending {
-		prs := byBranch[b.Name]
-		if len(prs) == 0 {
-			continue
-		}
-		for _, pr := range prs {
-			if pr.HeadRefOid == b.Tip || g.isAncestor(b.Tip, pr.HeadRefOid) {
-				b.Merged, b.PR = MergedPR, pr.Number
-				break
+	// mergedPRFor finds a merged PR whose head is or contains tip.
+	mergedPRFor := func(name, tip string) (pr int, found bool) {
+		for _, p := range byBranch[name] {
+			if p.HeadRefOid == tip || g.isAncestor(tip, p.HeadRefOid) {
+				return p.Number, true
 			}
 		}
-		// Only a warning for branches that are flagged anyway: a long-lived
-		// branch that's up to date with its remote (develop, say) will have
-		// had PRs merged from older commits.
-		if b.Merged == "" && b.flagged() {
+		return 0, false
+	}
+
+	for _, b := range pendingLocal {
+		if pr, ok := mergedPRFor(b.Name, b.Tip); ok {
+			b.Merged, b.PR = MergedPR, pr
+		} else if prs := byBranch[b.Name]; len(prs) > 0 && b.flagged() {
+			// Only a warning for branches that are flagged anyway: a
+			// long-lived branch that's up to date with its remote (develop,
+			// say) will have had PRs merged from older commits.
 			b.PR, b.PRDiffers = prs[0].Number, true // gh lists newest first
+		}
+	}
+
+	for _, rb := range pendingRemote {
+		tip := liveTip[rb.Ref]
+		if pr, ok := mergedPRFor(rb.Name, tip); ok {
+			rb.Merged, rb.PR = MergedPR, pr
+			continue
+		}
+		prs := byBranch[rb.Name]
+		if rb.Merged != "" || len(prs) > 0 {
+			// Merged at some point, but GitHub's copy has moved on since.
+			rb.Moved = true
+			if len(prs) > 0 {
+				rb.PR = prs[0].Number
+			}
 		}
 	}
 }
 
-func listMergedPRs(repo string) ([]mergedPR, error) {
-	cmd := exec.Command("gh", "pr", "list", "--repo", repo, "--state", "merged",
-		"--limit", "1000", "--json", "number,headRefName,headRefOid")
+func firstError(errs []error) error {
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func githubName(url string) string {
+	if m := githubRepo.FindStringSubmatch(url); m != nil {
+		return m[1]
+	}
+	return ""
+}
+
+func repoInfo(repo string) (*GitHubRepo, error) {
+	out, err := gh("api", "repos/"+repo, "--jq",
+		"{autoDelete: .delete_branch_on_merge, push: .permissions.push, admin: .permissions.admin}")
+	if err != nil {
+		return nil, err
+	}
+	var v struct {
+		AutoDelete *bool `json:"autoDelete"`
+		Push       bool  `json:"push"`
+		Admin      bool  `json:"admin"`
+	}
+	if err := json.Unmarshal(out, &v); err != nil {
+		return nil, fmt.Errorf("gh api repos/%s: unexpected output: %w", repo, err)
+	}
+	return &GitHubRepo{Name: repo, AutoDelete: v.AutoDelete, CanPush: v.Push, Admin: v.Admin}, nil
+}
+
+type liveBranch struct {
+	sha       string
+	protected bool
+}
+
+func listBranches(repo string) (map[string]liveBranch, error) {
+	out, err := gh("api", "--paginate", "repos/"+repo+"/branches?per_page=100", "--jq",
+		`.[] | [.name, .commit.sha, (.protected | tostring)] | @tsv`)
+	if err != nil {
+		return nil, err
+	}
+	branches := map[string]liveBranch{}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if f := strings.Split(line, "\t"); len(f) == 3 {
+			branches[f[0]] = liveBranch{sha: f[1], protected: f[2] == "true"}
+		}
+	}
+	return branches, nil
+}
+
+// gh runs the GitHub CLI, returning stdout.
+func gh(args ...string) ([]byte, error) {
+	cmd := exec.Command("gh", args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
@@ -95,10 +210,19 @@ func listMergedPRs(repo string) ([]mergedPR, error) {
 		if msg == "" {
 			msg = err.Error()
 		}
-		return nil, fmt.Errorf("gh pr list %s: %s", repo, msg)
+		return nil, fmt.Errorf("gh %s: %s", strings.Join(args[:min(2, len(args))], " "), msg)
+	}
+	return stdout.Bytes(), nil
+}
+
+func listMergedPRs(repo string) ([]mergedPR, error) {
+	out, err := gh("pr", "list", "--repo", repo, "--state", "merged",
+		"--limit", "1000", "--json", "number,headRefName,headRefOid")
+	if err != nil {
+		return nil, err
 	}
 	var prs []mergedPR
-	if err := json.Unmarshal(stdout.Bytes(), &prs); err != nil {
+	if err := json.Unmarshal(out, &prs); err != nil {
 		return nil, fmt.Errorf("gh pr list %s: unexpected output: %w", repo, err)
 	}
 	return prs, nil

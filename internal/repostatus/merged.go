@@ -1,6 +1,10 @@
 package repostatus
 
-import "strings"
+import (
+	"fmt"
+	"regexp"
+	"strings"
+)
 
 // How a branch was found to be merged into the default branch.
 const (
@@ -35,39 +39,83 @@ func (s *Status) defaultBranchName() string {
 }
 
 // checkMerged sets Merged on every branch other than the default one that's
-// already in the default branch, using only local git data. That includes
-// pushed, up-to-date branches: a merged PR's branch often outlives the merge
-// on the remote.
-//
-// Rebase and squash merges leave no trace in the history, so they're found by
-// patch-id: a branch is rebased in if every one of its commits has a
-// patch-identical commit on the default branch, and squashed in if its whole
-// diff matches one. Work is batched across branches so a repo with many
-// branches costs a handful of git processes rather than several per branch.
+// already in the default branch, using only local git data: local branches
+// (including pushed, up-to-date ones, as a merged PR's branch can outlive the
+// merge) and origin's remote-tracking branches.
 func (s *Status) checkMerged(g git) {
 	s.DefaultBranch = g.defaultBranch()
 	if s.DefaultBranch == "" {
 		return
 	}
-	base, baseName := s.DefaultBranch, s.defaultBranchName()
-
-	var cands []*Branch
+	var targets []mergeTarget
 	for i := range s.Branches {
-		b := &s.Branches[i]
-		if b.Name != baseName {
-			cands = append(cands, b)
+		if b := &s.Branches[i]; b.Name != s.defaultBranchName() {
+			targets = append(targets, mergeTarget{b.Tip, &b.Merged, true})
 		}
 	}
-	if len(cands) == 0 {
+	// Remote branches skip the squash check: busy remotes have many old
+	// branches, and diffing each against its fork point is slow.
+	for i := range s.RemoteBranches {
+		if rb := &s.RemoteBranches[i]; rb.Ref != s.DefaultBranch {
+			targets = append(targets, mergeTarget{rb.Tip, &rb.Merged, false})
+		}
+	}
+	g.classifyMerged(s.DefaultBranch, targets)
+}
+
+// A commit to check, and where to record how it was merged.
+type mergeTarget struct {
+	tip    string
+	merged *string
+	squash bool // also check for a squash merge
+}
+
+// maxBaseCommits caps how far back on the default branch merges are looked
+// for. Branches merged before the cap are reported unmerged instead.
+const maxBaseCommits = 10000
+
+// fingerprintFormat identifies a commit by what survives a rebase,
+// cherry-pick or single-commit squash merge: author and subject. (GitHub's
+// squash merges get a new date and a " (#123)" suffix; see parseFingerprints.)
+const fingerprintFormat = "--format=%H%x00%ae%x00%s"
+
+var prSuffix = regexp.MustCompile(` \(#\d+\)$`)
+
+// classifyMerged records, for each target, whether and how its tip is merged
+// into base.
+//
+// Rebase and squash merges leave no trace in the history, so they're found by
+// patch-id: a branch is rebased in if every one of its commits has a
+// patch-identical commit on base, and squashed in if its whole diff matches
+// one. Computing patch-ids means diffing, which is slow over a long history,
+// so candidates are found cheaply first: for rebases, base commits with the
+// same author, date and subject; for squashes, base commits touching the same
+// files. Work is batched across branches so a repo with many branches costs a
+// handful of git processes rather than several per branch.
+func (g git) classifyMerged(base string, targets []mergeTarget) {
+	var tips []string
+	seenTip := map[string]bool{}
+	squash := map[string]bool{}
+	for _, t := range targets {
+		if !seenTip[t.tip] {
+			seenTip[t.tip] = true
+			tips = append(tips, t.tip)
+		}
+		squash[t.tip] = squash[t.tip] || t.squash
+	}
+	if len(tips) == 0 {
 		return
 	}
-	tips := make([]string, len(cands))
-	for i, b := range cands {
-		tips[i] = b.Tip
-	}
+	result := map[string]string{}
+	defer func() {
+		for _, t := range targets {
+			*t.merged = result[t.tip]
+		}
+	}()
+	notBase := strings.Join(append(tips, "--not", base), "\n")
 
-	// Every commit on a candidate branch but not on base, with its parents.
-	out, err := g.runStdin(strings.Join(append(tips, "--not", base), "\n"), "rev-list", "--parents", "--stdin")
+	// Every commit on a target but not on base, with its parents.
+	out, err := g.runStdin(notBase, "rev-list", "--parents", "--stdin")
 	if err != nil {
 		return
 	}
@@ -78,16 +126,16 @@ func (s *Status) checkMerged(g git) {
 		}
 	}
 
-	// Each branch's own commits (excluding merges), by walking back from its
-	// tip until reaching commits that are on base.
-	own := make([][]string, len(cands))
-	for i, b := range cands {
-		if _, ok := parents[b.Tip]; !ok {
-			b.Merged = MergedAncestor // the tip is on base
+	// Each tip's own commits (excluding merges), by walking back from it
+	// until reaching commits that are on base. A tip with none is on base.
+	own := map[string][]string{}
+	for _, tip := range tips {
+		if _, ok := parents[tip]; !ok {
+			result[tip] = MergedAncestor
 			continue
 		}
 		seen := map[string]bool{}
-		stack := []string{b.Tip}
+		stack := []string{tip}
 		for len(stack) > 0 {
 			c := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
@@ -97,67 +145,152 @@ func (s *Status) checkMerged(g git) {
 			}
 			seen[c] = true
 			if len(ps) < 2 {
-				own[i] = append(own[i], c)
+				own[tip] = append(own[tip], c)
 			}
 			stack = append(stack, ps...)
+		}
+		if len(own[tip]) == 0 {
+			// Only merge commits beyond base (e.g. base merged back in, or a
+			// GitButler workspace commit): everything else is on base.
+			result[tip] = MergedAncestor
 		}
 	}
 	if len(parents) == 0 {
 		return
 	}
 
-	// Patch-ids for those commits, and for base since the common ancestor of
-	// every branch (which covers each branch's fork point).
-	branchIDs, err := g.patchIDMap(strings.Join(append(tips, "--not", base), "\n"))
+	// Recent base commits, by fingerprint. (Not bounded by the tips' common
+	// ancestor: a branch with unrelated history, like gh-pages, has none.)
+	baseByFP := map[string][]string{}
+	out, err = g.run("log", "--no-merges", fmt.Sprintf("--max-count=%d", maxBaseCommits), fingerprintFormat, base)
 	if err != nil {
 		return
 	}
-	since, err := g.run(append([]string{"merge-base", "--octopus", base}, tips...)...)
+	for commit, fp := range parseFingerprints(out) {
+		baseByFP[fp] = append(baseByFP[fp], commit)
+	}
+	out, err = g.runStdin(notBase, "log", "--no-merges", fingerprintFormat, "--stdin")
 	if err != nil {
 		return
 	}
-	baseIDs, err := g.patchIDMap(base + "\n--not\n" + since)
-	if err != nil {
-		return
-	}
-	onBase := map[string]bool{}
-	for _, id := range baseIDs {
-		onBase[id] = true
-	}
+	ownFP := parseFingerprints(out)
 
-	for i, b := range cands {
-		if b.Merged != "" || len(own[i]) == 0 {
+	// Rebase candidates: tips whose every commit has a fingerprint match.
+	var candidates []string
+	var toDiff []string
+	for _, tip := range tips {
+		if result[tip] != "" || len(own[tip]) == 0 {
 			continue
 		}
-		var ids []string
-		for _, c := range own[i] {
-			if id := branchIDs[c]; id != "" { // empty commits have no patch-id
-				ids = append(ids, id)
+		matched := true
+		for _, c := range own[tip] {
+			if len(baseByFP[ownFP[c]]) == 0 {
+				matched = false
+				break
 			}
 		}
-		if len(ids) > 0 && allIn(ids, onBase) {
-			b.Merged = MergedRebased
-		} else if len(own[i]) > 1 && g.squashMerged(b.Tip, base, onBase) {
-			b.Merged = MergedSquashed
+		if matched {
+			candidates = append(candidates, tip)
+			for _, c := range own[tip] {
+				toDiff = append(toDiff, c)
+				toDiff = append(toDiff, baseByFP[ownFP[c]]...)
+			}
+		}
+	}
+	if len(toDiff) > 0 {
+		if ids, err := g.commitPatchIDs(toDiff); err == nil {
+			for _, tip := range candidates {
+				if rebasedOnto(own[tip], ownFP, baseByFP, ids) {
+					result[tip] = MergedRebased
+				}
+			}
+		}
+	}
+
+	for _, tip := range tips {
+		if result[tip] == "" && squash[tip] && len(own[tip]) > 1 && g.squashMerged(tip, base) {
+			result[tip] = MergedSquashed
 		}
 	}
 }
 
+// rebasedOnto reports whether each commit has a fingerprint match on base
+// with the same patch-id. Empty commits have no patch-id, so for those the
+// fingerprint match alone counts, provided some commit has a patch.
+func rebasedOnto(commits []string, fps map[string]string, baseByFP map[string][]string, ids map[string]string) bool {
+	anyPatch := false
+	for _, c := range commits {
+		id := ids[c]
+		if id == "" {
+			continue
+		}
+		anyPatch = true
+		found := false
+		for _, b := range baseByFP[fps[c]] {
+			if ids[b] == id {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return anyPatch
+}
+
+func parseFingerprints(log string) map[string]string {
+	fps := map[string]string{}
+	for _, line := range strings.Split(log, "\n") {
+		if commit, fp, ok := strings.Cut(line, "\x00"); ok {
+			fps[commit] = prSuffix.ReplaceAllString(fp, "")
+		}
+	}
+	return fps
+}
+
+// commitPatchIDs returns commit -> patch-id for the given commits.
+func (g git) commitPatchIDs(commits []string) (map[string]string, error) {
+	return g.patchIDMap(strings.Join(commits, "\n"), "--no-walk")
+}
+
 // squashMerged reports whether the branch's whole diff since it forked from
-// base matches a patch on base.
-func (g git) squashMerged(tip, base string, onBase map[string]bool) bool {
+// base matches a commit on base, since the fork, touching the same files.
+func (g git) squashMerged(tip, base string) bool {
 	mb, err := g.run("merge-base", tip, base)
 	if err != nil {
 		return false
 	}
+	files, err := g.run("diff", "--name-only", "--no-renames", mb, tip)
+	if err != nil || files == "" {
+		return false
+	}
+	args := []string{"log", "--no-merges", "--format=%H", fmt.Sprintf("--max-count=%d", maxBaseCommits), mb + ".." + base, "--"}
+	cands, err := g.run(append(args, strings.Split(files, "\n")...)...)
+	if err != nil || cands == "" {
+		return false
+	}
 	ids, err := g.patchIDsOf("diff", "--no-color", "--no-ext-diff", mb, tip)
-	return err == nil && len(ids) == 1 && onBase[ids[0]]
+	if err != nil || len(ids) != 1 {
+		return false
+	}
+	candIDs, err := g.commitPatchIDs(strings.Split(cands, "\n"))
+	if err != nil {
+		return false
+	}
+	for _, id := range candIDs {
+		if id == ids[0] {
+			return true
+		}
+	}
+	return false
 }
 
 // patchIDMap returns commit -> patch-id for the non-merge commits in revs
 // (newline-separated, as for --stdin).
-func (g git) patchIDMap(revs string) (map[string]string, error) {
-	out, err := g.runStdin(revs, "log", "-p", "--no-merges", "--no-color", "--no-ext-diff", "--stdin")
+func (g git) patchIDMap(revs string, extra ...string) (map[string]string, error) {
+	args := append([]string{"log", "-p", "--no-merges", "--no-color", "--no-ext-diff"}, extra...)
+	out, err := g.runStdin(revs, append(args, "--stdin")...)
 	if err != nil {
 		return nil, err
 	}
@@ -173,15 +306,6 @@ func (g git) patchIDMap(revs string) (map[string]string, error) {
 		m[f[1]] = f[0]
 	}
 	return m, nil
-}
-
-func allIn(ids []string, set map[string]bool) bool {
-	for _, id := range ids {
-		if !set[id] {
-			return false
-		}
-	}
-	return true
 }
 
 // patchIDsOf runs a git command producing patches and returns their

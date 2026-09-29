@@ -48,10 +48,17 @@ go build -o clonager .          # CGO_ENABLED=0 for the static release binary
   a repo URL; a mapping with `url` is a repo with options (`remotes`,
   `gitbutler`, `tags`); any other mapping is a folder. Those option names are
   reserved and can't be folder names. Child keys can't contain `/`.
-- **Keep git process counts per repo roughly constant**, not per branch. Repos
-  can have dozens of stale branches; `checkMerged` batches with `rev-list
-  --stdin` and one `log -p | patch-id` per side for this reason. `status` across
-  ~25 repos should stay under a second.
+- **Keep git process counts per repo roughly constant**, not per branch, and
+  avoid `log -p` over long histories. Repos can have 150+ remote branches, some
+  forked years ago, and large diffs (notebooks, lockfiles). `classifyMerged`
+  batches with `--stdin` and only computes patch-ids for candidates found by
+  cheap means (author + subject fingerprints; files touched). `status` across
+  ~25 repos should stay under a second. To check it still agrees with git,
+  compare against `git cherry` per branch.
+- **Nothing that changes a shared remote is ever a runnable line in `prune`**
+  (`git push --delete`, `gh repo edit`): always commented out. Only suggest
+  deleting branches on GitHub with `--forge`, which knows they exist, aren't
+  protected, and that the user can push.
 - Colours are basic ANSI (0–7) so they follow the terminal theme. Lip Gloss
   strips them automatically when output isn't a TTY.
 
@@ -64,8 +71,18 @@ go build -o clonager .          # CGO_ENABLED=0 for the static release binary
   `gitbutler/workspace` (or the older `gitbutler/integration`); a
   `.git/gitbutler` directory alone means it was set up and later left.
 - **`git log A --not B C`** excludes commits reachable from *any* of B, C, which
-  gives the intersection of the ranges, not the union. For the union, use the
-  common ancestor from `git merge-base --octopus`.
+  gives the intersection of the ranges, not the union.
+- **`git merge-base --octopus` fails if any branch has unrelated history**
+  (`gh-pages` and other orphan branches). Don't depend on it for a whole repo's
+  branches: one orphan would silently disable checks for all of them.
+- **Remote-tracking refs go stale.** A branch deleted on GitHub stays in
+  `refs/remotes/origin/` until `git fetch --prune`/`git remote prune`, and
+  most clones don't prune automatically. Only `--forge` can tell stale from
+  live.
+- **GitHub squash merges** give the commit a new date and append ` (#123)` to
+  the subject; bots (renovate, pre-commit-ci) reuse a branch name for new PRs
+  after the old one merged, so a merged PR with that head name doesn't mean
+  the branch's current commits were merged.
 - **Don't use `os.UserConfigDir`** for the config path: on macOS it's
   `~/Library/Application Support`. `config.DefaultPath` handles this.
 - `g.run` trims trailing newlines, so add one back before piping output into
