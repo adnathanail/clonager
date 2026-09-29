@@ -5,7 +5,7 @@ and where it lives, so you can check them all at a glance and (soon) recreate
 them on a fresh machine.
 
 ```
-$ clonager status
+$ clonager
 ~/Documents/Projects
   23m ● you-cool-blog    ⧓ new-post  1 stash · 2 local-only branches
    7h ✓ asdf             main
@@ -24,8 +24,8 @@ $ clonager status
 clonager is a flake. Try it with:
 
 ```sh
-nix run github:adnathanail/clonager -- status          # latest commit on main
-nix run github:adnathanail/clonager/v0.2.0 -- status   # a release
+nix run github:adnathanail/clonager          # latest commit on main
+nix run github:adnathanail/clonager/v0.2.0   # a release
 ```
 
 Or install it, and its config, with the Home Manager module (standalone, or
@@ -54,7 +54,7 @@ inputs.clonager.url = "github:adnathanail/clonager";
 The installed config is a read-only copy, so it only changes when you rebuild.
 With `configSource` set, `clonager discover` adds new repos to that file
 instead, so they show up as a diff in your config repo; rebuild to apply them.
-Until you do, `clonager status` reminds you there are changes not applied yet.
+Until you do, `clonager` reminds you there are changes not applied yet.
 Without `configSource`, `discover` refuses to touch a read-only config.
 
 If you already have a `~/.config/clonager/config.yaml`, move it into your config
@@ -86,7 +86,7 @@ Commands that change the config (`discover`) then decrypt it, make their
 changes in memory, and encrypt it again, so the plaintext is never written to
 disk. `encrypt` only runs if something changed, since re-encrypting would
 change the encrypted file even when its contents are the same. Neither command
-may prompt; `status` runs `decrypt` too, to tell you about changes not
+may prompt; `clonager` runs `decrypt` too, to tell you about changes not
 applied yet.
 
 ### With Go
@@ -108,7 +108,7 @@ The Nix package also installs clonager as `cg`; with Go, add
 
 `git` must be on your `PATH`. [GitButler's `but` CLI](https://docs.gitbutler.com/cli-overview)
 is used for repos in a GitButler workspace, and [`gh`](https://cli.github.com)
-for `status --forge`; both are optional.
+for `clonager --forge`; both are optional.
 
 ## Getting started
 
@@ -117,7 +117,7 @@ Build a config from the repos you already have:
 ```sh
 clonager discover -n ~/Documents ~/Projects         # preview
 clonager discover ~/Documents ~/Projects            # write the config
-clonager status
+clonager
 ```
 
 ## Config
@@ -151,7 +151,7 @@ It's a YAML tree that mirrors your folders:
 - **A mapping with `url`** is a repo with options:
   - `remotes` — other remotes by name (`origin` comes from `url`)
   - `gitbutler: true` — the repo should be in a GitButler workspace
-  - `tags` — labels for filtering, e.g. `clonager status -t work`
+  - `tags` — labels for filtering, e.g. `clonager -t work`
   - `mine: false` — the remote isn't yours to change, so clonager won't
     suggest deleting branches there or changing its settings (see `prune`)
 - **Any other mapping** is a folder, and can nest as deep as you like. A
@@ -168,11 +168,11 @@ ordering.
 ## Commands
 
 Each command has a one-letter shortcut, shown in brackets in `--help`:
-`cg s` is `clonager status`, `cg d` is `discover` and `cg p` is `prune`.
+`cg d` is `clonager discover` and `cg p` is `prune`.
 
-### `clonager status`
+### `clonager`
 
-Shows every configured repo, grouped by folder: ✓ is fine, ● needs attention,
+With no command, clonager shows every configured repo, grouped by folder: ✓ is fine, ● needs attention,
 ✗ has an error. After the name is the checked-out branch or, for a repo in a
 GitButler workspace, ⧓ (a stand-in for GitButler's logo) and its applied
 branches (just ⧓ if none are applied). In terminals that support links
@@ -205,7 +205,7 @@ its folder. It reports:
 | `-t`, `--tag <tag>` | only show repos with this tag (repeatable) |
 | `-f`, `--forge` | also check GitHub, via `gh` (see below) |
 
-Remote state is as of each repo's last fetch: `status` never fetches. The
+Remote state is as of each repo's last fetch: clonager never fetches. The
 column before each repo shows how long ago that was (`23m`, `7h`, `5d`), from
 any remote and including GitButler's background fetches; it's yellow if over a
 month, or `never`. With
@@ -297,15 +297,15 @@ To run everything that isn't commented out: `clonager prune -f | sh`.
 
 ### Exit codes
 
-`status` and `prune` exit non-zero when there's something to deal with, for
+`clonager` and `clonager prune` exit non-zero when there's something to deal with, for
 use in scripts:
 
 | Code | |
 |---|---|
 | 0 | all fine: nothing needs attention, or `# Nothing to prune` |
 | 1 | clonager itself failed (e.g. no config file) |
-| 2 | `status`: a repo needs attention (●), or there are repos not in the config; `prune`: there's something to prune, even if only commented out |
-| 3 | `status`: a repo has an error (✗); `prune`: a check failed |
+| 2 | `clonager`: a repo needs attention (●), or there are repos not in the config; `prune`: there's something to prune, even if only commented out |
+| 3 | `clonager`: a repo has an error (✗); `prune`: a check failed |
 
 For `prune | sh`, the pipeline's exit code is `sh`'s, not `prune`'s.
 
@@ -355,7 +355,7 @@ GitHub remotes are checked.
 ```sh
 nix develop   # optional: a shell with go, goimports, golangci-lint, actionlint
 go test ./...
-go build -o clonager . && ./clonager status -c some-test-config.yaml
+go build -o clonager . && ./clonager -c some-test-config.yaml
 ```
 
 `clonager --version` shows the release (e.g. `v0.2.0`) for an install of a

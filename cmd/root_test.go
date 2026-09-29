@@ -18,7 +18,6 @@ func TestHelpShowsShortcuts(t *testing.T) {
 	for _, want := range []string{
 		"  (d)iscover  Find",
 		"  (p)rune     Print",
-		"  (s)tatus    Show",
 	} {
 		if !strings.Contains(help, want) {
 			t.Errorf("help doesn't contain %q:\n%s", want, help)

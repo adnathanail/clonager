@@ -12,7 +12,7 @@ go vet ./...
 gofmt -l .                      # should print nothing
 nix run nixpkgs#golangci-lint -- run ./...   # as CI does (.github/workflows/ci.yml)
 go build -o clonager .          # CGO_ENABLED=0 for the static release binary
-./clonager status -c test-config.yaml   # test-config.yaml is gitignored, local only
+./clonager -c test-config.yaml  # test-config.yaml is gitignored, local only
 nix build                       # the flake package; runs the tests too
 ```
 
@@ -32,8 +32,10 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 ## Layout
 
 - `main.go` → `cmd.Execute()`
-- `cmd/` — Cobra commands (`root.go`, `status.go`, `discover.go`, `prune.go`) and Lip Gloss
-  styles (`style.go`). Rendering lives here.
+- `cmd/` — Cobra commands (`root.go`, `discover.go`, `prune.go`) and Lip Gloss
+  styles (`style.go`). Rendering lives here. A bare `clonager` shows status
+  (`status.go`: the root command's `RunE` and flags); there's no `status`
+  subcommand.
 - `internal/config/` — parsing the YAML tree into a flat `[]Repo` (`config.go`)
   and editing it in place (`edit.go`)
 - `internal/repostatus/` — inspecting one clone: git state (`repostatus.go`),
@@ -65,8 +67,8 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   output must stay valid shell (`clonager prune | sh -n`), so everything that
   isn't a command is a `#` comment, and paths and branch names go through
   `shellQuote`/`shellPath`.
-- **`status` is read-only and never fetches.** Remote state is as of the last
-  fetch. Don't add commands to it that write refs or objects (e.g. `git
+- **Status (bare `clonager`) is read-only and never fetches.** Remote state
+  is as of the last fetch. Don't add commands to it that write refs or objects (e.g. `git
   merge-tree --write-tree`, `git fetch`).
 - **Where the config lives:** `status`/`prune` read the installed config
   (`config.DefaultPath`). With the Home Manager module (`homeModules.default`

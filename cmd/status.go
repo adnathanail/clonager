@@ -26,13 +26,10 @@ var statusFlags struct {
 	tags     []string
 }
 
-var statusCmd = &cobra.Command{
-	Use:     "status",
-	Aliases: []string{"s"},
-	Short:   "Show the state of every configured repo",
-	Long: `Show the state of every configured repo: uncommitted changes, stashes,
-branches that aren't on a remote, branches with unpushed commits, and
-GitButler workspace state.
+// statusHelp describes what clonager shows when run without a command.
+const statusHelp = `Run without a command, clonager shows the state of every configured repo:
+uncommitted changes, stashes, branches that aren't on a remote, branches with
+unpushed commits, and GitButler workspace state.
 
 Branches already merged into the default branch (as a merge, fast-forward,
 rebase or squash) are listed separately and don't need attention, as are
@@ -46,19 +43,19 @@ With --forge, GitHub is also asked (via gh):
   - which of origin's branches still exist, to spot stale remote refs
   - whether the repo deletes merged branches automatically
 
-Remote state is as of each repo's last fetch; status never fetches. The
+Remote state is as of each repo's last fetch; clonager never fetches. The
 column before each repo shows how long ago that was (e.g. 23m, 7h, 5d),
-in yellow if over a month.`,
-	Args: cobra.NoArgs,
-	RunE: runStatus,
-}
+in yellow if over a month.`
 
 func init() {
-	statusCmd.Flags().BoolVarP(&statusFlags.verbose, "verbose", "v", false, "list the branches behind each count")
-	statusCmd.Flags().BoolVarP(&statusFlags.problems, "problems", "p", false, "only show repos that need attention")
-	statusCmd.Flags().BoolVarP(&statusFlags.forge, "forge", "f", false, "also check GitHub (via gh): merged PRs, stale refs, repo settings")
-	statusCmd.Flags().StringSliceVarP(&statusFlags.tags, "tag", "t", nil, "only show repos with this tag (repeatable)")
-	rootCmd.AddCommand(statusCmd)
+	// Local, not persistent: they don't apply to discover or prune. Taking -v
+	// leaves the version as just --version.
+	rootCmd.Flags().BoolVarP(&statusFlags.verbose, "verbose", "v", false, "list the branches behind each count")
+	rootCmd.Flags().BoolVarP(&statusFlags.problems, "problems", "p", false, "only show repos that need attention")
+	rootCmd.Flags().BoolVarP(&statusFlags.forge, "forge", "f", false, "also check GitHub (via gh): merged PRs, stale refs, repo settings")
+	rootCmd.Flags().StringSliceVarP(&statusFlags.tags, "tag", "t", nil, "only show repos with this tag (repeatable)")
+	rootCmd.Args = cobra.NoArgs
+	rootCmd.RunE = runStatus
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
