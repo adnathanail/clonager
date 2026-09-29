@@ -60,7 +60,7 @@ to replace it.
 
 ### With Go
 
-Requires Go 1.26+.
+Requires Go 1.23+.
 
 ```sh
 go install github.com/adnathanail/clonager@latest

@@ -10,18 +10,21 @@ permissions:
 
 jobs:
   test:
-    name: Test (${{ matrix.os }})
+    name: Test (${{ matrix.os }}, Go ${{ matrix.go }})
     strategy:
       fail-fast: false
       matrix:
         # macOS is where clonager runs; Linux keeps it portable.
         os: [macos-latest, ubuntu-latest]
+        # "min" is the version in go.mod, so raising it there is caught here.
+        go: [min, stable]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: ${{ matrix.go == 'stable' && 'stable' || '' }}
+          go-version-file: ${{ matrix.go == 'min' && 'go.mod' || '' }}
 
       # The tests build throwaway git repos, so they need git (on both runners).
       - name: Test
