@@ -169,7 +169,9 @@ ordering.
 Shows every configured repo, grouped by folder: ✓ is fine, ● needs attention,
 ✗ has an error. After the name is the checked-out branch or, for a repo in a
 GitButler workspace, ⧓ (a stand-in for GitButler's logo) and its applied
-branches (just ⧓ if none are applied). It reports:
+branches (just ⧓ if none are applied). In terminals that support links
+(iTerm2, Ghostty, WezTerm, Kitty, VS Code…), cmd-clicking a repo's name opens
+its folder. It reports:
 
 - **Setup** — not cloned, not a git repo, detached HEAD, `origin` or other
   remotes missing or different from the config

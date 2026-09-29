@@ -119,7 +119,7 @@ func printUntracked(cfg, pending *config.Config) error {
 	lipgloss.Println(styleHeading.Render("Not in the config"))
 	addable := 0
 	for _, r := range repos {
-		line := "  " + styleWarn.Render("?") + " " + config.TildePath(r.path)
+		line := "  " + styleWarn.Render("?") + " " + fileLink(r.path, config.TildePath(r.path))
 		if r.noOrigin {
 			line += "  " + styleDim.Render("no origin")
 		} else {
@@ -499,7 +499,8 @@ func printReports(reports []report) {
 		for _, i := range r.issues {
 			parts = append(parts, severityStyle(i.sev).Render(i.text))
 		}
-		line := fmt.Sprintf("  %s %s %-*s  %s", padLeft(r.fetch, fetchW), icon, nameW, r.status.Repo.Name(), padRight(r.head, headW))
+		name := fileLink(r.status.Repo.Path, r.status.Repo.Name())
+		line := fmt.Sprintf("  %s %s %s  %s", padLeft(r.fetch, fetchW), icon, padRight(name, nameW), padRight(r.head, headW))
 		if len(parts) > 0 {
 			line += "  " + strings.Join(parts, styleDim.Render(" · "))
 		}
