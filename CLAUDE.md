@@ -60,6 +60,14 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - **`status` is read-only and never fetches.** Remote state is as of the last
   fetch. Don't add commands to it that write refs or objects (e.g. `git
   merge-tree --write-tree`, `git fetch`).
+- **Where the config lives:** `status`/`prune` read the installed config
+  (`config.DefaultPath`). With the Home Manager module (`homeModules.default`
+  in `flake.nix`), that's a read-only copy in the Nix store, and
+  `~/.config/clonager/source` names the editable file in the user's checkout
+  (`config.Source`); `discover` edits that instead (`editableConfigFile`), and
+  `status` notes when it differs from the installed copy. `Save` writes
+  through symlinks and refuses read-only configs (`Writable`): renaming over
+  a Home Manager link would otherwise silently replace it.
 - **The config is edited as a `yaml.Node` tree** so comments and ordering
   survive. After any edit, `reparse()` re-validates through `Parse`, so an edit
   can't produce a config `Load` would reject. New keys go in alphabetically

@@ -2,7 +2,9 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -96,16 +98,56 @@ func (c *Config) Add(repo Repo, rootDir string) error {
 	return c.reparse()
 }
 
+// ErrReadOnly is returned (wrapped) for a config that can't be written, such
+// as one Home Manager generates into the Nix store.
+var ErrReadOnly = errors.New("config file is read-only")
+
+// target is the file Save writes: the config path with symlinks resolved, so
+// a link (e.g. into a dotfiles repo) is written through rather than replaced.
+func (c *Config) target() string {
+	if t, err := filepath.EvalSymlinks(c.Path); err == nil {
+		return t
+	}
+	return c.Path
+}
+
+// Writable reports whether Save can write the config: nil, or an error
+// wrapping ErrReadOnly. A config that doesn't exist yet is writable.
+//
+// It must be checked before saving, not left to the write to fail: Save
+// replaces the file by renaming a new one over it, which would succeed on a
+// Home Manager symlink and silently turn it into a regular file.
+func (c *Config) Writable() error {
+	t := c.target()
+	if strings.HasPrefix(t, "/nix/store/") {
+		return fmt.Errorf("%s is in the Nix store: %w", TildePath(c.Path), ErrReadOnly)
+	}
+	f, err := os.OpenFile(t, os.O_WRONLY, 0) // opening doesn't change the file
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return nil
+	case errors.Is(err, fs.ErrPermission):
+		return fmt.Errorf("%s: %w", TildePath(c.Path), ErrReadOnly)
+	case err != nil:
+		return err
+	}
+	return f.Close()
+}
+
 // Save writes the config back to its file, preserving comments.
 func (c *Config) Save() error {
+	if err := c.Writable(); err != nil {
+		return err
+	}
 	data, err := c.encode()
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(c.Path), 0o755); err != nil {
+	path := c.target()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(c.Path), ".config-*.yaml")
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".config-*.yaml")
 	if err != nil {
 		return err
 	}
@@ -117,13 +159,13 @@ func (c *Config) Save() error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if info, err := os.Stat(c.Path); err == nil {
+	if info, err := os.Stat(path); err == nil {
 		// Keep the existing file's permissions rather than CreateTemp's 0600.
 		if err := os.Chmod(tmp.Name(), info.Mode().Perm()); err != nil {
 			return err
 		}
 	}
-	return os.Rename(tmp.Name(), c.Path)
+	return os.Rename(tmp.Name(), path)
 }
 
 func (c *Config) encode() ([]byte, error) {

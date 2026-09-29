@@ -10,6 +10,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -73,14 +74,62 @@ func DefaultPath() (string, error) {
 	if p := os.Getenv("CLONAGER_CONFIG"); p != "" {
 		return ExpandHome(p)
 	}
+	dir, err := configDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "clonager", "config.yaml"), nil
+}
+
+// configDir is $XDG_CONFIG_HOME, or ~/.config.
+func configDir() (string, error) {
 	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
-		return filepath.Join(x, "clonager", "config.yaml"), nil
+		return x, nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".config", "clonager", "config.yaml"), nil
+	return filepath.Join(home, ".config"), nil
+}
+
+// SourcePointerPath is where the Home Manager module records the config's
+// source: the file in the user's checkout (e.g. their nix-darwin repo) that
+// the installed config, a read-only copy in the Nix store, is built from.
+func SourcePointerPath() (string, error) {
+	dir, err := configDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "clonager", "source"), nil
+}
+
+// Source returns the config's source file, if one is recorded, or "". discover
+// edits the source rather than the installed config; the change takes effect
+// on the next rebuild.
+func Source() (string, error) {
+	pointer, err := SourcePointerPath()
+	if err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(pointer)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	path := strings.TrimSpace(string(data))
+	if path == "" {
+		return "", nil
+	}
+	if path, err = ExpandHome(path); err != nil {
+		return "", err
+	}
+	if !filepath.IsAbs(path) {
+		return "", fmt.Errorf("%s: %q isn't an absolute path", TildePath(pointer), path)
+	}
+	return path, nil
 }
 
 func Load(path string) (*Config, error) {

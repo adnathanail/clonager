@@ -27,15 +27,36 @@ clonager is a flake. Try it with:
 nix run github:adnathanail/clonager -- status
 ```
 
-Or add it to a nix-darwin or Home Manager config:
+Or install it, and its config, with the Home Manager module (standalone, or
+within nix-darwin):
 
 ```nix
 # flake.nix
 inputs.clonager.url = "github:adnathanail/clonager";
 
-# then, in a Home Manager module (with inputs passed through)
-home.packages = [ inputs.clonager.packages.${pkgs.stdenv.hostPlatform.system}.default ];
+# a Home Manager module (with inputs passed through)
+{ config, inputs, ... }: {
+  imports = [ inputs.clonager.homeModules.default ];
+
+  programs.clonager = {
+    enable = true;
+    # Installed as ~/.config/clonager/config.yaml, via the Nix store.
+    configFile = ./clonager.yaml;
+    # The same file in your checkout, for `clonager discover` to edit.
+    configSource = "${config.home.homeDirectory}/.config/nix-darwin/clonager.yaml";
+  };
+}
 ```
+
+The installed config is a read-only copy, so it only changes when you rebuild.
+With `configSource` set, `clonager discover` adds new repos to that file
+instead, so they show up as a diff in your config repo; rebuild to apply them.
+Until you do, `clonager status` reminds you there are changes not applied yet.
+Without `configSource`, `discover` refuses to touch a read-only config.
+
+If you already have a `~/.config/clonager/config.yaml`, move it into your config
+repo (as `clonager.yaml` above) before rebuilding, or Home Manager will refuse
+to replace it.
 
 ### With Go
 

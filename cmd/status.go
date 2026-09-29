@@ -77,6 +77,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		reports[i] = buildReport(s)
 	}
 	printReports(reports)
+	if note := unappliedNote(cfg.Path); note != "" {
+		fmt.Println(styleWarn.Render(note))
+	}
 	return nil
 }
 

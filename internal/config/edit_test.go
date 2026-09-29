@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -123,5 +124,60 @@ func TestAddKeepsFolderOptionsFirst(t *testing.T) {
 		if !r.NotMine {
 			t.Errorf("%s should inherit mine: false", r.Name())
 		}
+	}
+}
+
+func TestSaveThroughSymlink(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	dir := t.TempDir()
+	real, link := filepath.Join(dir, "dotfiles.yaml"), filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(real, []byte("~/x:\n  a: u\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(real, link); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cfg.Add(Repo{Path: filepath.Join(home, "x/b"), URL: "v"}, filepath.Join(home, "x")); err != nil {
+		t.Fatal(err)
+	}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("config is no longer a symlink (%v)", err)
+	}
+	if data, _ := os.ReadFile(real); !strings.Contains(string(data), "b: v") {
+		t.Errorf("link target not updated:\n%s", data)
+	}
+}
+
+func TestReadOnly(t *testing.T) {
+	dir := t.TempDir()
+	ro := filepath.Join(dir, "store.yaml")
+	if err := os.WriteFile(ro, []byte("~/x:\n  a: u\n"), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "config.yaml")
+	if err := os.Symlink(ro, link); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{ro, link} {
+		cfg, err := Load(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := cfg.Save(); !errors.Is(err, ErrReadOnly) {
+			t.Errorf("%s: Save got %v, want ErrReadOnly", filepath.Base(path), err)
+		}
+	}
+	if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("read-only symlink was replaced (%v)", err)
+	}
+	if err := New(filepath.Join(dir, "new", "config.yaml")).Writable(); err != nil {
+		t.Errorf("a config that doesn't exist yet should be writable: %v", err)
 	}
 }

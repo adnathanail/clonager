@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -50,6 +51,41 @@ func configFile() string {
 		return configPath
 	}
 	return p
+}
+
+// editableConfigFile is the config file discover should edit: --config if
+// given, else the source file recorded by the Home Manager module, else the
+// installed config. fromSource reports the second case.
+func editableConfigFile() (path string, fromSource bool, err error) {
+	if configPath != "" {
+		return configFile(), false, nil
+	}
+	src, err := config.Source()
+	if err != nil {
+		return "", false, err
+	}
+	if src != "" {
+		return src, true, nil
+	}
+	return configFile(), false, nil
+}
+
+// unappliedNote returns a note if the config's source file (see
+// editableConfigFile) has changes the installed config doesn't have yet.
+func unappliedNote(installed string) string {
+	if configPath != "" {
+		return ""
+	}
+	src, err := config.Source()
+	if err != nil || src == "" {
+		return ""
+	}
+	a, errA := os.ReadFile(src)
+	b, errB := os.ReadFile(installed)
+	if errA != nil || errB != nil || bytes.Equal(a, b) {
+		return ""
+	}
+	return config.TildePath(src) + " has changes not applied yet: rebuild (e.g. darwin-rebuild switch) to apply them."
 }
 
 // loadConfig loads the config file. A missing file gives an error wrapping
