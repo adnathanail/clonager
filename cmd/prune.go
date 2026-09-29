@@ -19,8 +19,9 @@ var pruneFlags struct {
 }
 
 var pruneCmd = &cobra.Command{
-	Use:   "prune",
-	Short: "Print git commands to delete merged branches",
+	Use:     "prune",
+	Aliases: []string{"p"},
+	Short:   "Print git commands to delete merged branches",
 	Long: `Print the git commands to delete local branches that are already merged
 into their repo's default branch. Nothing is deleted: review the output and run
 the commands yourself (or pipe them to sh).

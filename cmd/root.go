@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -67,7 +68,44 @@ func Execute() int {
 	return exitOK
 }
 
+// progName is what clonager was run as: clonager, or cg (the Nix package's
+// short name, or an alias).
+func progName() string {
+	if len(os.Args) > 0 && filepath.Base(os.Args[0]) == "cg" {
+		return "cg"
+	}
+	return "clonager"
+}
+
+// commandLabel is a command's name as help lists it, with the letter of a
+// one-letter alias in brackets ("(s)tatus"), padded to line up with its
+// siblings' labels.
+func commandLabel(c *cobra.Command) string {
+	width := c.NamePadding()
+	if c.HasParent() {
+		for _, s := range c.Parent().Commands() {
+			width = max(width, len(shortcutName(s)))
+		}
+	}
+	return fmt.Sprintf("%-*s", width, shortcutName(c))
+}
+
+func shortcutName(c *cobra.Command) string {
+	name := c.Name()
+	for _, a := range c.Aliases {
+		if len(a) == 1 && strings.HasPrefix(name, a) {
+			return "(" + a + ")" + name[1:]
+		}
+	}
+	return name
+}
+
 func init() {
+	rootCmd.Use = progName()
+	cobra.AddTemplateFunc("commandLabel", commandLabel)
+	rootCmd.SetUsageTemplate(strings.ReplaceAll(rootCmd.UsageTemplate(),
+		"{{rpad .Name .NamePadding }}", "{{commandLabel .}}"))
+
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "",
 		"config file (default $CLONAGER_CONFIG or ~/.config/clonager/config.yaml)")
 }

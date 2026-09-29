@@ -27,8 +27,9 @@ var statusFlags struct {
 }
 
 var statusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Show the state of every configured repo",
+	Use:     "status",
+	Aliases: []string{"s"},
+	Short:   "Show the state of every configured repo",
 	Long: `Show the state of every configured repo: uncommitted changes, stashes,
 branches that aren't on a remote, branches with unpushed commits, and
 GitButler workspace state.

@@ -103,6 +103,9 @@ Or from a checkout, as a static binary:
 CGO_ENABLED=0 go build -o clonager .
 ```
 
+The Nix package also installs clonager as `cg`; with Go, add
+`alias cg=clonager` to your shell's config to get the same.
+
 `git` must be on your `PATH`. [GitButler's `but` CLI](https://docs.gitbutler.com/cli-overview)
 is used for repos in a GitButler workspace, and [`gh`](https://cli.github.com)
 for `status --forge`; both are optional.
@@ -163,6 +166,9 @@ clonager edits this file itself (see `discover`), keeping your comments and
 ordering.
 
 ## Commands
+
+Each command has a one-letter shortcut, shown in brackets in `--help`:
+`cg s` is `clonager status`, `cg d` is `discover` and `cg p` is `prune`.
 
 ### `clonager status`
 

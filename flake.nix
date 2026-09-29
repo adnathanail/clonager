@@ -32,6 +32,11 @@
           # git, gh and but on your PATH, so they aren't bundled.
           nativeCheckInputs = [ pkgs.git ];
 
+          # The short name.
+          postInstall = ''
+            ln -s clonager $out/bin/cg
+          '';
+
           meta = {
             description = "Keep track of the git clones on your laptop";
             homepage = "https://github.com/adnathanail/clonager";

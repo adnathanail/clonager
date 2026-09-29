@@ -25,8 +25,9 @@ var discoverFlags struct {
 }
 
 var discoverCmd = &cobra.Command{
-	Use:   "discover [<dir>...]",
-	Short: "Find repos that aren't in the config and add them",
+	Use:     "discover [<dir>...]",
+	Aliases: []string{"d"},
+	Short:   "Find repos that aren't in the config and add them",
 	Long: `Find git repos under each <dir> that aren't in the config, and add them.
 
 Each repo is added with origin as its url, any other remotes, and
