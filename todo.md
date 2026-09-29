@@ -1,6 +1,1 @@
-- Integrate with gh cli for open PRs?
-- Auto clean-up branches deleted on remote, maybe using gh cli to find corresponding prs?
-- Have CLI interaction managed carefully, with whitelisted subcommands
 - Have some way to auto-remove deleted repos
-- Suggest other settings I want set on all repos like:
-    - Merge method rebase

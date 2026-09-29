@@ -3,15 +3,14 @@
 package repostatus
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/adnathanail/clonager/internal/cli"
 	"github.com/adnathanail/clonager/internal/config"
 )
 
@@ -357,31 +356,15 @@ func samePath(a, b string) bool {
 	return ra == rb
 }
 
+// git runs read-only git commands in one repo, via internal/cli.
 type git struct{ dir string }
 
 // run runs a git command in the repo and returns its trimmed stdout.
 func (g git) run(args ...string) (string, error) {
-	return g.runStdin("", args...)
+	return cli.Git(g.dir, args...)
 }
 
 // runStdin is run with the given stdin.
 func (g git) runStdin(stdin string, args ...string) (string, error) {
-	cmd := exec.Command("git", append([]string{"-C", g.dir}, args...)...)
-	if stdin != "" {
-		cmd.Stdin = strings.NewReader(stdin)
-	}
-	// Don't let status checks take locks that would block the user's own git
-	// commands, or prompt for anything.
-	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0")
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	err := cmd.Run()
-	out := strings.TrimRight(stdout.String(), "\n")
-	if err != nil {
-		if msg := strings.TrimSpace(stderr.String()); msg != "" {
-			return out, fmt.Errorf("git %s: %s", args[0], msg)
-		}
-		return out, fmt.Errorf("git %s: %w", args[0], err)
-	}
-	return out, nil
+	return cli.GitStdin(g.dir, stdin, args...)
 }

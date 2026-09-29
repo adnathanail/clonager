@@ -1,15 +1,15 @@
 package repostatus
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/adnathanail/clonager/internal/cli"
 )
 
 // githubRepo matches the owner/name in GitHub clone URLs: git@github.com:o/r.git,
@@ -42,7 +42,7 @@ func (s *Status) checkForge(g git) {
 	if len(repos) == 0 {
 		return // not on GitHub
 	}
-	if _, err := exec.LookPath("gh"); err != nil {
+	if !cli.Installed("gh") {
 		s.ForgeErr = errors.New("gh is not installed")
 		return
 	}
@@ -200,19 +200,9 @@ func listBranches(repo string) (map[string]liveBranch, error) {
 	return branches, nil
 }
 
-// gh runs the GitHub CLI, returning stdout.
+// gh runs a read-only GitHub CLI command via internal/cli.
 func gh(args ...string) ([]byte, error) {
-	cmd := exec.Command("gh", args...)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		msg := firstLine(strings.TrimSpace(stderr.String()))
-		if msg == "" {
-			msg = err.Error()
-		}
-		return nil, fmt.Errorf("gh %s: %s", strings.Join(args[:min(2, len(args))], " "), msg)
-	}
-	return stdout.Bytes(), nil
+	return cli.GH(args...)
 }
 
 func listMergedPRs(repo string) ([]mergedPR, error) {

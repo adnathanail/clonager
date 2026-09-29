@@ -1,14 +1,13 @@
 package repostatus
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
+
+	"github.com/adnathanail/clonager/internal/cli"
 )
 
 // The subset of `but status --json` that clonager uses.
@@ -39,24 +38,17 @@ func (s *Status) readGitButler(gitDir string) {
 		return
 	}
 
-	if _, err := exec.LookPath("but"); err != nil {
+	if !cli.Installed("but") {
 		s.GitButler.Err = errors.New("but is not installed")
 		return
 	}
-	cmd := exec.Command("but", "status", "--json")
-	cmd.Dir = s.Repo.Path
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
-		}
-		s.GitButler.Err = fmt.Errorf("but status: %s", firstLine(msg))
+	out, err := cli.But(s.Repo.Path, "status", "--json")
+	if err != nil {
+		s.GitButler.Err = err
 		return
 	}
 	var bs butStatus
-	if err := json.Unmarshal(stdout.Bytes(), &bs); err != nil {
+	if err := json.Unmarshal(out, &bs); err != nil {
 		s.GitButler.Err = fmt.Errorf("but status: unexpected output: %w", err)
 		return
 	}
@@ -70,9 +62,4 @@ func (s *Status) readGitButler(gitDir string) {
 			}
 		}
 	}
-}
-
-func firstLine(s string) string {
-	line, _, _ := strings.Cut(s, "\n")
-	return line
 }

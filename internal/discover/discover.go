@@ -6,11 +6,11 @@ import (
 	"errors"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/adnathanail/clonager/internal/cli"
 	"github.com/adnathanail/clonager/internal/config"
 )
 
@@ -105,8 +105,5 @@ func Describe(path string) (config.Repo, error) {
 }
 
 func git(dir string, args ...string) (string, error) {
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0")
-	out, err := cmd.Output()
-	return strings.TrimRight(string(out), "\n"), err
+	return cli.Git(dir, args...)
 }

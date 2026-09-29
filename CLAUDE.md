@@ -26,13 +26,26 @@ go build -o clonager .          # CGO_ENABLED=0 for the static release binary
   (`merged.go`), GitHub PRs via `gh` (`forge.go`)
 - `internal/discover/` — walking the filesystem for repos, and reading a repo's
   remotes to build its config entry
+- `internal/cli/` — the only place external programs run (`git`, `gh`, `but`),
+  with the allowlist of read-only subcommands
 
 ## Design decisions
 
+- **clonager only ever reads.** It never changes a repo, remote, setting or
+  file other than its own config (which `discover` edits); where something
+  should change, it prints the command for the user to run (`prune`).
+- **All external programs run through `internal/cli`** (`cli.Git`,
+  `cli.GitStdin`, `cli.GH`, `cli.But`, `cli.Installed`), which checks each call
+  against the `allowed` list of read-only subcommands and refuses anything
+  else before running it. Need a new command? Add the subcommand there, with a
+  `check` for any arguments that would make it write (`git config` without
+  `--get`, `git stash` other than `list`, `gh api` with a method or fields),
+  and a case in `TestCheck`. Nothing else may import `os/exec`:
+  `TestOnlyPackageRunsPrograms` enforces this (tests are exempt, as they build
+  throwaway repos). `internal/cli` also sets `GIT_OPTIONAL_LOCKS=0` (so `git
+  status` doesn't refresh the index) and disables prompts.
 - **Shell out to `git`, `but` and `gh`** rather than using libraries, so results
-  match what the user sees and respect their git config. Run git with
-  `GIT_OPTIONAL_LOCKS=0` and `GIT_TERMINAL_PROMPT=0` (see the `git` helper in
-  `repostatus.go`).
+  match what the user sees and respect their git config.
 - **`prune` only prints commands; it must never delete anything itself.** Its
   output must stay valid shell (`clonager prune | sh -n`), so everything that
   isn't a command is a `#` comment, and paths and branch names go through
