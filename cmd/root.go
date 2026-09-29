@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/colorprofile"
 	"github.com/spf13/cobra"
 
 	"github.com/adnathanail/clonager/internal/config"
@@ -24,9 +26,14 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() error {
+	// Cobra prints help, and the banner in it, through these, so styles are
+	// stripped when output isn't a terminal.
+	stderr := colorprofile.NewWriter(os.Stderr, os.Environ())
+	rootCmd.SetOut(lipgloss.Writer)
+	rootCmd.SetErr(stderr)
 	err := rootCmd.Execute()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, styleError.Render("error:"), err)
+		fmt.Fprintln(stderr, styleError.Render("error:"), err)
 	}
 	return err
 }

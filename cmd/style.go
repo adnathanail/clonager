@@ -1,6 +1,6 @@
 package cmd
 
-import "github.com/charmbracelet/lipgloss"
+import "charm.land/lipgloss/v2"
 
 // Basic ANSI colours, so the output follows the terminal's own theme.
 var (

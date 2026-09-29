@@ -114,8 +114,11 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   "Nothing to prune" once everything actionable is done — and never while a
   check failed (`uncheckable`, `ForgeErr`: report the reason instead).
   `TestPruneOutput` checks every uncommented line is a local-only git command.
-- Colours are basic ANSI (0–7) so they follow the terminal theme. Lip Gloss
-  strips them automatically when output isn't a TTY.
+- Colours are basic ANSI (0–7) so they follow the terminal theme. Lip Gloss v2's
+  `Render` always emits escape codes, so print with `lipgloss.Println` (or
+  through a `colorprofile` writer, as `root.go` does for Cobra and stderr),
+  never `fmt.Print*`: that strips them when output isn't a TTY or `NO_COLOR`
+  is set. Tests that check rendered output `ansi.Strip` it first.
 
 ## Gotchas
 

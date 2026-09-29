@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/adnathanail/clonager/internal/config"
@@ -109,12 +110,12 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 		if len(rows) == 0 {
 			return
 		}
-		fmt.Println(styleHeading.Render(heading))
+		lipgloss.Println(styleHeading.Render(heading))
 		for _, r := range rows {
 			line := fmt.Sprintf("  %s %-*s  %s  %s", icon, pathW, r.path, styleDim.Render(r.detail), r.notes)
-			fmt.Println(strings.TrimRight(line, " "))
+			lipgloss.Println(strings.TrimRight(line, " "))
 		}
-		fmt.Println()
+		lipgloss.Println()
 	}
 	verb := "Added to "
 	if discoverFlags.dryRun {
@@ -122,7 +123,7 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 	}
 	printRows(verb+config.TildePath(cfg.Path), styleOK.Render("+"), added)
 	printRows("Skipped", styleWarn.Render("!"), skipped)
-	fmt.Println(styleDim.Render(fmt.Sprintf("%d new · %d already configured · %d skipped", len(added), known, len(skipped))))
+	lipgloss.Println(styleDim.Render(fmt.Sprintf("%d new · %d already configured · %d skipped", len(added), known, len(skipped))))
 
 	if discoverFlags.dryRun || len(added) == 0 {
 		return nil
@@ -131,7 +132,7 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if fromSource {
-		fmt.Println(styleDim.Render("Rebuild (e.g. darwin-rebuild switch) to apply it."))
+		lipgloss.Println(styleDim.Render("Rebuild (e.g. darwin-rebuild switch) to apply it."))
 	}
 	return nil
 }
@@ -161,7 +162,7 @@ func discoverDirs(args []string) ([]string, error) {
 			"(programs.clonager.discoverPaths with the Home Manager module)", config.TildePath(path))
 	}
 	for _, p := range missing {
-		fmt.Println(styleDim.Render("Skipping " + config.TildePath(p) + ", which doesn't exist"))
+		lipgloss.Println(styleDim.Render("Skipping " + config.TildePath(p) + ", which doesn't exist"))
 	}
 	return dirs, nil
 }

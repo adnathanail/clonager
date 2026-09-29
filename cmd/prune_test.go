@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/adnathanail/clonager/internal/config"
 	"github.com/adnathanail/clonager/internal/repostatus"
 )
@@ -104,7 +106,8 @@ func TestPruneOutput(t *testing.T) {
 		},
 	}
 
-	out := pruneScript(statuses, true)
+	// As printed when piped, which strips styles.
+	out := ansi.Strip(pruneScript(statuses, true))
 
 	// Only local-only commands run; everything else is a comment.
 	for _, line := range strings.Split(out, "\n") {
@@ -164,12 +167,12 @@ func TestPruneOutput(t *testing.T) {
 }
 
 func TestPruneNothing(t *testing.T) {
-	out := pruneScript([]*repostatus.Status{{
+	out := ansi.Strip(pruneScript([]*repostatus.Status{{
 		Repo:          config.Repo{Path: "/work/tidy"},
 		DefaultBranch: "origin/main",
 		Branches:      []repostatus.Branch{{Name: "main"}, {Name: "open"}},
 		GitHub:        &repostatus.GitHubRepo{Name: "me/tidy", CanPush: true, Admin: true},
-	}}, true)
+	}}, true))
 	if got := strings.TrimSpace(out); got != "# Nothing to prune" {
 		t.Errorf("got %q, want # Nothing to prune", got)
 	}

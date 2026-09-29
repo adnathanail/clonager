@@ -1,0 +1,12 @@
+version: "2"
+
+linters:
+  settings:
+    errcheck:
+      # Like fmt.Print*, which errcheck already ignores: printing styled
+      # output through the writer that strips styles when piped.
+      exclude-functions:
+        - charm.land/lipgloss/v2.Print
+        - charm.land/lipgloss/v2.Println
+        - charm.land/lipgloss/v2.Printf
+        - fmt.Fprintln

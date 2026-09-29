@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/adnathanail/clonager/internal/config"
@@ -64,7 +65,7 @@ func runPrune(cmd *cobra.Command, args []string) error {
 	}
 	repos := filterByTags(cfg.Repos, pruneFlags.tags)
 	statuses := inspectAll(repos, repostatus.Options{Forge: pruneFlags.forge})
-	fmt.Print(pruneScript(statuses, pruneFlags.forge))
+	lipgloss.Print(pruneScript(statuses, pruneFlags.forge))
 	return nil
 }
 

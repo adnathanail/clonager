@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/adnathanail/clonager/internal/cli"
@@ -69,12 +69,12 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if len(cfg.Repos) == 0 {
-		fmt.Println(styleDim.Render("No repos configured in " + config.TildePath(cfg.Path)))
+		lipgloss.Println(styleDim.Render("No repos configured in " + config.TildePath(cfg.Path)))
 		return nil
 	}
 	repos := filterByTags(cfg.Repos, statusFlags.tags)
 	if len(repos) == 0 {
-		fmt.Println(styleDim.Render("No repos tagged " + strings.Join(statusFlags.tags, " or ")))
+		lipgloss.Println(styleDim.Render("No repos tagged " + strings.Join(statusFlags.tags, " or ")))
 		return nil
 	}
 
@@ -91,7 +91,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if note != "" {
-		fmt.Println(styleWarn.Render(note))
+		lipgloss.Println(styleWarn.Render(note))
 	}
 	return nil
 }
@@ -115,8 +115,8 @@ func printUntracked(cfg, pending *config.Config) error {
 		return err
 	}
 
-	fmt.Println()
-	fmt.Println(styleHeading.Render("Not in the config"))
+	lipgloss.Println()
+	lipgloss.Println(styleHeading.Render("Not in the config"))
 	addable := 0
 	for _, r := range repos {
 		line := "  " + styleWarn.Render("?") + " " + config.TildePath(r.path)
@@ -125,15 +125,15 @@ func printUntracked(cfg, pending *config.Config) error {
 		} else {
 			addable++
 		}
-		fmt.Println(line)
+		lipgloss.Println(line)
 	}
 	switch {
 	case addable == len(repos):
-		fmt.Println(styleDim.Render("Add them with clonager discover."))
+		lipgloss.Println(styleDim.Render("Add them with clonager discover."))
 	case addable > 0:
-		fmt.Println(styleDim.Render("Add them with clonager discover, once those without an origin have one."))
+		lipgloss.Println(styleDim.Render("Add them with clonager discover, once those without an origin have one."))
 	default:
-		fmt.Println(styleDim.Render("clonager discover can add them once they have an origin."))
+		lipgloss.Println(styleDim.Render("clonager discover can add them once they have an origin."))
 	}
 	return nil
 }
@@ -479,9 +479,9 @@ func printReports(reports []report) {
 
 		if dir := config.TildePath(filepath.Dir(r.status.Repo.Path)); dir != group {
 			if group != "" {
-				fmt.Println()
+				lipgloss.Println()
 			}
-			fmt.Println(styleHeading.Render(dir))
+			lipgloss.Println(styleHeading.Render(dir))
 			group = dir
 		}
 
@@ -503,19 +503,19 @@ func printReports(reports []report) {
 		if len(parts) > 0 {
 			line += "  " + strings.Join(parts, styleDim.Render(" · "))
 		}
-		fmt.Println(strings.TrimRight(line, " "))
+		lipgloss.Println(strings.TrimRight(line, " "))
 
 		if statusFlags.verbose {
 			indent := strings.Repeat(" ", 2+fetchW+3+nameW+2)
 			for _, i := range r.issues {
 				if len(i.details) > 0 {
-					fmt.Println(indent + severityStyle(i.sev).Render(i.text+":") + " " + strings.Join(i.details, ", "))
+					lipgloss.Println(indent + severityStyle(i.sev).Render(i.text+":") + " " + strings.Join(i.details, ", "))
 				}
 			}
 		}
 	}
 
-	fmt.Println()
+	lipgloss.Println()
 	summary := []string{plural(len(reports), "repo", "repos")}
 	if n := counts[sevInfo]; n > 0 {
 		summary = append(summary, styleOK.Render(fmt.Sprintf("%d ok", n)))
@@ -526,7 +526,7 @@ func printReports(reports []report) {
 	if n := counts[sevError]; n > 0 {
 		summary = append(summary, styleError.Render(fmt.Sprintf("%d with errors", n)))
 	}
-	fmt.Println(strings.Join(summary, styleDim.Render(" · ")))
+	lipgloss.Println(strings.Join(summary, styleDim.Render(" · ")))
 }
 
 func severityStyle(s severity) lipgloss.Style {
