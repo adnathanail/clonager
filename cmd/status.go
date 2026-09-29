@@ -175,7 +175,7 @@ func buildReport(s *repostatus.Status) report {
 
 	switch {
 	case s.GitButler.Mode == repostatus.GitButlerActive:
-		r.head = styleGB.Render("gitbutler")
+		r.head = styleGB.Render(gitButlerHead(s.GitButler))
 	case s.Head == "":
 		r.head = styleWarn.Render("detached")
 		add(sevWarn, "detached HEAD")
@@ -292,13 +292,6 @@ func buildReport(s *repostatus.Status) report {
 				}
 				add(sevWarn, plural(len(force), "branch needs", "branches need")+" force push", names...)
 			}
-			if len(gb.Branches) > 0 {
-				names := make([]string, len(gb.Branches))
-				for i, b := range gb.Branches {
-					names[i] = b.Name + styleDim.Render(" ("+b.Status+")")
-				}
-				add(sevInfo, plural(len(gb.Branches), "branch", "branches")+" applied", names...)
-			}
 		}
 		if !s.Repo.GitButler {
 			add(sevInfo, "gitbutler not set in config")
@@ -309,6 +302,23 @@ func buildReport(s *repostatus.Status) report {
 		}
 	}
 	return r
+}
+
+// gitButlerLogo stands in for GitButler's bowtie-shaped logo.
+const gitButlerLogo = "⧓"
+
+// gitButlerHead is the branch column for a repo in a GitButler workspace: the
+// logo and its applied branches, or just the logo if there are none (or
+// they're unknown).
+func gitButlerHead(gb repostatus.GitButler) string {
+	if gb.Err != nil || len(gb.Branches) == 0 {
+		return gitButlerLogo
+	}
+	names := make([]string, len(gb.Branches))
+	for i, b := range gb.Branches {
+		names[i] = b.Name
+	}
+	return gitButlerLogo + " " + strings.Join(names, ", ")
 }
 
 // staleFetch is how long since a repo's last fetch before it's highlighted.

@@ -7,12 +7,12 @@ them on a fresh machine.
 ```
 $ clonager status
 ~/Documents/Projects
-  23m ● you-cool-blog    gitbutler  1 stash · 2 local-only branches · 1 branch applied
+  23m ● you-cool-blog    ⧓ new-post  1 stash · 2 local-only branches
    7h ✓ asdf             main
 
 ~/Documents/Work
   42d ✓ vip-proj         main
-   5d ● work-stuff       main       5 branches deleted on remote · 26 branches merged · 1 branch behind
+   5d ● work-stuff       main        5 branches deleted on remote · 26 branches merged · 1 branch behind
 
 4 repos · 2 ok · 2 need attention
 ```
@@ -137,7 +137,9 @@ ordering.
 ### `clonager status`
 
 Shows every configured repo, grouped by folder: ✓ is fine, ● needs attention,
-✗ has an error. It reports:
+✗ has an error. After the name is the checked-out branch or, for a repo in a
+GitButler workspace, ⧓ (a stand-in for GitButler's logo) and its applied
+branches (just ⧓ if none are applied). It reports:
 
 - **Setup** — not cloned, not a git repo, detached HEAD, `origin` or other
   remotes missing or different from the config
@@ -151,7 +153,7 @@ Shows every configured repo, grouped by folder: ✓ is fine, ● needs attention
   also stale remote refs (branches already deleted on GitHub, still in your
   clone until `git remote prune`), and repos where GitHub doesn't delete
   merged branches automatically
-- **GitButler** — applied branches, conflicted commits, branches needing a
+- **GitButler** — conflicted commits, branches needing a
   force push, and repos marked `gitbutler: true` that aren't in the workspace
 
 | Flag | |
