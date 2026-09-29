@@ -71,10 +71,9 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - **Where the config lives:** `status`/`prune` read the installed config
   (`config.DefaultPath`). With the Home Manager module (`homeModules.default`
   in `flake.nix`), that's read-only (a copy in the Nix store, or a secret
-  agenix decrypts), and `~/.config/clonager/source.json` records the
-  editable source (`config.ReadSource`; the older plain-text `source` file is
-  still read): either a file in the user's checkout, or the user's own
-  decrypt/encrypt commands. Anything that changes the config must go through
+  agenix decrypts), and `source` in `settings.json` (below) records the
+  editable source (`config.ReadSource`): either a file in the user's
+  checkout, or the user's own decrypt/encrypt commands. Anything that changes the config must go through
   `editableConfig` and `Config.Save`, never write files itself, so it works
   for every kind of source. `Save` only runs `encrypt` when the config
   changed (re-encrypting changes the ciphertext anyway), writes through
@@ -83,8 +82,8 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   source differs from the installed copy.
 - **clonager's own options** (as opposed to repos) go in
   `~/.config/clonager/settings.json` (`config.ReadSettings`), which the Home
-  Manager module writes from its options (e.g. `discoverPaths`), not in the
-  YAML config.
+  Manager module writes from its options (`configSource`, `discoverPaths`),
+  not in the YAML config. One file for all of them: don't add others.
 - **`cli.ConfigHook` is the one exception to the allowlist:** it runs the
   user's decrypt/encrypt commands with `sh -c`. Use it only for those.
 - **The config is edited as a `yaml.Node` tree** so comments and ordering

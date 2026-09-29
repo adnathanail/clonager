@@ -2,13 +2,11 @@ package config
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/adnathanail/clonager/internal/cli"
 )
@@ -29,65 +27,11 @@ type Source struct {
 	Encrypt string `json:"encrypt,omitempty"`
 }
 
-// SourceSettingsPath is where the Home Manager module records the Source.
-func SourceSettingsPath() (string, error) {
-	dir, err := configDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "clonager", "source.json"), nil
-}
-
-// legacySourcePath is where older versions of the module recorded a plain
-// source file's path, as the only thing in the file.
-func legacySourcePath() (string, error) {
-	dir, err := configDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "clonager", "source"), nil
-}
-
-// ReadSource returns the recorded Source, or nil if there isn't one.
+// ReadSource returns the Source recorded in the Settings, or nil if there
+// isn't one.
 func ReadSource() (*Source, error) {
-	settings, err := SourceSettingsPath()
-	if err != nil {
-		return nil, err
-	}
-	data, err := os.ReadFile(settings)
-	switch {
-	case err == nil:
-		var s Source
-		if err := json.Unmarshal(data, &s); err != nil {
-			return nil, fmt.Errorf("%s: %w", TildePath(settings), err)
-		}
-		if err := s.validate(); err != nil {
-			return nil, fmt.Errorf("%s: %w", TildePath(settings), err)
-		}
-		return &s, nil
-	case !errors.Is(err, fs.ErrNotExist):
-		return nil, err
-	}
-
-	legacy, err := legacySourcePath()
-	if err != nil {
-		return nil, err
-	}
-	data, err = os.ReadFile(legacy)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	s := Source{Path: strings.TrimSpace(string(data))}
-	if s.Path == "" {
-		return nil, nil
-	}
-	if err := s.validate(); err != nil {
-		return nil, fmt.Errorf("%s: %w", TildePath(legacy), err)
-	}
-	return &s, nil
+	settings, err := ReadSettings()
+	return settings.Source, err
 }
 
 func (s *Source) validate() error {

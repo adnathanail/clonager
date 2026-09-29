@@ -12,6 +12,9 @@ import (
 // Settings are clonager's own options, as opposed to the repos in the config.
 // The Home Manager module writes them from programs.clonager's options.
 type Settings struct {
+	// Source is where commands that change the config read and write it,
+	// if not the installed config.
+	Source *Source `json:"source,omitempty"`
 	// DiscoverPaths are where discover looks when it's given no dirs.
 	DiscoverPaths []string `json:"discoverPaths,omitempty"`
 }
@@ -26,7 +29,7 @@ func SettingsPath() (string, error) {
 }
 
 // ReadSettings returns the Settings, empty if there's no settings file.
-// DiscoverPaths come back with ~ expanded.
+// Paths come back with ~ expanded.
 func ReadSettings() (Settings, error) {
 	var s Settings
 	path, err := SettingsPath()
@@ -42,6 +45,11 @@ func ReadSettings() (Settings, error) {
 	}
 	if err := json.Unmarshal(data, &s); err != nil {
 		return s, fmt.Errorf("%s: %w", TildePath(path), err)
+	}
+	if s.Source != nil {
+		if err := s.Source.validate(); err != nil {
+			return s, fmt.Errorf("%s: source: %w", TildePath(path), err)
+		}
 	}
 	for i, p := range s.DiscoverPaths {
 		expanded, err := ExpandHome(p)

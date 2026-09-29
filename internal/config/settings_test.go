@@ -7,6 +7,18 @@ import (
 	"testing"
 )
 
+// writeSettings writes $XDG_CONFIG_HOME/clonager/settings.json.
+func writeSettings(t *testing.T, xdg, contents string) {
+	t.Helper()
+	path := filepath.Join(xdg, "clonager", "settings.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestReadSettings(t *testing.T) {
 	home, _ := os.UserHomeDir()
 	cases := []struct {
@@ -26,7 +38,7 @@ func TestReadSettings(t *testing.T) {
 			xdg := t.TempDir()
 			t.Setenv("XDG_CONFIG_HOME", xdg)
 			if c.contents != "" {
-				writeSettings(t, xdg, "settings.json", c.contents)
+				writeSettings(t, xdg, c.contents)
 			}
 			got, err := ReadSettings()
 			switch {

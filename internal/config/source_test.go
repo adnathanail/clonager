@@ -7,47 +7,32 @@ import (
 	"testing"
 )
 
-// writeSettings writes a file under $XDG_CONFIG_HOME/clonager.
-func writeSettings(t *testing.T, xdg, name, contents string) {
-	t.Helper()
-	path := filepath.Join(xdg, "clonager", name)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestReadSource(t *testing.T) {
 	home, _ := os.UserHomeDir()
 	cases := []struct {
-		name, file, contents string
-		want                 *Source
-		err                  string
+		name, source string
+		want         *Source
+		err          string
 	}{
 		{name: "none"},
-		{name: "path", file: "source.json", contents: `{"path": "/Users/me/nix/clonager.yaml"}`,
+		{name: "path", source: `{"path": "/Users/me/nix/clonager.yaml"}`,
 			want: &Source{Path: "/Users/me/nix/clonager.yaml"}},
-		{name: "path with ~", file: "source.json", contents: `{"path": "~/nix/clonager.yaml"}`,
+		{name: "path with ~", source: `{"path": "~/nix/clonager.yaml"}`,
 			want: &Source{Path: filepath.Join(home, "nix/clonager.yaml")}},
-		{name: "commands", file: "source.json", contents: `{"decrypt": "age -d x.age", "encrypt": "age -e -o x.age"}`,
+		{name: "commands", source: `{"decrypt": "age -d x.age", "encrypt": "age -e -o x.age"}`,
 			want: &Source{Decrypt: "age -d x.age", Encrypt: "age -e -o x.age"}},
-		{name: "legacy plain path", file: "source", contents: "~/nix/clonager.yaml\n",
-			want: &Source{Path: filepath.Join(home, "nix/clonager.yaml")}},
-		{name: "legacy empty", file: "source", contents: "  \n"},
-		{name: "both", file: "source.json", contents: `{"path": "/x", "decrypt": "a", "encrypt": "b"}`, err: "not both"},
-		{name: "decrypt only", file: "source.json", contents: `{"decrypt": "a"}`, err: "go together"},
-		{name: "relative", file: "source.json", contents: `{"path": "nix/clonager.yaml"}`, err: "absolute"},
-		{name: "empty", file: "source.json", contents: `{}`, err: "no path or commands"},
-		{name: "not json", file: "source.json", contents: `/x`, err: "source.json"},
+		{name: "both", source: `{"path": "/x", "decrypt": "a", "encrypt": "b"}`, err: "not both"},
+		{name: "decrypt only", source: `{"decrypt": "a"}`, err: "go together"},
+		{name: "relative", source: `{"path": "nix/clonager.yaml"}`, err: "absolute"},
+		{name: "empty", source: `{}`, err: "no path or commands"},
+		{name: "not an object", source: `"/x"`, err: "settings.json"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			xdg := t.TempDir()
 			t.Setenv("XDG_CONFIG_HOME", xdg)
-			if c.file != "" {
-				writeSettings(t, xdg, c.file, c.contents)
+			if c.source != "" {
+				writeSettings(t, xdg, `{"source": `+c.source+`}`)
 			}
 			got, err := ReadSource()
 			switch {

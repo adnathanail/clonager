@@ -142,16 +142,18 @@
                 if builtins.isPath cfg.configFile then cfg.configFile
                 else config.lib.file.mkOutOfStoreSymlink cfg.configFile;
             };
-            # Where clonager discover reads and writes (config.ReadSource in the Go code).
-            xdg.configFile."clonager/source.json" = lib.mkIf (cfg.configSource != null) {
-              text = builtins.toJSON (
-                if builtins.isString cfg.configSource then { path = cfg.configSource; }
-                else { inherit (cfg.configSource) decrypt encrypt; }
-              );
-            };
-            xdg.configFile."clonager/settings.json" = lib.mkIf (cfg.discoverPaths != [ ]) {
-              text = builtins.toJSON { inherit (cfg) discoverPaths; };
-            };
+            # config.ReadSettings in the Go code.
+            xdg.configFile."clonager/settings.json" =
+              let
+                settings =
+                  lib.optionalAttrs (cfg.configSource != null) {
+                    source =
+                      if builtins.isString cfg.configSource then { path = cfg.configSource; }
+                      else { inherit (cfg.configSource) decrypt encrypt; };
+                  }
+                  // lib.optionalAttrs (cfg.discoverPaths != [ ]) { inherit (cfg) discoverPaths; };
+              in
+              lib.mkIf (settings != { }) { text = builtins.toJSON settings; };
           };
         };
 
