@@ -14,6 +14,10 @@ import (
 	"github.com/adnathanail/clonager/internal/discover"
 )
 
+// defaultDepth is how many folders deep discover looks by default, and how
+// deep status looks for repos missing from the config.
+const defaultDepth = 4
+
 var discoverFlags struct {
 	dryRun bool
 	depth  int
@@ -45,7 +49,7 @@ read-only installed copy. Review the diff there, then rebuild to apply it.`,
 
 func init() {
 	discoverCmd.Flags().BoolVarP(&discoverFlags.dryRun, "dry-run", "n", false, "show what would be added without changing the config")
-	discoverCmd.Flags().IntVarP(&discoverFlags.depth, "depth", "d", 4, "how many folders deep to look below each <dir>")
+	discoverCmd.Flags().IntVarP(&discoverFlags.depth, "depth", "d", defaultDepth, "how many folders deep to look below each <dir>")
 	rootCmd.AddCommand(discoverCmd)
 }
 
@@ -147,27 +151,40 @@ func discoverDirs(args []string) ([]string, error) {
 		return dirs, nil
 	}
 
-	settings, err := config.ReadSettings()
+	dirs, missing, err := settingsDirs()
 	if err != nil {
 		return nil, err
 	}
-	if len(settings.DiscoverPaths) == 0 {
+	if len(dirs)+len(missing) == 0 {
 		path, _ := config.SettingsPath()
 		return nil, fmt.Errorf("give the dirs to look in, or list them as discoverPaths in %s "+
 			"(programs.clonager.discoverPaths with the Home Manager module)", config.TildePath(path))
 	}
+	for _, p := range missing {
+		fmt.Println(styleDim.Render("Skipping " + config.TildePath(p) + ", which doesn't exist"))
+	}
+	return dirs, nil
+}
+
+// settingsDirs returns the discoverPaths in the settings that exist, and
+// separately those that don't.
+func settingsDirs() (dirs, missing []string, err error) {
+	settings, err := config.ReadSettings()
+	if err != nil {
+		return nil, nil, err
+	}
 	for _, p := range settings.DiscoverPaths {
 		dir, err := absDir(p)
 		if errors.Is(err, fs.ErrNotExist) {
-			fmt.Println(styleDim.Render("Skipping " + config.TildePath(p) + ", which doesn't exist"))
+			missing = append(missing, p)
 			continue
 		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		dirs = append(dirs, dir)
 	}
-	return dirs, nil
+	return dirs, missing, nil
 }
 
 func absDir(arg string) (string, error) {

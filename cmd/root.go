@@ -75,23 +75,25 @@ func editableConfig() (cfg *config.Config, fromSource bool, err error) {
 	return cfg, false, err
 }
 
-// unappliedNote returns a note if the config's source (see editableConfig)
-// has changes the installed config doesn't have yet.
-func unappliedNote(installed string) string {
+// unapplied returns the config's source (see editableConfig) if it has
+// changes the installed config doesn't have yet, with a note saying so.
+func unapplied(installed string) (pending *config.Config, note string) {
 	if configPath != "" {
-		return ""
+		return nil, ""
 	}
 	src, err := config.ReadSource()
 	if err != nil || src == nil {
-		return ""
+		return nil, ""
 	}
 	a, errA := src.Read()
 	b, errB := os.ReadFile(installed)
 	if errA != nil || errB != nil || bytes.Equal(a, b) {
-		return ""
+		return nil, ""
 	}
 	label := src.Label()
-	return strings.ToUpper(label[:1]) + label[1:] + " has changes not applied yet: rebuild (e.g. darwin-rebuild switch) to apply them."
+	note = strings.ToUpper(label[:1]) + label[1:] + " has changes not applied yet: rebuild (e.g. darwin-rebuild switch) to apply them."
+	pending, _ = config.Parse(label, a) // only used to recognise repos; nil if it doesn't parse
+	return pending, note
 }
 
 // loadConfig loads the config file. A missing file gives an error wrapping

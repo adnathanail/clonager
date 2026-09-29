@@ -15,6 +15,7 @@ import (
 
 	"github.com/adnathanail/clonager/internal/cli"
 	"github.com/adnathanail/clonager/internal/config"
+	"github.com/adnathanail/clonager/internal/discover"
 	"github.com/adnathanail/clonager/internal/repostatus"
 )
 
@@ -35,6 +36,9 @@ GitButler workspace state.
 Branches already merged into the default branch (as a merge, fast-forward,
 rebase or squash) are listed separately and don't need attention, as are
 origin's merged branches.
+
+Repos in the discoverPaths (see clonager discover) that aren't in the config
+are listed at the end, including ones with no origin. Not with --tag.
 
 With --forge, GitHub is also asked (via gh):
   - about merged PRs, which catches merges git alone can't see
@@ -80,10 +84,76 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		reports[i] = buildReport(s)
 	}
 	printReports(reports)
-	if note := unappliedNote(cfg.Path); note != "" {
+	pending, note := unapplied(cfg.Path)
+	if len(statusFlags.tags) == 0 {
+		if err := printUntracked(cfg, pending); err != nil {
+			return err
+		}
+	}
+	if note != "" {
 		fmt.Println(styleWarn.Render(note))
 	}
 	return nil
+}
+
+// untrackedRepo is a repo in the discoverPaths that isn't in the config.
+type untrackedRepo struct {
+	path     string
+	noOrigin bool // so discover can't add it
+}
+
+// printUntracked lists the repos in the discoverPaths (see settingsDirs)
+// that aren't in the config, nor in its source waiting to be applied
+// (pending, which may be nil).
+func printUntracked(cfg, pending *config.Config) error {
+	dirs, _, err := settingsDirs()
+	if err != nil {
+		return err
+	}
+	repos, err := findUntracked(dirs, cfg, pending)
+	if err != nil || len(repos) == 0 {
+		return err
+	}
+
+	fmt.Println()
+	fmt.Println(styleHeading.Render("Not in the config"))
+	addable := 0
+	for _, r := range repos {
+		line := "  " + styleWarn.Render("?") + " " + config.TildePath(r.path)
+		if r.noOrigin {
+			line += "  " + styleDim.Render("no origin")
+		} else {
+			addable++
+		}
+		fmt.Println(line)
+	}
+	switch {
+	case addable == len(repos):
+		fmt.Println(styleDim.Render("Add them with clonager discover."))
+	case addable > 0:
+		fmt.Println(styleDim.Render("Add them with clonager discover, once those without an origin have one."))
+	default:
+		fmt.Println(styleDim.Render("clonager discover can add them once they have an origin."))
+	}
+	return nil
+}
+
+func findUntracked(dirs []string, cfg, pending *config.Config) ([]untrackedRepo, error) {
+	var repos []untrackedRepo
+	for _, dir := range dirs {
+		paths, err := discover.Find(dir, defaultDepth)
+		if err != nil {
+			return nil, err
+		}
+		for _, path := range paths {
+			if cfg.Contains(path) || (pending != nil && pending.Contains(path)) {
+				continue
+			}
+			_, err := discover.Describe(path)
+			repos = append(repos, untrackedRepo{path: path, noOrigin: errors.Is(err, discover.ErrNoOrigin)})
+		}
+	}
+	return repos, nil
 }
 
 // checkForgeAvailable fails early if --forge was given without gh installed,

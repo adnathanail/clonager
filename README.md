@@ -185,6 +185,10 @@ branches (just ⧓ if none are applied). It reports:
   merged branches automatically
 - **GitButler** — conflicted commits, branches needing a
   force push, and repos marked `gitbutler: true` that aren't in the workspace
+- **Repos not in the config** — with `discoverPaths` set (see
+  [`discover`](#clonager-discover-dir)), clones in those folders that aren't
+  in the config yet, including ones with no `origin` (which `discover` can't
+  add). Not shown with `--tag`.
 
 | Flag | |
 |---|---|
@@ -361,9 +365,6 @@ Nix job fails until you do.
   clonager only ever reading, it would print the commands for repos that aren't
   cloned yet: `git clone <url> <path>`, `git remote add` for extra remotes, and
   (commented out) `but setup` for repos marked `gitbutler: true`.
-- **Finding unmanaged repos** — `discover` only looks where it's pointed.
-  `status` could also report clones inside configured folders that aren't in
-  the config.
 - **Dismissing items** — a way to mark branches you're deliberately keeping
   (e.g. a `keep:` list on a repo), so `prune` can reach "Nothing to prune"
   with intentional exceptions.
