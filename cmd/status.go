@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -40,7 +41,9 @@ With --forge, GitHub is also asked (via gh):
   - which of origin's branches still exist, to spot stale remote refs
   - whether the repo deletes merged branches automatically
 
-Remote state is as of each repo's last fetch; status never fetches.`,
+Remote state is as of each repo's last fetch; status never fetches. The
+column before each repo shows how long ago that was (e.g. 23m, 7h, 5d),
+in yellow if over a month.`,
 	Args: cobra.NoArgs,
 	RunE: runStatus,
 }
@@ -143,6 +146,7 @@ type issue struct {
 type report struct {
 	status *repostatus.Status
 	head   string // rendered branch column
+	fetch  string // rendered last-fetch column
 	issues []issue
 }
 
@@ -177,6 +181,14 @@ func buildReport(s *repostatus.Status) report {
 		add(sevWarn, "detached HEAD")
 	default:
 		r.head = styleBranch.Render(s.Head)
+	}
+	if len(s.RemoteURLs) > 0 {
+		age, stale := fetchAge(s.LastFetch, time.Now())
+		if stale {
+			r.fetch = styleWarn.Render(age)
+		} else {
+			r.fetch = styleDim.Render(age)
+		}
 	}
 
 	// Remotes
@@ -299,6 +311,27 @@ func buildReport(s *repostatus.Status) report {
 	return r
 }
 
+// staleFetch is how long since a repo's last fetch before it's highlighted.
+const staleFetch = 30 * 24 * time.Hour
+
+// fetchAge gives how long ago a repo last fetched, in short form (23m, 7h,
+// 5d), and whether that's long enough ago to highlight.
+func fetchAge(last, now time.Time) (age string, stale bool) {
+	if last.IsZero() {
+		return "never", true
+	}
+	d := max(0, now.Sub(last))
+	switch {
+	case d < time.Hour:
+		age = fmt.Sprintf("%dm", int(d.Minutes()))
+	case d < 24*time.Hour:
+		age = fmt.Sprintf("%dh", int(d.Hours()))
+	default:
+		age = fmt.Sprintf("%dd", int(d.Hours()/24))
+	}
+	return age, d >= staleFetch
+}
+
 // mergedHow describes how a merged branch got into the default branch.
 func mergedHow(b repostatus.Branch, defaultBranch string) string {
 	return describeMerge(b.Merged, b.PR, defaultBranch)
@@ -348,10 +381,11 @@ func plural(n int, one, many string) string {
 }
 
 func printReports(reports []report) {
-	var nameW, headW int
+	var nameW, headW, fetchW int
 	for _, r := range reports {
 		nameW = max(nameW, len(r.status.Repo.Name()))
 		headW = max(headW, lipgloss.Width(r.head))
+		fetchW = max(fetchW, lipgloss.Width(r.fetch))
 	}
 
 	counts := map[severity]int{}
@@ -385,14 +419,14 @@ func printReports(reports []report) {
 		for _, i := range r.issues {
 			parts = append(parts, severityStyle(i.sev).Render(i.text))
 		}
-		line := fmt.Sprintf("  %s %-*s  %s", icon, nameW, r.status.Repo.Name(), padRight(r.head, headW))
+		line := fmt.Sprintf("  %s %s %-*s  %s", padLeft(r.fetch, fetchW), icon, nameW, r.status.Repo.Name(), padRight(r.head, headW))
 		if len(parts) > 0 {
 			line += "  " + strings.Join(parts, styleDim.Render(" · "))
 		}
 		fmt.Println(strings.TrimRight(line, " "))
 
 		if statusFlags.verbose {
-			indent := strings.Repeat(" ", 4+nameW+2)
+			indent := strings.Repeat(" ", 2+fetchW+3+nameW+2)
 			for _, i := range r.issues {
 				if len(i.details) > 0 {
 					fmt.Println(indent + severityStyle(i.sev).Render(i.text+":") + " " + strings.Join(i.details, ", "))
@@ -424,6 +458,11 @@ func severityStyle(s severity) lipgloss.Style {
 	default:
 		return styleDim
 	}
+}
+
+// padLeft right-aligns a possibly styled string to a visible width.
+func padLeft(s string, w int) string {
+	return strings.Repeat(" ", max(0, w-lipgloss.Width(s))) + s
 }
 
 // padRight pads a possibly styled string to a visible width.

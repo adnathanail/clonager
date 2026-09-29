@@ -7,12 +7,12 @@ them on a fresh machine.
 ```
 $ clonager status
 ~/Documents/Projects
-  ● you-cool-blog    gitbutler  1 stash · 2 local-only branches · 1 branch applied
-  ✓ asdf             main
+  23m ● you-cool-blog    gitbutler  1 stash · 2 local-only branches · 1 branch applied
+   7h ✓ asdf             main
 
 ~/Documents/Work
-  ✓ vip-proj         main
-  ● work-stuff       main       5 branches deleted on remote · 26 branches merged · 1 branch behind
+  42d ✓ vip-proj         main
+   5d ● work-stuff       main       5 branches deleted on remote · 26 branches merged · 1 branch behind
 
 4 repos · 2 ok · 2 need attention
 ```
@@ -161,7 +161,10 @@ Shows every configured repo, grouped by folder: ✓ is fine, ● needs attention
 | `-t`, `--tag <tag>` | only show repos with this tag (repeatable) |
 | `-f`, `--forge` | also check GitHub, via `gh` (see below) |
 
-Remote state is as of each repo's last fetch: `status` never fetches. With
+Remote state is as of each repo's last fetch: `status` never fetches. The
+column before each repo shows how long ago that was (`23m`, `7h`, `5d`), from
+any remote and including GitButler's background fetches; it's yellow if over a
+month, or `never`. With
 `--forge` it takes a few seconds, mostly waiting on GitHub for repos with long
 PR histories.
 
@@ -320,10 +323,6 @@ Nix job fails until you do.
 - **Finding unmanaged repos** — `discover` only looks where it's pointed.
   `status` could also report clones inside configured folders that aren't in
   the config.
-- **How stale the data is** — `status` never fetches, so its view of remotes is
-  as of each repo's last fetch. It could show when that was (e.g. "last fetched
-  3 weeks ago"), from the time of the last fetch that git records, without
-  fetching anything itself.
 - **Dismissing items** — a way to mark branches you're deliberately keeping
   (e.g. a `keep:` list on a repo), so `prune` can reach "Nothing to prune"
   with intentional exceptions.

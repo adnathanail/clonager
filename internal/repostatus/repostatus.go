@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/adnathanail/clonager/internal/cli"
 	"github.com/adnathanail/clonager/internal/config"
@@ -73,6 +74,7 @@ type Status struct {
 	OriginURL  string
 	RemoteURLs map[string]string
 	GitButler  GitButler
+	LastFetch  time.Time // when the repo last fetched from any remote; zero if never
 
 	RemoteBranches []RemoteBranch // origin's branches, other than HEAD
 
@@ -206,6 +208,7 @@ func (s *Status) inspect(opts Options) error {
 	if out, err := g.run("stash", "list"); err == nil && out != "" {
 		s.Stashes = strings.Count(out, "\n") + 1
 	}
+	s.readLastFetch(g, gitDir)
 	s.readGitButler(gitDir)
 	s.checkMerged(g)
 	if opts.Forge {
