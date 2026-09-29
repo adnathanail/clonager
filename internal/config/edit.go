@@ -109,16 +109,19 @@ func (c *Config) Save() error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmp.Name())
+	defer func() { _ = os.Remove(tmp.Name()) }() // no-op once renamed into place
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
+		_ = tmp.Close() // the write error is the one worth reporting
 		return err
 	}
 	if err := tmp.Close(); err != nil {
 		return err
 	}
 	if info, err := os.Stat(c.Path); err == nil {
-		os.Chmod(tmp.Name(), info.Mode().Perm())
+		// Keep the existing file's permissions rather than CreateTemp's 0600.
+		if err := os.Chmod(tmp.Name(), info.Mode().Perm()); err != nil {
+			return err
+		}
 	}
 	return os.Rename(tmp.Name(), c.Path)
 }

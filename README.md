@@ -255,8 +255,7 @@ go build -o clonager . && ./clonager status -c some-test-config.yaml
   `status` could also report clones inside configured folders that aren't in
   the config.
 - **Packaging as a Nix flake** — so clonager can be installed with nix-darwin
-  rather than built from a checkout. Along with pushing the repo to GitHub
-  (which `go install` needs) and CI running `go test`.
+  rather than built from a checkout.
 - **How stale the data is** — `status` never fetches, so its view of remotes is
   as of each repo's last fetch. It could show when that was (e.g. "last fetched
   3 weeks ago"), from the time of the last fetch that git records, without

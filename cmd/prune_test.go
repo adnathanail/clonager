@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"errors"
 	"os"
 	"os/exec"
@@ -105,9 +104,7 @@ func TestPruneOutput(t *testing.T) {
 		},
 	}
 
-	var buf bytes.Buffer
-	writePrune(&buf, statuses, true)
-	out := buf.String()
+	out := pruneScript(statuses, true)
 
 	// Only local-only commands run; everything else is a comment.
 	for _, line := range strings.Split(out, "\n") {
@@ -167,14 +164,13 @@ func TestPruneOutput(t *testing.T) {
 }
 
 func TestPruneNothing(t *testing.T) {
-	var buf bytes.Buffer
-	writePrune(&buf, []*repostatus.Status{{
+	out := pruneScript([]*repostatus.Status{{
 		Repo:          config.Repo{Path: "/work/tidy"},
 		DefaultBranch: "origin/main",
 		Branches:      []repostatus.Branch{{Name: "main"}, {Name: "open"}},
 		GitHub:        &repostatus.GitHubRepo{Name: "me/tidy", CanPush: true, Admin: true},
 	}}, true)
-	if got := strings.TrimSpace(buf.String()); got != "# Nothing to prune" {
+	if got := strings.TrimSpace(out); got != "# Nothing to prune" {
 		t.Errorf("got %q, want # Nothing to prune", got)
 	}
 }

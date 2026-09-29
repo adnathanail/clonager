@@ -10,6 +10,7 @@ sync when commands, flags or the config format change.
 go test ./...
 go vet ./...
 gofmt -l .                      # should print nothing
+nix run nixpkgs#golangci-lint -- run ./...   # as CI does (.github/workflows/ci.yml)
 go build -o clonager .          # CGO_ENABLED=0 for the static release binary
 ./clonager status -c test-config.yaml   # test-config.yaml is gitignored, local only
 ```

@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -66,7 +64,7 @@ func runPrune(cmd *cobra.Command, args []string) error {
 	}
 	repos := filterByTags(cfg.Repos, pruneFlags.tags)
 	statuses := inspectAll(repos, repostatus.Options{Forge: pruneFlags.forge})
-	writePrune(os.Stdout, statuses, pruneFlags.forge)
+	fmt.Print(pruneScript(statuses, pruneFlags.forge))
 	return nil
 }
 
@@ -79,10 +77,11 @@ type pruneCounts struct {
 	unchecked int // repos (or their GitHub side) that couldn't be checked
 }
 
-// writePrune writes the prune script for the inspected repos. Every line is
+// pruneScript returns the prune script for the inspected repos. Every line is
 // either a command that only touches the local clone or a # comment, so it's
 // safe to pipe to sh.
-func writePrune(w io.Writer, statuses []*repostatus.Status, forge bool) {
+func pruneScript(statuses []*repostatus.Status, forge bool) string {
+	var w strings.Builder
 	var n pruneCounts
 	first := true
 	for _, s := range statuses {
@@ -91,15 +90,15 @@ func writePrune(w io.Writer, statuses []*repostatus.Status, forge bool) {
 			continue
 		}
 		if !first {
-			fmt.Fprintln(w)
+			w.WriteString("\n")
 		}
 		first = false
-		fmt.Fprintln(w, styleHeading.Render("# "+config.TildePath(s.Repo.Path)))
-		fmt.Fprintln(w, strings.Join(lines, "\n"))
+		w.WriteString(styleHeading.Render("# "+config.TildePath(s.Repo.Path)) + "\n")
+		w.WriteString(strings.Join(lines, "\n") + "\n")
 	}
 
 	if !first {
-		fmt.Fprintln(w)
+		w.WriteString("\n")
 	}
 	var summary []string
 	if n.deletes > 0 {
@@ -124,7 +123,8 @@ func writePrune(w io.Writer, statuses []*repostatus.Status, forge bool) {
 	if !forge {
 		line += " (--forge also checks GitHub for merged PRs, stale refs and merged branches there)"
 	}
-	fmt.Fprintln(w, pruneComment(line))
+	w.WriteString(pruneComment(line) + "\n")
+	return w.String()
 }
 
 func pruneComment(s string) string { return styleDim.Render("# " + s) }
