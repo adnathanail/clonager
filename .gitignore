@@ -1,2 +1,5 @@
+.vscode/
+
 clonager
 /dist/
+test-config.yaml
