@@ -461,21 +461,27 @@ func plural(n int, one, many string) string {
 }
 
 func printReports(reports []report) {
-	var nameW, headW, fetchW int
+	// Size the columns to the rows shown, not the ones --problems hides.
+	counts := map[severity]int{}
+	var shown []report
 	for _, r := range reports {
+		sev := r.severity()
+		counts[sev]++
+		if !statusFlags.problems || sev != sevInfo {
+			shown = append(shown, r)
+		}
+	}
+
+	var nameW, headW, fetchW int
+	for _, r := range shown {
 		nameW = max(nameW, len(r.status.Repo.Name()))
 		headW = max(headW, lipgloss.Width(r.head))
 		fetchW = max(fetchW, lipgloss.Width(r.fetch))
 	}
 
-	counts := map[severity]int{}
 	group := ""
-	for _, r := range reports {
+	for _, r := range shown {
 		sev := r.severity()
-		counts[sev]++
-		if statusFlags.problems && sev == sevInfo {
-			continue
-		}
 
 		if dir := config.TildePath(filepath.Dir(r.status.Repo.Path)); dir != group {
 			if group != "" {
