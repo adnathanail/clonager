@@ -181,8 +181,14 @@ With `--forge` it also covers GitHub:
   that don't delete merged branches automatically.
 
 The last two are only for repos that are yours: ones you can push to, and not
-marked `mine: false`. Once you've dealt with everything you can, `prune` prints
-`# Nothing to prune`.
+marked `mine: false`.
+
+Repos that couldn't be checked are listed with the reason, e.g. `# couldn't
+check: not cloned`, or `# couldn't check GitHub: …` alongside the local
+results. A repo whose GitButler state can't be read is skipped entirely, since
+clonager can't tell which branches are applied there. `prune` only prints
+`# Nothing to prune` once there's nothing left to do and every check
+succeeded.
 
 To run everything that isn't commented out: `clonager prune -f | sh`.
 
@@ -238,3 +244,25 @@ GitHub remotes are checked.
 go test ./...
 go build -o clonager . && ./clonager status -c some-test-config.yaml
 ```
+
+## Future plans
+
+- **`clonager clone`** — set up a fresh laptop from the config. In keeping with
+  clonager only ever reading, it would print the commands for repos that aren't
+  cloned yet: `git clone <url> <path>`, `git remote add` for extra remotes, and
+  (commented out) `but setup` for repos marked `gitbutler: true`.
+- **Finding unmanaged repos** — `discover` only looks where it's pointed.
+  `status` could also report clones inside configured folders that aren't in
+  the config.
+- **Packaging as a Nix flake** — so clonager can be installed with nix-darwin
+  rather than built from a checkout. Along with pushing the repo to GitHub
+  (which `go install` needs) and CI running `go test`.
+- **How stale the data is** — `status` never fetches, so its view of remotes is
+  as of each repo's last fetch. It could show when that was (e.g. "last fetched
+  3 weeks ago"), from the time of the last fetch that git records, without
+  fetching anything itself.
+- **Dismissing items** — a way to mark branches you're deliberately keeping
+  (e.g. a `keep:` list on a repo), so `prune` can reach "Nothing to prune"
+  with intentional exceptions.
+- **Exit codes** — `status` (and `prune`) could exit non-zero when something
+  needs attention, for use in scripts.
