@@ -20,16 +20,17 @@ import (
 )
 
 var statusFlags struct {
-	verbose  bool
-	problems bool
-	forge    bool
-	tags     []string
+	verbose bool
+	all     bool
+	forge   bool
+	tags    []string
 }
 
 // statusHelp describes what clonager shows when run without a command.
-const statusHelp = `Run without a command, clonager shows the state of every configured repo:
-uncommitted changes, stashes, branches that aren't on a remote, branches with
-unpushed commits, and GitButler workspace state.
+const statusHelp = `Run without a command, clonager shows the configured repos that need
+attention: uncommitted changes, stashes, branches that aren't on a remote,
+branches with unpushed commits, and GitButler workspace state. --all also
+shows the ones that are fine.
 
 Branches already merged into the default branch (as a merge, fast-forward,
 rebase or squash) are listed separately and don't need attention, as are
@@ -51,7 +52,7 @@ func init() {
 	// Local, not persistent: they don't apply to discover or prune. Taking -v
 	// leaves the version as just --version.
 	rootCmd.Flags().BoolVarP(&statusFlags.verbose, "verbose", "v", false, "list the branches behind each count")
-	rootCmd.Flags().BoolVarP(&statusFlags.problems, "problems", "p", false, "only show repos that need attention")
+	rootCmd.Flags().BoolVarP(&statusFlags.all, "all", "a", false, "also show repos that are fine")
 	rootCmd.Flags().BoolVarP(&statusFlags.forge, "forge", "f", false, "also check GitHub (via gh): merged PRs, stale refs, repo settings")
 	rootCmd.Flags().StringSliceVarP(&statusFlags.tags, "tag", "t", nil, "only show repos with this tag (repeatable)")
 	rootCmd.Args = cobra.NoArgs
@@ -479,13 +480,14 @@ func plural(n int, one, many string) string {
 }
 
 func printReports(reports []report) {
-	// Size the columns to the rows shown, not the ones --problems hides.
+	// Repos that are fine are only shown with --all. Size the columns to the
+	// rows shown, not the hidden ones.
 	counts := map[severity]int{}
 	var shown []report
 	for _, r := range reports {
 		sev := r.severity()
 		counts[sev]++
-		if !statusFlags.problems || sev != sevInfo {
+		if statusFlags.all || sev != sevInfo {
 			shown = append(shown, r)
 		}
 	}
@@ -540,10 +542,16 @@ func printReports(reports []report) {
 		}
 	}
 
-	lipgloss.Println()
+	if len(shown) > 0 {
+		lipgloss.Println()
+	}
 	summary := []string{plural(len(reports), "repo", "repos")}
 	if n := counts[sevInfo]; n > 0 {
-		summary = append(summary, styleOK.Render(fmt.Sprintf("%d ok", n)))
+		ok := styleOK.Render(fmt.Sprintf("%d ok", n))
+		if !statusFlags.all {
+			ok += styleDim.Render(" (-a to show)")
+		}
+		summary = append(summary, ok)
 	}
 	if n := counts[sevWarn]; n > 0 {
 		summary = append(summary, styleWarn.Render(fmt.Sprintf("%d need attention", n)))

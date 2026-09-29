@@ -7,14 +7,12 @@ them on a fresh machine.
 ```
 $ clonager
 ~/Documents/Projects
-  23m ● you-cool-blog    ⧓ new-post  1 stash · 2 local-only branches
-   7h ✓ asdf             main
+  23m ● you-cool-blog  ⧓ new-post  1 stash · 2 local-only branches
 
 ~/Documents/Work
-  42d ✓ vip-proj         main
-   5d ● work-stuff       main        5 branches deleted on remote · 26 branches merged · 1 branch behind
+   5d ● work-stuff     main        5 branches deleted on remote · 26 branches merged · 1 branch behind
 
-4 repos · 2 ok · 2 need attention
+4 repos · 2 ok (-a to show) · 2 need attention
 ```
 
 ## Install
@@ -172,8 +170,9 @@ Each command has a one-letter shortcut, shown in brackets in `--help`:
 
 ### `clonager`
 
-With no command, clonager shows every configured repo, grouped by folder: ✓ is fine, ● needs attention,
-✗ has an error. After the name is the checked-out branch or, for a repo in a
+With no command, clonager shows the configured repos that need attention
+(●) or have an error (✗), grouped by folder; `--all` also shows the ones that
+are fine (✓). After the name is the checked-out branch or, for a repo in a
 GitButler workspace, ⧓ (a stand-in for GitButler's logo) and its applied
 branches (just ⧓ if none are applied). In terminals that support links
 (iTerm2, Ghostty, WezTerm, Kitty, VS Code…), cmd-clicking a repo's name opens
@@ -201,7 +200,7 @@ its folder. It reports:
 | Flag | |
 |---|---|
 | `-v`, `--verbose` | list the branches behind each count |
-| `-p`, `--problems` | only show repos that need attention |
+| `-a`, `--all` | also show repos that are fine |
 | `-t`, `--tag <tag>` | only show repos with this tag (repeatable) |
 | `-f`, `--forge` | also check GitHub, via `gh` (see below) |
 
