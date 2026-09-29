@@ -289,6 +289,20 @@ To run everything that isn't commented out: `clonager prune -f | sh`.
 | `-f`, `--forge` | also check GitHub, and cover branches there |
 | `-t`, `--tag <tag>` | only repos with this tag (repeatable) |
 
+### Exit codes
+
+`status` and `prune` exit non-zero when there's something to deal with, for
+use in scripts:
+
+| Code | |
+|---|---|
+| 0 | all fine: nothing needs attention, or `# Nothing to prune` |
+| 1 | clonager itself failed (e.g. no config file) |
+| 2 | `status`: a repo needs attention (●), or there are repos not in the config; `prune`: there's something to prune, even if only commented out |
+| 3 | `status`: a repo has an error (✗); `prune`: a check failed |
+
+For `prune | sh`, the pipeline's exit code is `sh`'s, not `prune`'s.
+
 ### `clonager completion <shell>`
 
 Prints a shell completion script. For zsh:
@@ -370,5 +384,3 @@ Nix job fails until you do.
 - **Dismissing items** — a way to mark branches you're deliberately keeping
   (e.g. a `keep:` list on a repo), so `prune` can reach "Nothing to prune"
   with intentional exceptions.
-- **Exit codes** — `status` (and `prune`) could exit non-zero when something
-  needs attention, for use in scripts.

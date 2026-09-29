@@ -25,17 +25,46 @@ var rootCmd = &cobra.Command{
 	SilenceErrors: true,
 }
 
-func Execute() error {
+// Exit codes, for scripts: status and prune exit exitAttention or
+// exitErrors (by returning an exitCode) when there's something to deal with.
+const (
+	exitOK        = 0
+	exitFailed    = 1 // clonager itself failed
+	exitAttention = 2 // something needs attention (status) or pruning (prune)
+	exitErrors    = 3 // a repo has an error, or couldn't be checked
+)
+
+// exitCode is returned by a command that ran fine but should exit non-zero.
+// Execute exits with it without printing an error.
+type exitCode int
+
+func (c exitCode) Error() string { return fmt.Sprintf("exit status %d", int(c)) }
+
+// codeFor returns exitCode(code), or nil for exitOK.
+func codeFor(code int) error {
+	if code == exitOK {
+		return nil
+	}
+	return exitCode(code)
+}
+
+// Execute runs clonager and returns the code to exit with.
+func Execute() int {
 	// Cobra prints help, and the banner in it, through these, so styles are
 	// stripped when output isn't a terminal.
 	stderr := colorprofile.NewWriter(os.Stderr, os.Environ())
 	rootCmd.SetOut(lipgloss.Writer)
 	rootCmd.SetErr(stderr)
 	err := rootCmd.Execute()
+	var code exitCode
+	if errors.As(err, &code) {
+		return int(code)
+	}
 	if err != nil {
 		fmt.Fprintln(stderr, styleError.Render("error:"), err)
+		return exitFailed
 	}
-	return err
+	return exitOK
 }
 
 func init() {

@@ -84,16 +84,36 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		reports[i] = buildReport(s)
 	}
 	printReports(reports)
+	code := statusCode(reports)
 	pending, note := unapplied(cfg.Path)
 	if len(statusFlags.tags) == 0 {
-		if err := printUntracked(cfg, pending); err != nil {
+		untracked, err := printUntracked(cfg, pending)
+		if err != nil {
 			return err
+		}
+		if untracked {
+			code = max(code, exitAttention)
 		}
 	}
 	if note != "" {
 		lipgloss.Println(styleWarn.Render(note))
 	}
-	return nil
+	return codeFor(code)
+}
+
+// statusCode is the exit code for the reports: exitErrors if any repo has an
+// error, exitAttention if any needs attention.
+func statusCode(reports []report) int {
+	code := exitOK
+	for _, r := range reports {
+		switch r.severity() {
+		case sevError:
+			code = max(code, exitErrors)
+		case sevWarn:
+			code = max(code, exitAttention)
+		}
+	}
+	return code
 }
 
 // untrackedRepo is a repo in the discoverPaths that isn't in the config.
@@ -104,15 +124,15 @@ type untrackedRepo struct {
 
 // printUntracked lists the repos in the discoverPaths (see settingsDirs)
 // that aren't in the config, nor in its source waiting to be applied
-// (pending, which may be nil).
-func printUntracked(cfg, pending *config.Config) error {
+// (pending, which may be nil), and reports whether there were any.
+func printUntracked(cfg, pending *config.Config) (bool, error) {
 	dirs, _, err := settingsDirs()
 	if err != nil {
-		return err
+		return false, err
 	}
 	repos, err := findUntracked(dirs, cfg, pending)
 	if err != nil || len(repos) == 0 {
-		return err
+		return false, err
 	}
 
 	lipgloss.Println()
@@ -135,7 +155,7 @@ func printUntracked(cfg, pending *config.Config) error {
 	default:
 		lipgloss.Println(styleDim.Render("clonager discover can add them once they have an origin."))
 	}
-	return nil
+	return true, nil
 }
 
 func findUntracked(dirs []string, cfg, pending *config.Config) ([]untrackedRepo, error) {

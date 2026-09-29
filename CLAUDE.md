@@ -113,6 +113,9 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   "Nothing to prune" once everything actionable is done — and never while a
   check failed (`uncheckable`, `ForgeErr`: report the reason instead).
   `TestPruneOutput` checks every uncommented line is a local-only git command.
+- **Exit codes** (`root.go`): 0 fine, 1 clonager failed, 2 needs attention /
+  something to prune, 3 a repo has an error / a check failed. Commands return
+  `codeFor(code)` (an `exitCode` error), which `Execute` exits with silently.
 - Colours are basic ANSI (0–7) so they follow the terminal theme. Lip Gloss v2's
   `Render` always emits escape codes, so print with `lipgloss.Println` (or
   through a `colorprofile` writer, as `root.go` does for Cobra and stderr),

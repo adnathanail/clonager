@@ -65,8 +65,9 @@ func runPrune(cmd *cobra.Command, args []string) error {
 	}
 	repos := filterByTags(cfg.Repos, pruneFlags.tags)
 	statuses := inspectAll(repos, repostatus.Options{Forge: pruneFlags.forge})
-	lipgloss.Print(pruneScript(statuses, pruneFlags.forge))
-	return nil
+	script, n := pruneScript(statuses, pruneFlags.forge)
+	lipgloss.Print(script)
+	return codeFor(n.exitCode())
 }
 
 // pruneCounts tallies what the script contains, for its summary line.
@@ -78,10 +79,22 @@ type pruneCounts struct {
 	unchecked int // repos (or their GitHub side) that couldn't be checked
 }
 
-// pruneScript returns the prune script for the inspected repos. Every line is
-// either a command that only touches the local clone or a # comment, so it's
-// safe to pipe to sh.
-func pruneScript(statuses []*repostatus.Status, forge bool) string {
+// exitCode is exitErrors if a check failed, exitAttention if there's anything
+// to prune (even if only commented out), else exitOK: "Nothing to prune".
+func (n pruneCounts) exitCode() int {
+	switch {
+	case n.unchecked > 0:
+		return exitErrors
+	case n.deletes+n.review+n.stale+n.onGitHub > 0:
+		return exitAttention
+	}
+	return exitOK
+}
+
+// pruneScript returns the prune script for the inspected repos, and what it
+// contains. Every line is either a command that only touches the local clone
+// or a # comment, so it's safe to pipe to sh.
+func pruneScript(statuses []*repostatus.Status, forge bool) (string, pruneCounts) {
 	var w strings.Builder
 	var n pruneCounts
 	first := true
@@ -125,7 +138,7 @@ func pruneScript(statuses []*repostatus.Status, forge bool) string {
 		line += " (--forge also checks GitHub for merged PRs, stale refs and merged branches there)"
 	}
 	w.WriteString(pruneComment(line) + "\n")
-	return w.String()
+	return w.String(), n
 }
 
 func pruneComment(s string) string { return styleDim.Render("# " + s) }

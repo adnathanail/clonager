@@ -107,7 +107,8 @@ func TestPruneOutput(t *testing.T) {
 	}
 
 	// As printed when piped, which strips styles.
-	out := ansi.Strip(pruneScript(statuses, true))
+	script, n := pruneScript(statuses, true)
+	out := ansi.Strip(script)
 
 	// Only local-only commands run; everything else is a comment.
 	for _, line := range strings.Split(out, "\n") {
@@ -164,15 +165,48 @@ func TestPruneOutput(t *testing.T) {
 	if !strings.Contains(summary, "4 checks failed") || strings.Contains(summary, "Nothing to prune") {
 		t.Errorf("summary %q should report 4 failed checks", summary)
 	}
+	if got := n.exitCode(); got != exitErrors {
+		t.Errorf("exit code %d, want %d", got, exitErrors)
+	}
+}
+
+func TestPruneExitCode(t *testing.T) {
+	merged := []repostatus.Branch{{Name: "feat", Merged: repostatus.MergedAncestor}}
+	for _, tc := range []struct {
+		name   string
+		status repostatus.Status
+		want   int
+	}{
+		{"tidy", repostatus.Status{}, exitOK},
+		{"merged branch", repostatus.Status{Branches: merged}, exitAttention},
+		{"only on GitHub", repostatus.Status{
+			GitHub: &repostatus.GitHubRepo{Name: "me/repo", CanPush: true, Admin: true, AutoDelete: new(bool)},
+		}, exitAttention},
+		{"not cloned", repostatus.Status{Missing: true}, exitErrors},
+		{"GitHub failed", repostatus.Status{Branches: merged, ForgeErr: errors.New("rate limited")}, exitErrors},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := tc.status
+			s.Repo = config.Repo{Path: "/work/repo"}
+			s.DefaultBranch = "origin/main"
+			if _, n := pruneScript([]*repostatus.Status{&s}, true); n.exitCode() != tc.want {
+				t.Errorf("exit code %d, want %d", n.exitCode(), tc.want)
+			}
+		})
+	}
 }
 
 func TestPruneNothing(t *testing.T) {
-	out := ansi.Strip(pruneScript([]*repostatus.Status{{
+	script, n := pruneScript([]*repostatus.Status{{
 		Repo:          config.Repo{Path: "/work/tidy"},
 		DefaultBranch: "origin/main",
 		Branches:      []repostatus.Branch{{Name: "main"}, {Name: "open"}},
 		GitHub:        &repostatus.GitHubRepo{Name: "me/tidy", CanPush: true, Admin: true},
-	}}, true))
+	}}, true)
+	if n.exitCode() != exitOK {
+		t.Errorf("exit code %d, want %d", n.exitCode(), exitOK)
+	}
+	out := ansi.Strip(script)
 	if got := strings.TrimSpace(out); got != "# Nothing to prune" {
 		t.Errorf("got %q, want # Nothing to prune", got)
 	}

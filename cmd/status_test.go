@@ -33,3 +33,23 @@ func TestFetchAge(t *testing.T) {
 		t.Errorf("fetchAge(zero) = %q, %v; want never, true", got, stale)
 	}
 }
+
+func TestStatusCode(t *testing.T) {
+	ok := report{issues: []issue{{sev: sevInfo, text: "1 branch merged"}}}
+	warn := report{issues: []issue{{sev: sevWarn, text: "1 stash"}}}
+	bad := report{issues: []issue{{sev: sevError, text: "not cloned"}}}
+	for _, tt := range []struct {
+		name    string
+		reports []report
+		want    int
+	}{
+		{"none", nil, exitOK},
+		{"ok", []report{ok, {}}, exitOK},
+		{"attention", []report{ok, warn}, exitAttention},
+		{"errors", []report{warn, bad, ok}, exitErrors},
+	} {
+		if got := statusCode(tt.reports); got != tt.want {
+			t.Errorf("%s: statusCode = %d, want %d", tt.name, got, tt.want)
+		}
+	}
+}
