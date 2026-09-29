@@ -24,7 +24,8 @@ $ clonager status
 clonager is a flake. Try it with:
 
 ```sh
-nix run github:adnathanail/clonager -- status
+nix run github:adnathanail/clonager -- status          # latest commit on main
+nix run github:adnathanail/clonager/v0.2.0 -- status   # a release
 ```
 
 Or install it, and its config, with the Home Manager module (standalone, or
@@ -286,6 +287,24 @@ nix develop   # optional: a shell with go, goimports, golangci-lint, actionlint
 go test ./...
 go build -o clonager . && ./clonager status -c some-test-config.yaml
 ```
+
+`clonager --version` shows the release (e.g. `v0.2.0`) for an install of a
+release, the commit hash for an install of any other commit, and `dev` for a
+build from your own checkout.
+
+### Releasing
+
+Run the **Release** workflow (Actions → Release → Run workflow) on `main`,
+with the new version, e.g. `v0.2.0`. It makes a release commit on top of
+`main` that adds a `VERSION` file, builds it with Nix (running the tests) and
+checks it reports that version, then pushes the tag and creates a GitHub
+release. Only the tag is pushed: `main` never has a `VERSION` file.
+
+This is because Nix builds can't see git tags, so the version has to be in the
+source; `go install` gets it from the tag itself. Tags made by hand still work
+for `go install`, but Nix builds of them show the commit hash.
+
+### Dependencies
 
 If `go.mod` or `go.sum` change, update `vendorHash` in `flake.nix`: set it to
 `pkgs.lib.fakeHash`, run `nix build`, and copy the hash from the error. CI's

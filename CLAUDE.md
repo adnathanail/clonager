@@ -16,6 +16,14 @@ go build -o clonager .          # CGO_ENABLED=0 for the static release binary
 nix build                       # the flake package; runs the tests too
 ```
 
+Versions: `cmd/version.go` reports the tag for `go install`s of a tag, the
+commit hash for other installs, and "dev" for local builds (detected by Go
+having recorded `vcs.revision`). Nix builds have no git metadata, so the flake
+passes the version in with `-ldflags -X cmd.stampedVersion`: the contents of
+`VERSION` if present, else the commit. `VERSION` only ever exists on release
+commits made by `.github/workflows/release.yml`, which are reachable from
+their tag but not from main. Never add `VERSION` to main.
+
 When `go.mod`/`go.sum` change, `vendorHash` in `flake.nix` must be updated
 (set it to `pkgs.lib.fakeHash`, `nix build`, copy the "got:" hash). Nix copies
 dependencies into `vendor/` inside the source tree when building, so anything

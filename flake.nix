@@ -7,13 +7,18 @@
     let
       systems = [ "aarch64-darwin" "x86_64-darwin" "aarch64-linux" "x86_64-linux" ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
-      version = self.shortRev or self.dirtyShortRev or "dev";
+
+      # A release commit (made by the Release workflow, and only reachable
+      # from its tag) has a VERSION file naming the tag, e.g. v0.2.0; main
+      # doesn't, so builds from it are named by commit.
+      release = if builtins.pathExists ./VERSION then nixpkgs.lib.trim (builtins.readFile ./VERSION) else "";
+      version = if release != "" then release else self.shortRev or self.dirtyShortRev or "dev";
     in
     {
       packages = forAllSystems (pkgs: {
         default = pkgs.buildGoModule {
           pname = "clonager";
-          inherit version;
+          version = nixpkgs.lib.removePrefix "v" version;
           src = self;
 
           # Update when go.mod/go.sum change: set to pkgs.lib.fakeHash, build,
@@ -21,7 +26,7 @@
           vendorHash = "sha256-haYm6K44hDagVNx5D0tRfc8uLjTwrbiFhiNqKiBD5Uo=";
 
           env.CGO_ENABLED = 0;
-          ldflags = [ "-s" "-w" "-X github.com/adnathanail/clonager/cmd.version=${version}" ];
+          ldflags = [ "-s" "-w" "-X github.com/adnathanail/clonager/cmd.stampedVersion=${version}" ];
 
           # The tests build throwaway git repos. At runtime clonager uses the
           # git, gh and but on your PATH, so they aren't bundled.
