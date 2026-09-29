@@ -1,2 +1,5 @@
+- Add README
+- Add help
+- Add cli autocomplete
 - Integrate with gh cli for open PRs?
 - Auto clean-up branches deleted on remote, maybe using gh cli to find corresponding prs?

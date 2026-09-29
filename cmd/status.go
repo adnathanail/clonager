@@ -18,6 +18,7 @@ import (
 var statusFlags struct {
 	verbose  bool
 	problems bool
+	forge    bool
 	tags     []string
 }
 
@@ -28,6 +29,11 @@ var statusCmd = &cobra.Command{
 branches that aren't on a remote, branches with unpushed commits, and
 GitButler workspace state.
 
+Branches already merged into the default branch (as a merge, fast-forward,
+rebase or squash) are listed separately and don't need attention. With
+--forge, GitHub is also asked (via gh) about merged PRs, which catches squash
+merges that later changes on the default branch hide from git.
+
 Remote state is as of each repo's last fetch; status never fetches.`,
 	Args: cobra.NoArgs,
 	RunE: runStatus,
@@ -36,6 +42,7 @@ Remote state is as of each repo's last fetch; status never fetches.`,
 func init() {
 	statusCmd.Flags().BoolVarP(&statusFlags.verbose, "verbose", "v", false, "list the branches behind each count")
 	statusCmd.Flags().BoolVarP(&statusFlags.problems, "problems", "p", false, "only show repos that need attention")
+	statusCmd.Flags().BoolVarP(&statusFlags.forge, "forge", "f", false, "also check GitHub (via gh) for merged PRs")
 	statusCmd.Flags().StringSliceVarP(&statusFlags.tags, "tag", "t", nil, "only show repos with this tag (repeatable)")
 	rootCmd.AddCommand(statusCmd)
 }
@@ -55,7 +62,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	statuses := inspectAll(repos)
+	statuses := inspectAll(repos, repostatus.Options{Forge: statusFlags.forge})
 	reports := make([]report, len(statuses))
 	for i, s := range statuses {
 		reports[i] = buildReport(s)
@@ -81,7 +88,7 @@ func filterByTags(repos []config.Repo, tags []string) []config.Repo {
 }
 
 // inspectAll inspects repos in parallel, returning results in config order.
-func inspectAll(repos []config.Repo) []*repostatus.Status {
+func inspectAll(repos []config.Repo, opts repostatus.Options) []*repostatus.Status {
 	out := make([]*repostatus.Status, len(repos))
 	sem := make(chan struct{}, max(4, runtime.NumCPU()))
 	var wg sync.WaitGroup
@@ -91,7 +98,7 @@ func inspectAll(repos []config.Repo) []*repostatus.Status {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			out[i] = repostatus.Inspect(r)
+			out[i] = repostatus.Inspect(r, opts)
 		}()
 	}
 	wg.Wait()
@@ -191,6 +198,22 @@ func buildReport(s *repostatus.Status) report {
 	}
 	if bs := s.GoneBranches(); len(bs) > 0 {
 		add(sevWarn, plural(len(bs), "branch", "branches")+" deleted on remote", branchNames(bs, nil)...)
+	}
+	if bs := s.DiffersFromPR(); len(bs) > 0 {
+		add(sevWarn, plural(len(bs), "branch differs from its merged PR", "branches differ from their merged PRs"), branchNames(bs, func(b repostatus.Branch) string {
+			return fmt.Sprintf("PR #%d", b.PR)
+		})...)
+	}
+	if bs := s.MergedBranches(); len(bs) > 0 {
+		add(sevInfo, plural(len(bs), "branch", "branches")+" merged", branchNames(bs, func(b repostatus.Branch) string {
+			if b.Merged == repostatus.MergedPR {
+				return fmt.Sprintf("PR #%d", b.PR)
+			}
+			return b.Merged + " into " + s.DefaultBranch
+		})...)
+	}
+	if s.ForgeErr != nil {
+		add(sevError, s.ForgeErr.Error())
 	}
 	if bs := s.Behind(); len(bs) > 0 {
 		add(sevInfo, plural(len(bs), "branch", "branches")+" behind", branchNames(bs, func(b repostatus.Branch) string {

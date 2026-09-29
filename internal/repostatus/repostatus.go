@@ -17,10 +17,15 @@ import (
 
 type Branch struct {
 	Name   string
+	Tip    string // commit hash
 	Remote string // remote-tracking ref it's compared against, empty if local-only
 	Ahead  int
 	Behind int
 	Gone   bool // upstream is configured but was deleted on the remote
+
+	Merged    string // how it was found merged into the default branch (Merged* consts), or empty
+	PR        int    // merged PR for this branch, when checked with the forge
+	PRDiffers bool   // a PR for this branch was merged, but without the local tip
 }
 
 type GitButlerMode int
@@ -56,21 +61,42 @@ type Status struct {
 	OriginURL  string
 	RemoteURLs map[string]string
 	GitButler  GitButler
+
+	DefaultBranch string // e.g. origin/main; what merged checks compare against
+	ForgeErr      error  // the forge check was requested but failed
 }
+
+type Options struct {
+	Forge bool // ask the forge (GitHub, via gh) about merged PRs
+}
+
+// unresolved is true for branches not accounted for by a merge.
+func (b Branch) unresolved() bool { return b.Merged == "" && !b.PRDiffers }
 
 // LocalOnly lists branches with no counterpart on any remote.
 func (s *Status) LocalOnly() []Branch {
-	return filterBranches(s.Branches, func(b Branch) bool { return b.Remote == "" && !b.Gone })
+	return filterBranches(s.Branches, func(b Branch) bool { return b.unresolved() && b.Remote == "" && !b.Gone })
 }
 
 // GoneBranches lists branches whose upstream was deleted on the remote.
 func (s *Status) GoneBranches() []Branch {
-	return filterBranches(s.Branches, func(b Branch) bool { return b.Gone })
+	return filterBranches(s.Branches, func(b Branch) bool { return b.unresolved() && b.Gone })
 }
 
 // Unpushed lists branches with commits their remote counterpart doesn't have.
 func (s *Status) Unpushed() []Branch {
-	return filterBranches(s.Branches, func(b Branch) bool { return b.Ahead > 0 })
+	return filterBranches(s.Branches, func(b Branch) bool { return b.unresolved() && b.Ahead > 0 })
+}
+
+// MergedBranches lists branches already in the default branch, so safe to
+// delete.
+func (s *Status) MergedBranches() []Branch {
+	return filterBranches(s.Branches, func(b Branch) bool { return b.Merged != "" })
+}
+
+// DiffersFromPR lists branches whose PR was merged without the local tip.
+func (s *Status) DiffersFromPR() []Branch {
+	return filterBranches(s.Branches, func(b Branch) bool { return b.PRDiffers })
 }
 
 // Behind lists branches their remote counterpart has moved past (as of the
@@ -89,19 +115,19 @@ func filterBranches(bs []Branch, keep func(Branch) bool) []Branch {
 	return out
 }
 
-func Inspect(repo config.Repo) *Status {
+func Inspect(repo config.Repo, opts Options) *Status {
 	s := &Status{Repo: repo}
 	if _, err := os.Stat(repo.Path); errors.Is(err, os.ErrNotExist) {
 		s.Missing = true
 		return s
 	}
-	if err := s.inspect(); err != nil {
+	if err := s.inspect(opts); err != nil {
 		s.Err = err
 	}
 	return s
 }
 
-func (s *Status) inspect() error {
+func (s *Status) inspect(opts Options) error {
 	g := git{dir: s.Repo.Path}
 
 	out, err := g.run("rev-parse", "--show-toplevel", "--absolute-git-dir")
@@ -130,6 +156,10 @@ func (s *Status) inspect() error {
 		s.Stashes = strings.Count(out, "\n") + 1
 	}
 	s.readGitButler(gitDir)
+	s.checkMerged(g)
+	if opts.Forge {
+		s.checkForge(g)
+	}
 	return nil
 }
 
@@ -168,7 +198,7 @@ func (s *Status) readBranches(g git) error {
 	}
 
 	out, err := g.run("for-each-ref",
-		"--format=%(refname:short)%00%(upstream:short)%00%(upstream:track,nobracket)", "refs/heads")
+		"--format=%(refname:short)%00%(objectname)%00%(upstream:short)%00%(upstream:track,nobracket)", "refs/heads")
 	if err != nil {
 		return err
 	}
@@ -176,15 +206,15 @@ func (s *Status) readBranches(g git) error {
 		if line == "" {
 			continue
 		}
-		f := strings.SplitN(line, "\x00", 3)
-		if len(f) != 3 {
+		f := strings.SplitN(line, "\x00", 4)
+		if len(f) != 4 {
 			continue
 		}
-		b := Branch{Name: f[0]}
+		b := Branch{Name: f[0], Tip: f[1]}
 		if strings.HasPrefix(b.Name, "gitbutler/") {
 			continue // GitButler's own bookkeeping branches
 		}
-		upstream, track := f[1], f[2]
+		upstream, track := f[2], f[3]
 		switch {
 		case track == "gone":
 			b.Gone = true
@@ -271,7 +301,15 @@ type git struct{ dir string }
 
 // run runs a git command in the repo and returns its trimmed stdout.
 func (g git) run(args ...string) (string, error) {
+	return g.runStdin("", args...)
+}
+
+// runStdin is run with the given stdin.
+func (g git) runStdin(stdin string, args ...string) (string, error) {
 	cmd := exec.Command("git", append([]string{"-C", g.dir}, args...)...)
+	if stdin != "" {
+		cmd.Stdin = strings.NewReader(stdin)
+	}
 	// Don't let status checks take locks that would block the user's own git
 	// commands, or prompt for anything.
 	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0")
