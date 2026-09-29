@@ -3,7 +3,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,7 +32,8 @@ does, <dir> becomes a new top-level key. <dir> can also be a repo itself,
 e.g. clonager discover ~/.config/nix-darwin.
 
 If the config is installed by the Home Manager module with configSource set,
-discover edits that source file (e.g. in your nix-darwin repo) instead of the
+discover edits that source (e.g. a file in your nix-darwin repo, or one kept
+encrypted there, through its decrypt and encrypt commands) instead of the
 read-only installed copy. Review the diff there, then rebuild to apply it.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: runDiscover,
@@ -46,21 +46,14 @@ func init() {
 }
 
 func runDiscover(cmd *cobra.Command, args []string) error {
-	path, fromSource, err := editableConfigFile()
-	if err != nil {
-		return err
-	}
-	cfg, err := config.Load(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		cfg = config.New(path)
-		err = nil
-	}
+	cfg, fromSource, err := editableConfig()
 	if err != nil {
 		return err
 	}
 	if err := cfg.Writable(); !discoverFlags.dryRun && errors.Is(err, config.ErrReadOnly) {
 		return fmt.Errorf("%w. If Home Manager installs it, set programs.clonager.configSource "+
-			"to the file in your checkout, and discover will edit that instead", err)
+			"(to the file in your checkout, or commands to decrypt and encrypt it), "+
+			"and discover will edit that instead", err)
 	}
 
 	type row struct{ path, detail, notes string }

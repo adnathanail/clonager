@@ -10,7 +10,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -61,9 +60,12 @@ type Repo struct {
 func (r Repo) Name() string { return filepath.Base(r.Path) }
 
 type Config struct {
-	Path  string
+	Path  string // the file, or for a config from a Source's commands, a description
 	Repos []Repo
 	doc   *yaml.Node // kept so later commands can edit the file in place
+
+	source *Source // set for a config read with a Source's decrypt command
+	loaded []byte  // its encoding when loaded, to tell whether it changed
 }
 
 // DefaultPath returns where the config lives unless overridden:
@@ -91,45 +93,6 @@ func configDir() (string, error) {
 		return "", err
 	}
 	return filepath.Join(home, ".config"), nil
-}
-
-// SourcePointerPath is where the Home Manager module records the config's
-// source: the file in the user's checkout (e.g. their nix-darwin repo) that
-// the installed config, a read-only copy in the Nix store, is built from.
-func SourcePointerPath() (string, error) {
-	dir, err := configDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "clonager", "source"), nil
-}
-
-// Source returns the config's source file, if one is recorded, or "". discover
-// edits the source rather than the installed config; the change takes effect
-// on the next rebuild.
-func Source() (string, error) {
-	pointer, err := SourcePointerPath()
-	if err != nil {
-		return "", err
-	}
-	data, err := os.ReadFile(pointer)
-	if errors.Is(err, fs.ErrNotExist) {
-		return "", nil
-	}
-	if err != nil {
-		return "", err
-	}
-	path := strings.TrimSpace(string(data))
-	if path == "" {
-		return "", nil
-	}
-	if path, err = ExpandHome(path); err != nil {
-		return "", err
-	}
-	if !filepath.IsAbs(path) {
-		return "", fmt.Errorf("%s: %q isn't an absolute path", TildePath(pointer), path)
-	}
-	return path, nil
 }
 
 func Load(path string) (*Config, error) {

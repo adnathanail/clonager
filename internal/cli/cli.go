@@ -4,7 +4,9 @@
 // (prune prints commands for the user to run instead). To keep it that way,
 // every call is checked against an allowlist of read-only subcommands below,
 // and anything not on it is refused before it runs. Add to the list only
-// subcommands, and flags, that can't modify anything.
+// subcommands, and flags, that can't modify anything. (ConfigHook, for the
+// user's own commands that read and store clonager's config, is the one
+// exception.)
 package cli
 
 import (
@@ -72,6 +74,28 @@ func But(dir string, args ...string) ([]byte, error) {
 func Installed(program string) bool {
 	_, err := exec.LookPath(program)
 	return err == nil
+}
+
+// ConfigHook runs one of the user's own commands for reading or writing
+// clonager's config (programs.clonager.configSource's decrypt and encrypt in
+// the Home Manager module), with stdin as its input, and returns its stdout.
+//
+// This is the one deliberate exception to the allowlist: the command is the
+// user's, from their own configuration, and it's only ever run to read or
+// store clonager's config, which is the one file clonager may change. It
+// mustn't prompt: stdin is the given input (or empty), not the terminal.
+func ConfigHook(command string, stdin []byte) ([]byte, error) {
+	cmd := exec.Command("/bin/sh", "-c", command)
+	cmd.Stdin = bytes.NewReader(stdin)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return nil, fmt.Errorf("%s: %w: %s", command, err, msg)
+		}
+		return nil, fmt.Errorf("%s: %w", command, err)
+	}
+	return stdout.Bytes(), nil
 }
 
 // ErrNotAllowed is returned for calls not on the allowlist.

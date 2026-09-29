@@ -118,6 +118,9 @@ func (c *Config) target() string {
 // replaces the file by renaming a new one over it, which would succeed on a
 // Home Manager symlink and silently turn it into a regular file.
 func (c *Config) Writable() error {
+	if c.source != nil {
+		return nil // written by the source's Encrypt command
+	}
 	t := c.target()
 	if strings.HasPrefix(t, "/nix/store/") {
 		return fmt.Errorf("%s is in the Nix store: %w", TildePath(c.Path), ErrReadOnly)
@@ -134,8 +137,12 @@ func (c *Config) Writable() error {
 	return f.Close()
 }
 
-// Save writes the config back to its file, preserving comments.
+// Save writes the config back to its file, preserving comments, or for a
+// config loaded from a Source's commands, stores it with its Encrypt command.
 func (c *Config) Save() error {
+	if c.source != nil {
+		return c.saveThroughSource()
+	}
 	if err := c.Writable(); err != nil {
 		return err
 	}

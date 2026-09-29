@@ -110,3 +110,18 @@ func TestOnlyPackageRunsPrograms(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestConfigHook(t *testing.T) {
+	out, err := ConfigHook("tr a-z A-Z", []byte("config\n"))
+	if err != nil || string(out) != "CONFIG\n" {
+		t.Errorf("got %q, %v; want CONFIG", out, err)
+	}
+	// No stdin given: the command gets an empty one, rather than the terminal.
+	if out, err := ConfigHook("cat", nil); err != nil || len(out) != 0 {
+		t.Errorf("empty stdin: got %q, %v", out, err)
+	}
+	_, err = ConfigHook("echo 'bad key' >&2; exit 3", nil)
+	if err == nil || !strings.Contains(err.Error(), "bad key") {
+		t.Errorf("failure: got %v, want an error including stderr", err)
+	}
+}

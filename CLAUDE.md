@@ -70,12 +70,19 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   merge-tree --write-tree`, `git fetch`).
 - **Where the config lives:** `status`/`prune` read the installed config
   (`config.DefaultPath`). With the Home Manager module (`homeModules.default`
-  in `flake.nix`), that's a read-only copy in the Nix store, and
-  `~/.config/clonager/source` names the editable file in the user's checkout
-  (`config.Source`); `discover` edits that instead (`editableConfigFile`), and
-  `status` notes when it differs from the installed copy. `Save` writes
-  through symlinks and refuses read-only configs (`Writable`): renaming over
-  a Home Manager link would otherwise silently replace it.
+  in `flake.nix`), that's read-only (a copy in the Nix store, or a secret
+  agenix decrypts), and `~/.config/clonager/source.json` records the
+  editable source (`config.ReadSource`; the older plain-text `source` file is
+  still read): either a file in the user's checkout, or the user's own
+  decrypt/encrypt commands. Anything that changes the config must go through
+  `editableConfig` and `Config.Save`, never write files itself, so it works
+  for every kind of source. `Save` only runs `encrypt` when the config
+  changed (re-encrypting changes the ciphertext anyway), writes through
+  symlinks, and refuses read-only configs (`Writable`): renaming over a Home
+  Manager link would otherwise silently replace it. `status` notes when the
+  source differs from the installed copy.
+- **`cli.ConfigHook` is the one exception to the allowlist:** it runs the
+  user's decrypt/encrypt commands with `sh -c`. Use it only for those.
 - **The config is edited as a `yaml.Node` tree** so comments and ordering
   survive. After any edit, `reparse()` re-validates through `Parse`, so an edit
   can't produce a config `Load` would reject. New keys go in alphabetically

@@ -46,10 +46,11 @@
         };
       });
 
-      # Home Manager module: installs clonager and its config. The config is
-      # copied into the Nix store, so it only changes on rebuild; with
-      # configSource set, `clonager discover` edits that file in your checkout
-      # instead, for you to review and apply.
+      # Home Manager module: installs clonager and its config. The installed
+      # config is read-only (a copy in the Nix store, or e.g. a secret agenix
+      # decrypts), so it only changes on rebuild; with configSource set,
+      # `clonager discover` edits the source in your checkout instead (directly,
+      # or through decrypt and encrypt commands), for you to review and apply.
       homeModules.default = { config, lib, pkgs, ... }:
         let
           cfg = config.programs.clonager;
@@ -69,18 +70,45 @@
               type = lib.types.nullOr lib.types.path;
               default = null;
               example = lib.literalExpression "./clonager.yaml";
-              description = "clonager's config (YAML), installed as ~/.config/clonager/config.yaml.";
+              description = ''
+                clonager's config (YAML), installed as
+                ~/.config/clonager/config.yaml. A path (./clonager.yaml) is
+                copied into the Nix store; a string ("/run/agenix/clonager")
+                is linked to where it is, e.g. for a secret decrypted at
+                activation.
+              '';
             };
 
             configSource = lib.mkOption {
-              type = lib.types.nullOr lib.types.str;
+              type = lib.types.nullOr (lib.types.either lib.types.str (lib.types.submodule {
+                options = {
+                  decrypt = lib.mkOption {
+                    type = lib.types.str;
+                    description = "Shell command printing the config (YAML) on stdout. Mustn't prompt.";
+                  };
+                  encrypt = lib.mkOption {
+                    type = lib.types.str;
+                    description = "Shell command reading the new config on stdin and storing it. Mustn't prompt.";
+                  };
+                };
+              }));
               default = null;
-              example = lib.literalExpression ''"''${config.home.homeDirectory}/.config/nix-darwin/clonager.yaml"'';
+              example = lib.literalExpression ''
+                # A plain file:
+                "''${config.home.homeDirectory}/.config/nix-darwin/clonager.yaml"
+                # Or one kept encrypted, e.g. with agenix:
+                {
+                  decrypt = "cd ~/.config/nix-darwin/secrets && agenix -d clonager.age -i ~/.config/age/keys.txt";
+                  encrypt = "cd ~/.config/nix-darwin/secrets && agenix -e clonager.age -i ~/.config/age/keys.txt";
+                }
+              '';
               description = ''
-                Absolute path to configFile in your checkout, outside the Nix
-                store. `clonager discover` adds new repos there; rebuild to
-                apply them. A string, not a path, so it isn't copied into the
-                store.
+                Where commands that change the config (`clonager discover`)
+                read and write it, as the installed config is read-only;
+                rebuild to apply their changes. Either an absolute path to the
+                config in your checkout (a string, not a path, so it isn't
+                copied into the store), or commands to decrypt and encrypt it.
+                The encrypt command only runs when the config changed.
               '';
             };
           };
@@ -88,11 +116,11 @@
           config = lib.mkIf cfg.enable {
             assertions = [
               {
-                assertion = cfg.configSource == null || cfg.configFile != null;
-                message = "programs.clonager.configSource needs programs.clonager.configFile.";
+                assertion = !(builtins.isString cfg.configSource) || cfg.configFile != null;
+                message = "programs.clonager.configSource (a path) needs programs.clonager.configFile.";
               }
               {
-                assertion = cfg.configSource == null || lib.hasPrefix "/" cfg.configSource;
+                assertion = !(builtins.isString cfg.configSource) || lib.hasPrefix "/" cfg.configSource;
                 message = "programs.clonager.configSource must be an absolute path.";
               }
             ];
@@ -100,11 +128,16 @@
             home.packages = [ cfg.package ];
 
             xdg.configFile."clonager/config.yaml" = lib.mkIf (cfg.configFile != null) {
-              source = cfg.configFile;
+              source =
+                if builtins.isPath cfg.configFile then cfg.configFile
+                else config.lib.file.mkOutOfStoreSymlink cfg.configFile;
             };
-            # Where clonager discover writes (see config.Source in the Go code).
-            xdg.configFile."clonager/source" = lib.mkIf (cfg.configSource != null) {
-              text = cfg.configSource + "\n";
+            # Where clonager discover reads and writes (config.ReadSource in the Go code).
+            xdg.configFile."clonager/source.json" = lib.mkIf (cfg.configSource != null) {
+              text = builtins.toJSON (
+                if builtins.isString cfg.configSource then { path = cfg.configSource; }
+                else { inherit (cfg.configSource) decrypt encrypt; }
+              );
             };
           };
         };

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -50,39 +51,47 @@ func configFile() string {
 	return p
 }
 
-// editableConfigFile is the config file discover should edit: --config if
-// given, else the source file recorded by the Home Manager module, else the
-// installed config. fromSource reports the second case.
-func editableConfigFile() (path string, fromSource bool, err error) {
-	if configPath != "" {
-		return configFile(), false, nil
+// editableConfig loads the config for commands that change it (discover):
+// --config if given, else the source recorded by the Home Manager module
+// (a file, or decrypt/encrypt commands), else the installed config. A config
+// file that doesn't exist yet loads empty. fromSource reports the second
+// case, where changes apply on the next rebuild.
+func editableConfig() (cfg *config.Config, fromSource bool, err error) {
+	if configPath == "" {
+		src, err := config.ReadSource()
+		if err != nil {
+			return nil, false, err
+		}
+		if src != nil {
+			cfg, err := src.Load()
+			return cfg, true, err
+		}
 	}
-	src, err := config.Source()
-	if err != nil {
-		return "", false, err
+	path := configFile()
+	cfg, err = config.Load(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return config.New(path), false, nil
 	}
-	if src != "" {
-		return src, true, nil
-	}
-	return configFile(), false, nil
+	return cfg, false, err
 }
 
-// unappliedNote returns a note if the config's source file (see
-// editableConfigFile) has changes the installed config doesn't have yet.
+// unappliedNote returns a note if the config's source (see editableConfig)
+// has changes the installed config doesn't have yet.
 func unappliedNote(installed string) string {
 	if configPath != "" {
 		return ""
 	}
-	src, err := config.Source()
-	if err != nil || src == "" {
+	src, err := config.ReadSource()
+	if err != nil || src == nil {
 		return ""
 	}
-	a, errA := os.ReadFile(src)
+	a, errA := src.Read()
 	b, errB := os.ReadFile(installed)
 	if errA != nil || errB != nil || bytes.Equal(a, b) {
 		return ""
 	}
-	return config.TildePath(src) + " has changes not applied yet: rebuild (e.g. darwin-rebuild switch) to apply them."
+	label := src.Label()
+	return strings.ToUpper(label[:1]) + label[1:] + " has changes not applied yet: rebuild (e.g. darwin-rebuild switch) to apply them."
 }
 
 // loadConfig loads the config file. A missing file gives an error wrapping
