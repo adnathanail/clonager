@@ -1,6 +1,7 @@
 package config
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,7 @@ func TestReadSettings(t *testing.T) {
 	cases := []struct {
 		name, contents string
 		want           []string
+		openIn         string // "" for DefaultOpenIn
 		err            string
 	}{
 		{name: "none"},
@@ -32,6 +34,8 @@ func TestReadSettings(t *testing.T) {
 			want: []string{filepath.Join(home, "Documents"), "/src"}},
 		{name: "relative", contents: `{"discoverPaths": ["Documents"]}`, err: "absolute"},
 		{name: "not json", contents: `~/Documents`, err: "settings.json"},
+		{name: "open in", contents: `{"openIn": "cursor"}`, openIn: "cursor"},
+		{name: "open in unknown", contents: `{"openIn": "emacs"}`, err: "openIn"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -50,6 +54,8 @@ func TestReadSettings(t *testing.T) {
 				t.Errorf("unexpected error %v", err)
 			case strings.Join(got.DiscoverPaths, "\n") != strings.Join(c.want, "\n"):
 				t.Errorf("got %q, want %q", got.DiscoverPaths, c.want)
+			case got.OpenIn != cmp.Or(c.openIn, DefaultOpenIn):
+				t.Errorf("got openIn %q, want %q", got.OpenIn, cmp.Or(c.openIn, DefaultOpenIn))
 			}
 		})
 	}

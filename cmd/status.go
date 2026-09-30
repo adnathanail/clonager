@@ -63,6 +63,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	if err := checkForgeAvailable(statusFlags.forge); err != nil {
 		return err
 	}
+	if err := loadOpenIn(); err != nil {
+		return err
+	}
 	cfg, err := loadConfig()
 	if err != nil {
 		return err
@@ -138,7 +141,7 @@ func printUntracked(cfg, pending *config.Config) (bool, error) {
 	lipgloss.Println(styleHeading.Render("Not in the config"))
 	addable := 0
 	for _, r := range repos {
-		line := "  " + styleWarn.Render("?") + " " + fileLink(r.path, config.TildePath(r.path))
+		line := "  " + styleWarn.Render("?") + " " + folderLink(r.path, config.TildePath(r.path))
 		if r.noOrigin {
 			line += "  " + styleDim.Render("no origin")
 		} else {
@@ -525,7 +528,7 @@ func printReports(reports []report) {
 		for _, i := range r.issues {
 			parts = append(parts, severityStyle(i.sev).Render(i.text))
 		}
-		name := fileLink(r.status.Repo.Path, r.status.Repo.Name())
+		name := folderLink(r.status.Repo.Path, r.status.Repo.Name())
 		line := fmt.Sprintf("  %s %s %s  %s", padLeft(r.fetch, fetchW), icon, padRight(name, nameW), padRight(r.head, headW))
 		if len(parts) > 0 {
 			line += "  " + strings.Join(parts, styleDim.Render(" · "))

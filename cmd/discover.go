@@ -56,6 +56,9 @@ func init() {
 }
 
 func runDiscover(cmd *cobra.Command, args []string) error {
+	if err := loadOpenIn(); err != nil {
+		return err
+	}
 	cfg, fromSource, err := editableConfig()
 	if err != nil {
 		return err
@@ -113,7 +116,7 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 		}
 		lipgloss.Println(styleHeading.Render(heading))
 		for _, r := range rows {
-			path := fileLink(r.path, config.TildePath(r.path))
+			path := folderLink(r.path, config.TildePath(r.path))
 			line := fmt.Sprintf("  %s %s  %s  %s", icon, padRight(path, pathW), styleDim.Render(r.detail), r.notes)
 			lipgloss.Println(strings.TrimRight(line, " "))
 		}
