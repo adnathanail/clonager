@@ -27,3 +27,16 @@ func TestFolderLink(t *testing.T) {
 		}
 	}
 }
+
+func TestGitButlerLink(t *testing.T) {
+	defer func(prev string) { openIn = prev }(openIn)
+	openIn = "files"
+	want := "but://open?path=%2FUsers%2Fme%2FMy+Projects%2Fvip-proj"
+	if got := gitButlerLink("/Users/me/My Projects/vip-proj", "⧓"); !strings.Contains(got, "\x1b]8;;"+want+"\a") {
+		t.Errorf("got %q, want a link to %s", got, want)
+	}
+	openIn = "none"
+	if got := gitButlerLink("/Users/me/My Projects/vip-proj", "⧓"); strings.Contains(got, "\x1b]8;") {
+		t.Errorf("got %q, want no link", got)
+	}
+}

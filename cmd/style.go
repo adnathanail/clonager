@@ -48,3 +48,14 @@ func folderLink(path, text string) string {
 	}
 	return lipgloss.NewStyle().Hyperlink(u.String()).Render(text)
 }
+
+// gitButlerLink makes text (styled as GitButler) a link that opens the repo
+// at path in the GitButler app, as `but gui` does. No link when openIn is
+// "none".
+func gitButlerLink(path, text string) string {
+	if openIn == "none" {
+		return styleGB.Render(text)
+	}
+	u := url.URL{Scheme: "but", Host: "open", RawQuery: url.Values{"path": {path}}.Encode()}
+	return styleGB.Hyperlink(u.String()).Render(text)
+}

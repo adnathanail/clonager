@@ -267,7 +267,7 @@ func buildReport(s *repostatus.Status) report {
 
 	switch {
 	case s.GitButler.Mode == repostatus.GitButlerActive:
-		r.head = styleGB.Render(gitButlerHead(s.GitButler))
+		r.head = gitButlerHead(s.GitButler, s.Repo.Path)
 	case s.Head == "":
 		r.head = styleWarn.Render("detached")
 		add(sevWarn, "detached HEAD")
@@ -401,16 +401,17 @@ const gitButlerLogo = "⧓"
 
 // gitButlerHead is the branch column for a repo in a GitButler workspace: the
 // logo and its applied branches, or just the logo if there are none (or
-// they're unknown).
-func gitButlerHead(gb repostatus.GitButler) string {
+// they're unknown). The logo links to the project in the GitButler app.
+func gitButlerHead(gb repostatus.GitButler, path string) string {
+	logo := gitButlerLink(path, gitButlerLogo)
 	if gb.Err != nil || len(gb.Branches) == 0 {
-		return gitButlerLogo
+		return logo
 	}
 	names := make([]string, len(gb.Branches))
 	for i, b := range gb.Branches {
 		names[i] = b.Name
 	}
-	return gitButlerLogo + " " + strings.Join(names, ", ")
+	return logo + styleGB.Render(" "+strings.Join(names, ", "))
 }
 
 // staleFetch is how long since a repo's last fetch before it's highlighted.
