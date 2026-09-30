@@ -178,7 +178,8 @@ are fine (✓). After the name is the checked-out branch or, for a repo in a
 GitButler workspace, ⧓ (a stand-in for GitButler's logo) and its applied
 branches (just ⧓ if none are applied). In terminals that support links
 (iTerm2, Ghostty, WezTerm, Kitty, VS Code…), cmd-clicking a repo's name opens
-its folder in the file manager. To open it in an editor instead, set `openIn`
+its folder in the file manager, and cmd-clicking ⧓ opens it in the GitButler
+app. To open folders in an editor instead, set `openIn`
 in `~/.config/clonager/settings.json` (`programs.clonager.openIn` with the Home
 Manager module) to `vscode`, `cursor` or `zed`, or to `none` for no links:
 
