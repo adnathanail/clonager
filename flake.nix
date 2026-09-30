@@ -126,6 +126,17 @@
                 Absolute or ~ paths; any that don't exist are skipped.
               '';
             };
+
+            openIn = lib.mkOption {
+              type = lib.types.nullOr (lib.types.enum [ "vscode" "cursor" "zed" "files" "none" ]);
+              default = null;
+              example = "vscode";
+              description = ''
+                What cmd-clicking a repo's name opens its folder in: an editor,
+                the file manager (`files`), or nothing (`none`). Null means
+                the file manager.
+              '';
+            };
           };
 
           config = lib.mkIf cfg.enable {
@@ -156,7 +167,8 @@
                       if builtins.isString cfg.configSource then { path = cfg.configSource; }
                       else { inherit (cfg.configSource) decrypt encrypt; };
                   }
-                  // lib.optionalAttrs (cfg.discoverPaths != [ ]) { inherit (cfg) discoverPaths; };
+                  // lib.optionalAttrs (cfg.discoverPaths != [ ]) { inherit (cfg) discoverPaths; }
+                  // lib.optionalAttrs (cfg.openIn != null) { inherit (cfg) openIn; };
               in
               lib.mkIf (settings != { }) { text = builtins.toJSON settings; };
           };

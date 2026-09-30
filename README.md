@@ -45,6 +45,8 @@ inputs.clonager.url = "github:adnathanail/clonager";
     configSource = "${config.home.homeDirectory}/.config/nix-darwin/clonager.yaml";
     # Where `clonager discover` looks when given no dirs.
     discoverPaths = [ "~/Documents" "~/.config/nix-darwin" ];
+    # What cmd-clicking a repo's name opens it in (default the file manager).
+    openIn = "vscode";
   };
 }
 ```
@@ -176,7 +178,15 @@ are fine (✓). After the name is the checked-out branch or, for a repo in a
 GitButler workspace, ⧓ (a stand-in for GitButler's logo) and its applied
 branches (just ⧓ if none are applied). In terminals that support links
 (iTerm2, Ghostty, WezTerm, Kitty, VS Code…), cmd-clicking a repo's name opens
-its folder. It reports:
+its folder in the file manager. To open it in an editor instead, set `openIn`
+in `~/.config/clonager/settings.json` (`programs.clonager.openIn` with the Home
+Manager module) to `vscode`, `cursor` or `zed`, or to `none` for no links:
+
+```json
+{ "openIn": "vscode" }
+```
+
+It reports:
 
 - **Setup** — not cloned, not a git repo, detached HEAD, `origin` or other
   remotes missing or different from the config

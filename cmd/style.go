@@ -4,6 +4,8 @@ import (
 	"net/url"
 
 	"charm.land/lipgloss/v2"
+
+	"github.com/adnathanail/clonager/internal/config"
 )
 
 // Basic ANSI colours, so the output follows the terminal's own theme.
@@ -17,10 +19,32 @@ var (
 	styleHeading = lipgloss.NewStyle().Bold(true)
 )
 
-// fileLink makes text a link to a local folder, which terminals that support
-// links (OSC 8) open in the file manager when it's cmd- or ctrl-clicked.
+// openIn is the app folderLink's links open folders in (the openIn setting,
+// see config.OpenInApps). Commands that print links set it with loadOpenIn.
+var openIn = config.DefaultOpenIn
+
+// loadOpenIn sets openIn from the settings.
+func loadOpenIn() error {
+	settings, err := config.ReadSettings()
+	if err != nil {
+		return err
+	}
+	openIn = settings.OpenIn
+	return nil
+}
+
+// folderLink makes text a link that opens a local folder in the openIn app
+// when it's cmd- or ctrl-clicked, in terminals that support links (OSC 8).
 // Others show just the text, and it's stripped when output isn't a TTY.
-func fileLink(path, text string) string {
-	u := url.URL{Scheme: "file", Path: path}
+func folderLink(path, text string) string {
+	var u url.URL
+	switch openIn {
+	case "none":
+		return text
+	case "files":
+		u = url.URL{Scheme: "file", Path: path}
+	default: // vscode://file/<path>, and the same for editors forked from it, and Zed
+		u = url.URL{Scheme: openIn, Host: "file", Path: path}
+	}
 	return lipgloss.NewStyle().Hyperlink(u.String()).Render(text)
 }

@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 )
 
 // Settings are clonager's own options, as opposed to the repos in the config.
@@ -17,7 +19,17 @@ type Settings struct {
 	Source *Source `json:"source,omitempty"`
 	// DiscoverPaths are where discover looks when it's given no dirs.
 	DiscoverPaths []string `json:"discoverPaths,omitempty"`
+	// OpenIn is what repo names link to (see OpenInApps); empty means
+	// DefaultOpenIn.
+	OpenIn string `json:"openIn,omitempty"`
 }
+
+// OpenInApps are the values OpenIn can take: apps that open a folder from a
+// link, "files" for the file manager, and "none" for no links.
+var OpenInApps = []string{"vscode", "cursor", "zed", "files", "none"}
+
+// DefaultOpenIn is what repo names link to when OpenIn isn't set.
+const DefaultOpenIn = "files"
 
 // SettingsPath is where the Settings live.
 func SettingsPath() (string, error) {
@@ -29,7 +41,7 @@ func SettingsPath() (string, error) {
 }
 
 // ReadSettings returns the Settings, empty if there's no settings file.
-// Paths come back with ~ expanded.
+// Paths come back with ~ expanded, and OpenIn set.
 func ReadSettings() (Settings, error) {
 	var s Settings
 	path, err := SettingsPath()
@@ -38,6 +50,7 @@ func ReadSettings() (Settings, error) {
 	}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
+		s.OpenIn = DefaultOpenIn
 		return s, nil
 	}
 	if err != nil {
@@ -50,6 +63,11 @@ func ReadSettings() (Settings, error) {
 		if err := s.Source.validate(); err != nil {
 			return s, fmt.Errorf("%s: source: %w", TildePath(path), err)
 		}
+	}
+	if s.OpenIn == "" {
+		s.OpenIn = DefaultOpenIn
+	} else if !slices.Contains(OpenInApps, s.OpenIn) {
+		return s, fmt.Errorf("%s: openIn: %q isn't one of %s", TildePath(path), s.OpenIn, strings.Join(OpenInApps, ", "))
 	}
 	for i, p := range s.DiscoverPaths {
 		expanded, err := ExpandHome(p)
