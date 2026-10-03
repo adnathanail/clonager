@@ -32,9 +32,18 @@
           # git, gh and but on your PATH, so they aren't bundled.
           nativeCheckInputs = [ pkgs.git ];
 
-          # The short name.
+          nativeBuildInputs = [ pkgs.installShellFiles ];
+
+          # The short name, and shell completions for both names (the zsh
+          # script completes whichever name was typed, so cg just needs
+          # adding to its #compdef line).
           postInstall = ''
             ln -s clonager $out/bin/cg
+          '' + pkgs.lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
+            installShellCompletion --cmd clonager \
+              --bash <($out/bin/clonager completion bash) \
+              --fish <($out/bin/clonager completion fish) \
+              --zsh <($out/bin/clonager completion zsh | sed '1s/^#compdef clonager$/#compdef clonager cg/')
           '';
 
           meta = {
