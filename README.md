@@ -168,7 +168,7 @@ ordering.
 ## Commands
 
 Each command has a one-letter shortcut, shown in brackets in `--help`:
-`cg d` is `clonager discover` and `cg p` is `prune`.
+`cg d` is `clonager discover`, `cg p` is `prune` and `cg c` is `clone`.
 
 ### `clonager`
 
@@ -305,19 +305,50 @@ To run everything that isn't commented out: `clonager prune -f | sh`.
 | `-f`, `--forge` | also check GitHub, and cover branches there |
 | `-t`, `--tag <tag>` | only repos with this tag (repeatable) |
 
+### `clonager clone`
+
+Prints the commands to set up the repos in the config, e.g. on a new laptop.
+Like `prune`, it never runs anything itself.
+
+```
+$ clonager clone
+# ~/Documents/ACME/vip-proj
+git clone git@github.com:acmeltd/vip-proj.git ~/Documents/ACME/vip-proj
+# but -C ~/Documents/ACME/vip-proj setup  # switches to GitButler's workspace branch
+
+# ~/Documents/Uni/uni-work
+git -C ~/Documents/Uni/uni-work remote add -f upstream git@github.com:my-uni/uni-work.git
+
+# 1 repo to clone, 1 remote to add, 1 commented out to review
+```
+
+- `git clone` for repos that aren't cloned yet, or whose folder is empty.
+- `git remote add -f` (which also fetches it) for remotes in the config that
+  a clone doesn't have, including `origin` on an existing clone without one.
+- `git remote set-url`, commented out, for remotes whose URL differs from the
+  config: the config may be the one that's out of date.
+- `but setup`, commented out, for repos marked `gitbutler: true` that aren't
+  in a GitButler workspace, as it switches the repo to GitButler's
+  `gitbutler/workspace` branch.
+
+Paths that exist but aren't a git repo are listed with the reason. `clone`
+only prints `# Nothing to clone` once there's nothing left to do and every
+check succeeded. To run everything that isn't commented out:
+`clonager clone | sh`.
+
 ### Exit codes
 
-`clonager` and `clonager prune` exit non-zero when there's something to deal with, for
+`clonager`, `prune` and `clone` exit non-zero when there's something to deal with, for
 use in scripts:
 
 | Code | |
 |---|---|
-| 0 | all fine: nothing needs attention, or `# Nothing to prune` |
+| 0 | all fine: nothing needs attention, `# Nothing to prune` or `# Nothing to clone` |
 | 1 | clonager itself failed (e.g. no config file) |
-| 2 | `clonager`: a repo needs attention (●), or there are repos not in the config; `prune`: there's something to prune, even if only commented out |
-| 3 | `clonager`: a repo has an error (✗); `prune`: a check failed |
+| 2 | `clonager`: a repo needs attention (●), or there are repos not in the config; `prune`/`clone`: there's something to do, even if only commented out |
+| 3 | `clonager`: a repo has an error (✗); `prune`/`clone`: a check failed |
 
-For `prune | sh`, the pipeline's exit code is `sh`'s, not `prune`'s.
+For `prune | sh` (or `clone | sh`), the pipeline's exit code is `sh`'s, not clonager's.
 
 ### `clonager completion <shell>`
 
@@ -393,10 +424,6 @@ Nix job fails until you do.
 
 ## Future plans
 
-- **`clonager clone`** — set up a fresh laptop from the config. In keeping with
-  clonager only ever reading, it would print the commands for repos that aren't
-  cloned yet: `git clone <url> <path>`, `git remote add` for extra remotes, and
-  (commented out) `but setup` for repos marked `gitbutler: true`.
 - **Dismissing items** — a way to mark branches you're deliberately keeping
   (e.g. a `keep:` list on a repo), so `prune` can reach "Nothing to prune"
   with intentional exceptions.

@@ -26,12 +26,12 @@ var rootCmd = &cobra.Command{
 	SilenceErrors: true,
 }
 
-// Exit codes, for scripts: status and prune exit exitAttention or
+// Exit codes, for scripts: status, prune and clone exit exitAttention or
 // exitErrors (by returning an exitCode) when there's something to deal with.
 const (
 	exitOK        = 0
 	exitFailed    = 1 // clonager itself failed
-	exitAttention = 2 // something needs attention (status) or pruning (prune)
+	exitAttention = 2 // something needs attention (status), or to do (prune, clone)
 	exitErrors    = 3 // a repo has an error, or couldn't be checked
 )
 
