@@ -454,7 +454,8 @@ For `prune | sh` (or `clone | sh`), the pipeline's exit code is `sh`'s, not clon
 
 ### `clonager completion <shell>`
 
-Prints a shell completion script. For zsh:
+Prints a shell completion script. Installing with Nix sets up bash, fish and
+zsh completions (for `cg` too), so you only need this otherwise. For zsh:
 
 ```sh
 clonager completion zsh > "${fpath[1]}/_clonager"
