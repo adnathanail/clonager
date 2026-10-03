@@ -20,8 +20,8 @@ var cloneCmd = &cobra.Command{
 	Long: `Print the git commands to set up the repos in the config: git clone for
 repos that aren't cloned yet, git remote add -f for remotes that are missing
 (on new clones and existing ones), and git branch for branches recorded by
-clonager airlift that don't exist yet. Nothing is run: review the output and
-run the commands yourself (or pipe them to sh).
+clonager config airlift that don't exist yet. Nothing is run: review the
+output and run the commands yourself (or pipe them to sh).
 
 Commented out, to check first:
   - git remote set-url for remotes whose URL differs from the config, as the

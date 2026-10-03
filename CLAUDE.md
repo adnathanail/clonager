@@ -32,10 +32,11 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 ## Layout
 
 - `main.go` → `cmd.Execute()`
-- `cmd/` — Cobra commands (`root.go`, `discover.go`, `prune.go`, `clone.go`,
-  `airlift.go`) and Lip Gloss styles (`style.go`). Rendering lives here. A bare `clonager` shows status
+- `cmd/` — Cobra commands (`root.go`, `prune.go`, `clone.go`) and Lip Gloss
+  styles (`style.go`). Rendering lives here. A bare `clonager` shows status
   (`status.go`: the root command's `RunE` and flags); there's no `status`
-  subcommand.
+  subcommand. Everything that edits the config is under `clonager config`
+  (`config.go`): `discover.go`, `airlift.go` and `tidy.go`.
 - `internal/config/` — parsing the YAML tree into a flat `[]Repo` (`config.go`)
   and editing it in place (`edit.go`)
 - `internal/repostatus/` — inspecting one clone: git state (`repostatus.go`),
@@ -49,13 +50,15 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 ## Design decisions
 
 - **clonager only ever reads.** It never changes a repo, remote, setting or
-  file other than its own config (which `discover` and `airlift` edit); where
+  file other than its own config (which the `config` subcommands edit); where
   something should change, it prints the command for the user to run
   (`prune`, `clone`).
 - **All external programs run through `internal/cli`** (`cli.Git`,
-  `cli.GitStdin`, `cli.GH`, `cli.But`, `cli.Installed`), which checks each call
-  against the `allowed` list of read-only subcommands and refuses anything
-  else before running it. Need a new command? Add the subcommand there, with a
+  `cli.GitStdin`, `cli.GH`, `cli.But`, `cli.CanRead`, `cli.Installed`), which
+  checks each call against the `allowed` list of read-only subcommands and
+  refuses anything else before running it. Network access is limited to `gh`
+  and `cli.CanRead` (`git ls-remote`, used only by `config tidy`). Need a new
+  command? Add the subcommand there, with a
   `check` for any arguments that would make it write (`git config` without
   `--get`, `git stash` other than `list`, `gh api` with a method or fields),
   and a case in `TestCheck`. Nothing else may import `os/exec`:
@@ -124,6 +127,13 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   through a `colorprofile` writer, as `root.go` does for Cobra and stderr),
   never `fmt.Print*`: that strips them when output isn't a TTY or `NO_COLOR`
   is set. Tests that check rendered output `ansi.Strip` it first.
+- **`config tidy` lands airlifted branches as soon as they exist locally**,
+  per branch. That includes the laptop they were airlifted from until its
+  clones are deleted, which `airlift`'s output and docs warn about; there's
+  deliberately no marker of where an airlift came from.
+- **SSH URLs are only derived for known forges** (`sshHosts` in `tidy.go`),
+  and only switched once `git ls-remote` reads them, with ssh in batch mode
+  unless the user has their own `core.sshCommand`/`GIT_SSH_COMMAND`.
 
 ## Gotchas
 

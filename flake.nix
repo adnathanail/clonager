@@ -54,7 +54,7 @@
       # Home Manager module: installs clonager and its config. The installed
       # config is read-only (a copy in the Nix store, or e.g. a secret agenix
       # decrypts), so it only changes on rebuild; with configSource set,
-      # `clonager discover` edits the source in your checkout instead (directly,
+      # `clonager config` edits the source in your checkout instead (directly,
       # or through decrypt and encrypt commands), for you to review and apply.
       homeModules.default = { config, lib, pkgs, ... }:
         let
@@ -108,7 +108,7 @@
                 }
               '';
               description = ''
-                Where commands that change the config (`clonager discover`)
+                Where commands that change the config (`clonager config ...`)
                 read and write it, as the installed config is read-only;
                 rebuild to apply their changes. Either an absolute path to the
                 config in your checkout (a string, not a path, so it isn't
@@ -122,7 +122,7 @@
               default = [ ];
               example = [ "~/Documents" "~/.config/nix-darwin" ];
               description = ''
-                Where `clonager discover` looks when it's given no dirs.
+                Where `clonager config discover` looks when it's given no dirs.
                 Absolute or ~ paths; any that don't exist are skipped.
               '';
             };

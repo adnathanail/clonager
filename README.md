@@ -41,9 +41,9 @@ inputs.clonager.url = "github:adnathanail/clonager";
     enable = true;
     # Installed as ~/.config/clonager/config.yaml, via the Nix store.
     configFile = ./clonager.yaml;
-    # The same file in your checkout, for `clonager discover` to edit.
+    # The same file in your checkout, for `clonager config` to edit.
     configSource = "${config.home.homeDirectory}/.config/nix-darwin/clonager.yaml";
-    # Where `clonager discover` looks when given no dirs.
+    # Where `clonager config discover` looks when given no dirs.
     discoverPaths = [ "~/Documents" "~/.config/nix-darwin" ];
     # What cmd-clicking a repo's name opens it in (default the file manager).
     openIn = "vscode";
@@ -52,10 +52,11 @@ inputs.clonager.url = "github:adnathanail/clonager";
 ```
 
 The installed config is a read-only copy, so it only changes when you rebuild.
-With `configSource` set, `clonager discover` adds new repos to that file
-instead, so they show up as a diff in your config repo; rebuild to apply them.
+With `configSource` set, `clonager config discover` adds new repos to that
+file instead, so they show up as a diff in your config repo; rebuild to apply them.
 Until you do, `clonager` reminds you there are changes not applied yet.
-Without `configSource`, `discover` refuses to touch a read-only config.
+Without `configSource`, the `config` commands refuse to touch a read-only
+config.
 
 If you already have a `~/.config/clonager/config.yaml`, move it into your config
 repo (as `clonager.yaml` above) before rebuilding, or Home Manager will refuse
@@ -82,7 +83,7 @@ programs.clonager = {
 };
 ```
 
-Commands that change the config (`discover`) then decrypt it, make their
+Commands that change the config (`clonager config ...`) then decrypt it, make their
 changes in memory, and encrypt it again, so the plaintext is never written to
 disk. `encrypt` only runs if something changed, since re-encrypting would
 change the encrypted file even when its contents are the same. Neither command
@@ -115,8 +116,9 @@ for `clonager --forge`; both are optional.
 Build a config from the repos you already have:
 
 ```sh
-clonager discover -n ~/Documents ~/Projects         # preview
-clonager discover ~/Documents ~/Projects            # write the config
+clonager config discover -n ~/Documents ~/Projects  # preview
+clonager config discover ~/Documents ~/Projects     # write the config
+clonager config tidy                                # switch URLs to SSH
 clonager
 ```
 
@@ -155,7 +157,7 @@ It's a YAML tree that mirrors your folders:
   - `mine: false` — the remote isn't yours to change, so clonager won't
     suggest deleting branches there or changing its settings (see `prune`)
   - `branches` — local branches to recreate on another laptop, written by
-    [`airlift`](#clonager-airlift): each a name, for the same-named branch on
+    [`airlift`](#clonager-config-airlift): each a name, for the same-named branch on
     `origin`, or `name: remote/branch`
 - **Any other mapping** is a folder, and can nest as deep as you like. A
   folder can set `mine: false` for every repo inside it; a repo can override
@@ -165,13 +167,14 @@ A repo's path is its chain of keys, so `vip-proj` above lives at
 `~/Documents/ACME/vip-proj`. The option names (`url`, `remotes`, `gitbutler`,
 `tags`, `mine`, `branches`) can't be used as folder names, and repos can't contain other repos.
 
-clonager edits this file itself (see `discover` and `airlift`), keeping your
-comments and ordering.
+clonager edits this file itself (see [`clonager config`](#clonager-config)),
+keeping your comments and ordering.
 
 ## Commands
 
 Each command has a one-letter shortcut, shown in brackets in `--help`:
-`cg d` is `clonager discover`, `cg p` is `prune` and `cg c` is `clone`.
+`cg p` is `clonager prune`, `cg c` is `clone` and `cg config d` is `config
+discover`.
 
 ### `clonager`
 
@@ -207,7 +210,7 @@ It reports:
 - **GitButler** — conflicted commits, branches needing a
   force push, and repos marked `gitbutler: true` that aren't in the workspace
 - **Repos not in the config** — with `discoverPaths` set (see
-  [`discover`](#clonager-discover-dir)), clones in those folders that aren't
+  [`config discover`](#clonager-config-discover-dir)), clones in those folders that aren't
   in the config yet, including ones with no `origin` (which `discover` can't
   add). Not shown with `--tag`.
 
@@ -224,34 +227,6 @@ any remote and including GitButler's background fetches; it's yellow if over a
 month, or `never`. With
 `--forge` it takes a few seconds, mostly waiting on GitHub for repos with long
 PR histories.
-
-### `clonager discover [<dir>...]`
-
-Finds git repos under each `<dir>` that aren't in the config and adds them,
-with `origin` as the `url`, any other remotes, and `gitbutler: true` if the repo
-is in a GitButler workspace. Repos without an `origin` are skipped, since
-there'd be nothing to clone them from.
-
-Each repo goes under the most specific top-level key containing it; if none
-does, `<dir>` becomes a new top-level key. `<dir>` can itself be a repo.
-Running it again only adds what's new.
-
-With no `<dir>`, it looks in the `discoverPaths` listed in
-`~/.config/clonager/settings.json`, skipping any that don't exist. The Home
-Manager module writes that file from `programs.clonager.discoverPaths`;
-without it, write it yourself:
-
-```json
-{ "discoverPaths": ["~/Documents", "~/.config/nix-darwin"] }
-```
-
-| Flag | |
-|---|---|
-| `-n`, `--dry-run` | show what would be added without changing the config |
-| `-d`, `--depth <n>` | how many folders deep to look below each `<dir>` (default 4) |
-
-It doesn't look inside repos, or in `node_modules`, `.venv`, `Library` and
-similar.
 
 ### `clonager prune`
 
@@ -329,7 +304,7 @@ git -C ~/Documents/Uni/uni-work remote add -f upstream git@github.com:my-uni/uni
 - `git remote add -f` (which also fetches it) for remotes in the config that
   a clone doesn't have, including `origin` on an existing clone without one.
 - `git branch <name> <remote>/<branch>` for branches recorded by
-  [`airlift`](#clonager-airlift) that don't exist yet. These need the remote
+  [`airlift`](#clonager-config-airlift) that don't exist yet. These need the remote
   branch fetched: a new clone has it, an older one may need `git fetch`.
 - `git remote set-url`, commented out, for remotes whose URL differs from the
   config: the config may be the one that's out of date.
@@ -342,7 +317,43 @@ only prints `# Nothing to clone` once there's nothing left to do and every
 check succeeded. To run everything that isn't commented out:
 `clonager clone | sh`.
 
-### `clonager airlift`
+### `clonager config`
+
+The commands that change the config, the one file clonager ever changes. They
+keep your comments and ordering, and with the Home Manager module's
+`configSource` set they edit that source instead of the read-only installed
+copy (see [With Nix](#with-nix)).
+
+#### `clonager config discover [<dir>...]`
+
+Finds git repos under each `<dir>` that aren't in the config and adds them,
+with `origin` as the `url`, any other remotes, and `gitbutler: true` if the repo
+is in a GitButler workspace. Repos without an `origin` are skipped, since
+there'd be nothing to clone them from.
+
+Each repo goes under the most specific top-level key containing it; if none
+does, `<dir>` becomes a new top-level key. `<dir>` can itself be a repo.
+Running it again only adds what's new.
+
+With no `<dir>`, it looks in the `discoverPaths` listed in
+`~/.config/clonager/settings.json`, skipping any that don't exist. The Home
+Manager module writes that file from `programs.clonager.discoverPaths`;
+without it, write it yourself:
+
+```json
+{ "discoverPaths": ["~/Documents", "~/.config/nix-darwin"] }
+```
+
+| Flag | |
+|---|---|
+| `-n`, `--dry-run` | show what would be added without changing the config |
+| `-d`, `--depth <n>` | how many folders deep to look below each `<dir>` (default 4) |
+
+It doesn't look inside repos, or in `node_modules`, `.venv`, `Library` and
+similar. Repos are added with the URLs their remotes have;
+[`tidy`](#clonager-config-tidy) switches them to SSH.
+
+#### `clonager config airlift`
 
 Records this laptop's local branches in the config, so they can be recreated
 on another one: run `airlift` on the old laptop, then `clone` on the new one.
@@ -368,28 +379,61 @@ than the default branch (which a clone checks out anyway):
 ```
 
 On the new laptop, `clonager clone` prints a `git branch` for each one that
-isn't there yet. Once they're all created, `clonager airlift --land` removes
-the lists from the config (a repo with nothing else set goes back to just its
-URL); it refuses while any are missing.
+isn't there yet. Once they're created, [`clonager config
+tidy`](#clonager-config-tidy) removes them from the config.
 
-Like `discover`, it edits the config's source when the Home Manager module
-installs the config with `configSource` set.
+Don't run `config tidy` on the old laptop until its clones are deleted: the
+branches still exist there, so it would remove them from the config.
+
+#### `clonager config tidy`
+
+Tidies up the config:
+
+- **SSH URLs** — HTTPS URLs on GitHub, GitLab, Bitbucket and Codeberg
+  (`https://github.com/acmeltd/vip-proj`) are switched to SSH
+  (`git@github.com:acmeltd/vip-proj.git`), for `url` and `remotes` alike.
+  Each is checked first with `git ls-remote`, so only URLs you can read over
+  SSH are switched; the rest are listed with the reason (e.g. `Permission
+  denied (publickey)`) and left alone. URLs on other hosts aren't touched,
+  since there's no telling what their SSH URL is. Existing clones keep their
+  old URLs: [`clone`](#clonager-clone) prints the `git remote set-url`
+  commands for them, commented out to check first.
+- **Airlifted branches** — branches recorded by
+  [`airlift`](#clonager-config-airlift) that now exist on this laptop are
+  removed from the config (a repo with nothing else set goes back to just its
+  URL). The rest stay listed until they're created.
+
+It never changes a clone itself, and it's the one command that goes over the
+network to check things (`git ls-remote`, with `ssh` in batch mode unless you
+have your own `core.sshCommand`, so it can't stop at a prompt).
+
+```
+$ clonager config tidy
+Switched to SSH:
+  → ~/Documents/ACME/vip-proj  origin  git@github.com:acmeltd/vip-proj.git
+  → ~/Documents/Uni/uni-work   upstream  git@github.com:my-uni/uni-work.git
+
+Removed from the config, as they exist here:
+  - ~/Documents/Uni/uni-work   fix-typos, lecture-notes
+
+Updated ~/.config/nix-darwin/clonager.yaml.
+```
 
 | Flag | |
 |---|---|
-| `--land` | remove the branch lists, once the branches exist on this laptop |
+| `-n`, `--dry-run` | show what would change without changing the config |
 
 ### Exit codes
 
-`clonager`, `prune`, `clone` and `airlift` exit non-zero when there's something to deal with, for
-use in scripts:
+`clonager`, `prune`, `clone`, `config airlift` and `config tidy` exit
+non-zero when there's something to deal with, for use in scripts:
 
 | Code | |
 |---|---|
 | 0 | all fine: nothing needs attention, `# Nothing to prune` or `# Nothing to clone` |
 | 1 | clonager itself failed (e.g. no config file) |
-| 2 | `clonager`: a repo needs attention (●), or there are repos not in the config; `prune`/`clone`: there's something to do, even if only commented out; `airlift`: something needs tidying first (or for `--land`, creating) |
-| 3 | `clonager`: a repo has an error (✗); `prune`/`clone`/`airlift`: a check failed |
+| 2 | `clonager`: a repo needs attention (●), or there are repos not in the config; `prune`/`clone`: there's something to do, even if only commented out; `airlift`: something needs tidying first; `tidy`: airlifted branches aren't created here yet |
+| 3 | `clonager`: a repo has an error (✗); `prune`/`clone`/`airlift`: a check failed; `tidy`: a URL can't be switched to SSH, or a repo couldn't be checked |
 
 For `prune | sh` (or `clone | sh`), the pipeline's exit code is `sh`'s, not clonager's.
 

@@ -135,6 +135,33 @@ func (c *Config) SetBranches(path string, branches []Branch) error {
 	return c.reparse()
 }
 
+// SetURL changes the URL of the repo at path's remote: its url for origin, or
+// its entry in remotes. Only the value changes, so comments on it stay. The
+// file isn't written until Save.
+func (c *Config) SetURL(path, remote, url string) error {
+	parent, i := c.findRepo(path)
+	if parent == nil {
+		return fmt.Errorf("%s isn't in the config", TildePath(path))
+	}
+	n := parent.Content[i+1]
+	var val *yaml.Node
+	switch {
+	case remote == "origin" && n.Kind == yaml.ScalarNode:
+		val = n
+	case remote == "origin":
+		val = mappingGet(n, "url")
+	default:
+		if remotes := mappingGet(n, "remotes"); remotes != nil {
+			val = mappingGet(remotes, remote)
+		}
+	}
+	if val == nil || val.Kind != yaml.ScalarNode {
+		return fmt.Errorf("%s has no remote %s in the config", TildePath(path), remote)
+	}
+	val.Value = url
+	return c.reparse()
+}
+
 // findRepo returns the mapping holding the repo at path, and the index of
 // its key there, or nil if it isn't in the config.
 func (c *Config) findRepo(path string) (*yaml.Node, int) {

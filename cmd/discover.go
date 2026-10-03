@@ -36,37 +36,30 @@ skipped, as there'd be nothing to clone them from.
 
 A repo goes under the most specific top-level key that contains it. If none
 does, <dir> becomes a new top-level key. <dir> can also be a repo itself,
-e.g. clonager discover ~/.config/nix-darwin.
+e.g. clonager config discover ~/.config/nix-darwin.
 
 With no <dir>, discover looks in the discoverPaths listed in
 ~/.config/clonager/settings.json (which the Home Manager module writes from
 programs.clonager.discoverPaths), skipping any that don't exist.
 
-If the config is installed by the Home Manager module with configSource set,
-discover edits that source (e.g. a file in your nix-darwin repo, or one kept
-encrypted there, through its decrypt and encrypt commands) instead of the
-read-only installed copy. Review the diff there, then rebuild to apply it.`,
+Repos are added with the URLs their remotes have; clonager config tidy
+switches them to SSH.`,
 	RunE: runDiscover,
 }
 
 func init() {
 	discoverCmd.Flags().BoolVarP(&discoverFlags.dryRun, "dry-run", "n", false, "show what would be added without changing the config")
 	discoverCmd.Flags().IntVarP(&discoverFlags.depth, "depth", "d", defaultDepth, "how many folders deep to look below each <dir>")
-	rootCmd.AddCommand(discoverCmd)
+	configCmd.AddCommand(discoverCmd)
 }
 
 func runDiscover(cmd *cobra.Command, args []string) error {
 	if err := loadOpenIn(); err != nil {
 		return err
 	}
-	cfg, fromSource, err := editableConfig()
+	cfg, fromSource, err := writableConfig("discover", discoverFlags.dryRun)
 	if err != nil {
 		return err
-	}
-	if err := cfg.Writable(); !discoverFlags.dryRun && errors.Is(err, config.ErrReadOnly) {
-		return fmt.Errorf("%w. If Home Manager installs it, set programs.clonager.configSource "+
-			"(to the file in your checkout, or commands to decrypt and encrypt it), "+
-			"and discover will edit that instead", err)
 	}
 
 	dirs, err := discoverDirs(args)

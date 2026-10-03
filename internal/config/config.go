@@ -57,7 +57,7 @@ type Repo struct {
 	Remotes   []Remote
 	GitButler bool
 	Tags      []string
-	Branches  []Branch // recorded by airlift, until airlift --land
+	Branches  []Branch // recorded by airlift, until tidy finds them here
 	// NotMine is set (by mine: false, on the repo or a folder above it) for
 	// repos whose remote isn't the user's to change, so clonager never
 	// suggests deleting branches there or changing its settings.

@@ -30,6 +30,7 @@ var allowed = map[string]map[string]check{
 		"diff":         gitNoOutputFile,
 		"for-each-ref": nil,
 		"log":          gitNoOutputFile,
+		"ls-remote":    gitNoUploadPack, // only reads the remote's refs
 		"merge-base":   nil,
 		"patch-id":     nil,
 		"rev-list":     nil,
@@ -56,18 +57,39 @@ func Git(dir string, args ...string) (string, error) {
 
 // GitStdin is Git with the given stdin.
 func GitStdin(dir, stdin string, args ...string) (string, error) {
-	out, err := run("git", dir, stdin, args, "-C", dir)
+	out, err := run("git", dir, stdin, nil, args, "-C", dir)
 	return strings.TrimRight(string(out), "\n"), err
+}
+
+// CanRead reports whether the repo at url exists and can be read, by listing
+// its HEAD with git ls-remote: nil, or why not. It goes over the network.
+//
+// Unless the user has their own SSH command (GIT_SSH_COMMAND, GIT_SSH or
+// core.sshCommand), ssh runs in batch mode, so an unknown host key or a key
+// needing a passphrase fails rather than waiting at a prompt.
+func CanRead(url string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	var env []string
+	if os.Getenv("GIT_SSH_COMMAND") == "" && os.Getenv("GIT_SSH") == "" {
+		if own, _ := Git(home, "config", "--get", "core.sshCommand"); own == "" {
+			env = append(env, "GIT_SSH_COMMAND=ssh -o BatchMode=yes -o ConnectTimeout=10")
+		}
+	}
+	_, err = run("git", home, "", env, []string{"ls-remote", url, "HEAD"}, "-C", home)
+	return err
 }
 
 // GH runs the GitHub CLI and returns its stdout.
 func GH(args ...string) ([]byte, error) {
-	return run("gh", "", "", args)
+	return run("gh", "", "", nil, args)
 }
 
 // But runs GitButler's CLI in dir and returns its stdout.
 func But(dir string, args ...string) ([]byte, error) {
-	return run("but", dir, "", args)
+	return run("but", dir, "", nil, args)
 }
 
 // Installed reports whether program is on the PATH.
@@ -133,8 +155,9 @@ func Check(program string, args []string) error {
 }
 
 // run checks and runs program. prefix is inserted before args (after the
-// check), for options like git -C that the helpers supply.
-func run(program, dir, stdin string, args []string, prefix ...string) ([]byte, error) {
+// check), for options like git -C that the helpers supply, and env is added
+// to the environment.
+func run(program, dir, stdin string, env, args []string, prefix ...string) ([]byte, error) {
 	if err := Check(program, args); err != nil {
 		return nil, err
 	}
@@ -148,6 +171,7 @@ func run(program, dir, stdin string, args []string, prefix ...string) ([]byte, e
 		"GH_PROMPT_DISABLED=1",  // or anything else
 		"GH_NO_UPDATE_NOTIFIER=1",
 	)
+	cmd.Env = append(cmd.Env, env...)
 	if stdin != "" {
 		cmd.Stdin = strings.NewReader(stdin)
 	}
@@ -209,6 +233,17 @@ func gitNoOutputFile(args []string) error {
 	for _, a := range args {
 		if a == "--output" || strings.HasPrefix(a, "--output=") {
 			return errors.New("--output writes a file")
+		}
+	}
+	return nil
+}
+
+// gitNoUploadPack refuses ls-remote's --upload-pack, which runs a command
+// of its choosing in place of git-upload-pack.
+func gitNoUploadPack(args []string) error {
+	for _, a := range args {
+		if a == "-u" || strings.HasPrefix(a, "--upload-pack") {
+			return errors.New("--upload-pack runs a command")
 		}
 	}
 	return nil
