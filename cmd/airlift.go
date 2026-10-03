@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -12,10 +10,6 @@ import (
 	"github.com/adnathanail/clonager/internal/config"
 	"github.com/adnathanail/clonager/internal/repostatus"
 )
-
-var airliftFlags struct {
-	land bool
-}
 
 var airliftCmd = &cobra.Command{
 	Use:   "airlift",
@@ -33,32 +27,23 @@ than the default branch, which clone checks out anyway. Repos with none have
 their list removed.
 
 On the other laptop, clonager clone prints a git branch command for each
-listed branch that doesn't exist there yet. Once they're created, airlift
---land removes the lists from the config.
+listed branch that doesn't exist there yet. Once they're created, clonager
+config tidy removes them from the config.
 
-Like discover, it edits the config's source when the Home Manager module
-installs it with configSource set.`,
+Don't run config tidy here until the clones are deleted: the branches still
+exist here, so it would remove them from the config.`,
 	Args: cobra.NoArgs,
 	RunE: runAirlift,
 }
 
 func init() {
-	airliftCmd.Flags().BoolVar(&airliftFlags.land, "land", false, "remove the branch lists from the config, once the branches exist on this laptop")
-	rootCmd.AddCommand(airliftCmd)
+	configCmd.AddCommand(airliftCmd)
 }
 
 func runAirlift(cmd *cobra.Command, args []string) error {
-	cfg, fromSource, err := editableConfig()
+	cfg, fromSource, err := writableConfig("airlift", false)
 	if err != nil {
 		return err
-	}
-	if err := cfg.Writable(); errors.Is(err, config.ErrReadOnly) {
-		return fmt.Errorf("%w. If Home Manager installs it, set programs.clonager.configSource "+
-			"(to the file in your checkout, or commands to decrypt and encrypt it), "+
-			"and airlift will edit that instead", err)
-	}
-	if airliftFlags.land {
-		return runLand(cfg, fromSource)
 	}
 	if err := checkForgeAvailable(true); err != nil {
 		return err
@@ -110,7 +95,7 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if len(untracked) > 0 {
-		blocked(exitAttention, "Repos not in the config (clonager discover adds them):")
+		blocked(exitAttention, "Repos not in the config (clonager config discover adds them):")
 		for _, r := range untracked {
 			lipgloss.Println("  " + styleWarn.Render("?") + " " + folderLink(r.path, config.TildePath(r.path)))
 		}
@@ -151,7 +136,9 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 	}
 	if total > 0 {
 		lipgloss.Println(styleDim.Render("On the other laptop, clonager clone prints the commands to create them; " +
-			"once they're there, clonager airlift --land removes them from the config."))
+			"once they're there, clonager config tidy removes them from the config."))
+		lipgloss.Println(styleWarn.Render("Don't run clonager config tidy on this laptop until these clones are deleted: " +
+			"it would remove them, as the branches still exist here."))
 	}
 	return nil
 }
@@ -168,55 +155,4 @@ func airliftBranches(s *repostatus.Status) []config.Branch {
 		out = append(out, config.Branch{Name: b.Name, From: b.Remote})
 	}
 	return out
-}
-
-// runLand removes the branch lists from the config, once every listed branch
-// exists on this laptop.
-func runLand(cfg *config.Config, fromSource bool) error {
-	var listed []config.Repo
-	for _, r := range cfg.Repos {
-		if len(r.Branches) > 0 {
-			listed = append(listed, r)
-		}
-	}
-	if len(listed) == 0 {
-		lipgloss.Println(styleDim.Render("No branches in the config to land."))
-		return nil
-	}
-
-	var missing []string
-	for _, s := range inspectAll(listed, repostatus.Options{}) {
-		var here []string
-		for _, b := range s.Branches {
-			here = append(here, b.Name)
-		}
-		for _, b := range s.Repo.Branches {
-			if !slices.Contains(here, b.Name) {
-				missing = append(missing, config.TildePath(s.Repo.Path)+": "+b.Name)
-			}
-		}
-	}
-	if len(missing) > 0 {
-		lipgloss.Println(styleHeading.Render("Not created on this laptop yet:"))
-		for _, m := range missing {
-			lipgloss.Println("  " + styleWarn.Render("●") + " " + m)
-		}
-		lipgloss.Println()
-		lipgloss.Println(styleWarn.Render("Not landing until they are (see clonager clone); the config is unchanged."))
-		return codeFor(exitAttention)
-	}
-
-	for _, r := range listed {
-		if err := cfg.SetBranches(r.Path, nil); err != nil {
-			return err
-		}
-	}
-	if err := cfg.Save(); err != nil {
-		return err
-	}
-	lipgloss.Println(fmt.Sprintf("Removed the branch lists of %s from %s.", plural(len(listed), "repo", "repos"), config.TildePath(cfg.Path)))
-	if fromSource {
-		lipgloss.Println(styleDim.Render("Rebuild (e.g. darwin-rebuild switch) to apply it."))
-	}
-	return nil
 }

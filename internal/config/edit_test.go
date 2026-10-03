@@ -244,3 +244,53 @@ func TestSetBranches(t *testing.T) {
 		t.Error("SetBranches from an unknown remote should fail")
 	}
 }
+
+func TestSetURL(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	cfg, err := Parse("test.yaml", []byte(`~/x:
+  plain: https://github.com/me/plain # a comment
+  fork:
+    # the fork
+    url: https://github.com/me/fork.git
+    remotes:
+      upstream: "https://github.com/acmeltd/fork.git"
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	x := filepath.Join(home, "x")
+	set := func(name, remote, url string) {
+		t.Helper()
+		if err := cfg.SetURL(filepath.Join(x, name), remote, url); err != nil {
+			t.Fatalf("SetURL(%s, %s): %v", name, remote, err)
+		}
+	}
+	set("plain", "origin", "git@github.com:me/plain.git")
+	set("fork", "origin", "git@github.com:me/fork.git")
+	set("fork", "upstream", "git@github.com:acmeltd/fork.git")
+
+	got, err := cfg.encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `~/x:
+  plain: git@github.com:me/plain.git # a comment
+  fork:
+    # the fork
+    url: git@github.com:me/fork.git
+    remotes:
+      upstream: "git@github.com:acmeltd/fork.git"
+`
+	if string(got) != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+	if u := cfg.Repos[1].Remotes[0].URL; u != "git@github.com:acmeltd/fork.git" {
+		t.Errorf("upstream after reparse: %s", u)
+	}
+
+	for _, c := range []struct{ name, remote string }{{"missing", "origin"}, {"plain", "upstream"}, {"fork", "nope"}} {
+		if err := cfg.SetURL(filepath.Join(x, c.name), c.remote, "u"); err == nil {
+			t.Errorf("SetURL(%s, %s): no error", c.name, c.remote)
+		}
+	}
+}

@@ -36,7 +36,7 @@ Branches already merged into the default branch (as a merge, fast-forward,
 rebase or squash) are listed separately and don't need attention, as are
 origin's merged branches.
 
-Repos in the discoverPaths (see clonager discover) that aren't in the config
+Repos in the discoverPaths (see clonager config discover) that aren't in the config
 are listed at the end, including ones with no origin. Not with --tag.
 
 With --forge, GitHub is also asked (via gh):
@@ -151,11 +151,11 @@ func printUntracked(cfg, pending *config.Config) (bool, error) {
 	}
 	switch {
 	case addable == len(repos):
-		lipgloss.Println(styleDim.Render("Add them with clonager discover."))
+		lipgloss.Println(styleDim.Render("Add them with clonager config discover."))
 	case addable > 0:
-		lipgloss.Println(styleDim.Render("Add them with clonager discover, once those without an origin have one."))
+		lipgloss.Println(styleDim.Render("Add them with clonager config discover, once those without an origin have one."))
 	default:
-		lipgloss.Println(styleDim.Render("clonager discover can add them once they have an origin."))
+		lipgloss.Println(styleDim.Render("clonager config discover can add them once they have an origin."))
 	}
 	return true, nil
 }

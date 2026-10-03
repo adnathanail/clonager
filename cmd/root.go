@@ -125,7 +125,7 @@ func configFile() string {
 	return p
 }
 
-// editableConfig loads the config for commands that change it (discover):
+// editableConfig loads the config for commands that change it (clonager config):
 // --config if given, else the source recorded by the Home Manager module
 // (a file, or decrypt/encrypt commands), else the installed config. A config
 // file that doesn't exist yet loads empty. fromSource reports the second
@@ -179,7 +179,7 @@ func loadConfig() (*config.Config, error) {
 	}
 	cfg, err := config.Load(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("no config file at %s (clonager discover <dir> creates one): %w", config.TildePath(path), err)
+		return nil, fmt.Errorf("no config file at %s (clonager config discover <dir> creates one): %w", config.TildePath(path), err)
 	}
 	return cfg, err
 }
