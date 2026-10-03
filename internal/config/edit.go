@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -112,9 +113,7 @@ func (c *Config) SetBranches(path string, branches []Branch) error {
 		if len(branches) == 0 {
 			return nil
 		}
-		url := *n
-		n = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: []*yaml.Node{str("url"), &url}}
-		parent.Content[i+1] = n
+		n = asMapping(parent, i)
 	}
 
 	mappingDelete(n, "branches")
@@ -133,6 +132,42 @@ func (c *Config) SetBranches(path string, branches []Branch) error {
 		parent.Content[i+1] = n.Content[1]
 	}
 	return c.reparse()
+}
+
+// SetNoSSH sets ssh: false on the repo at path, before its branches (which
+// are only there until tidy removes them). A repo given as just its URL
+// becomes a mapping to hold it. The file isn't written until Save.
+func (c *Config) SetNoSSH(path string) error {
+	parent, i := c.findRepo(path)
+	if parent == nil {
+		return fmt.Errorf("%s isn't in the config", TildePath(path))
+	}
+	n := asMapping(parent, i)
+	if val := mappingGet(n, "ssh"); val != nil {
+		*val = *str("false")
+		val.Tag = "!!bool"
+		return c.reparse()
+	}
+	at := mappingIndex(n, "branches")
+	if at < 0 {
+		at = len(n.Content)
+	}
+	val := str("false")
+	val.Tag = "!!bool"
+	n.Content = slices.Insert(n.Content, at, str("ssh"), val)
+	return c.reparse()
+}
+
+// asMapping returns the repo whose key is at index i of parent as a mapping,
+// first turning a repo given as just its URL into one.
+func asMapping(parent *yaml.Node, i int) *yaml.Node {
+	n := parent.Content[i+1]
+	if n.Kind == yaml.ScalarNode {
+		url := *n
+		n = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: []*yaml.Node{str("url"), &url}}
+		parent.Content[i+1] = n
+	}
+	return n
 }
 
 // SetURL changes the URL of the repo at path's remote: its url for origin, or

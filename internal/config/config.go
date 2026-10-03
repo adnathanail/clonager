@@ -27,6 +27,7 @@ var repoKeys = map[string]bool{
 	"tags":      true,
 	"mine":      true,
 	"branches":  true,
+	"ssh":       true,
 }
 
 // Repo options a folder can set for everything inside it.
@@ -62,7 +63,10 @@ type Repo struct {
 	// repos whose remote isn't the user's to change, so clonager never
 	// suggests deleting branches there or changing its settings.
 	NotMine bool
-	Line    int // line in the config file, for error messages
+	// NoSSH is set (by ssh: false) for repos whose HTTPS URLs can't be
+	// switched to SSH, so tidy doesn't try again.
+	NoSSH bool
+	Line  int // line in the config file, for error messages
 }
 
 // Name is the repo's directory name.
@@ -225,6 +229,10 @@ func (p *parser) repo(path string, n *yaml.Node, in inherited) {
 			var mine bool
 			err = val.Decode(&mine)
 			r.NotMine = !mine
+		case "ssh":
+			var ssh bool
+			err = val.Decode(&ssh)
+			r.NoSSH = !ssh
 		default:
 			p.errorf(key, "%s: unknown repo option %q (repos can't contain folders)", TildePath(path), key.Value)
 			continue

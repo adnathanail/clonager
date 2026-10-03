@@ -25,7 +25,7 @@ func TestHelpShowsShortcuts(t *testing.T) {
 	}
 }
 
-func TestConfigHelpShowsShortcuts(t *testing.T) {
+func TestConfigHelp(t *testing.T) {
 	var out strings.Builder
 	configCmd.SetOut(&out)
 	t.Cleanup(func() { configCmd.SetOut(nil) })

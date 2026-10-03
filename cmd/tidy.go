@@ -26,9 +26,11 @@ var tidyCmd = &cobra.Command{
 	Long: `Tidy up the config:
 
   - HTTPS URLs on GitHub, GitLab, Bitbucket and Codeberg are switched to SSH,
-    once git ls-remote shows the repo can be read over SSH. Those that can't
-    are listed with the reason, and left alone. Existing clones keep their
-    old URLs: clonager clone prints the git remote set-url commands for them
+    once git ls-remote shows the repo can be read over SSH. Repos where it
+    can't (e.g. not found, or permission denied) get ssh: false, so they
+    aren't tried again; remove it to retry. Network failures (no
+    connection, timeouts) are only reported. Existing clones keep their old
+    URLs: clonager clone prints the git remote set-url commands for them
     (commented out, to check first).
   - Branches recorded by clonager config airlift that now exist on this
     laptop are removed from the config (a repo with nothing else set goes
@@ -79,10 +81,14 @@ type urlChange struct {
 	err      error // why it can't be (the SSH URL couldn't be read)
 }
 
-// sshChanges lists the remotes in repos with an SSH equivalent (see sshURL).
+// sshChanges lists the remotes in repos with an SSH equivalent (see sshURL),
+// other than in repos marked ssh: false.
 func sshChanges(repos []config.Repo) []urlChange {
 	var out []urlChange
 	for _, r := range repos {
+		if r.NoSSH {
+			continue
+		}
 		remotes := append([]config.Remote{{Name: "origin", URL: r.URL}}, r.Remotes...)
 		for _, rem := range remotes {
 			if to, ok := sshURL(rem.URL); ok {
@@ -122,6 +128,57 @@ func checkSSH(changes []urlChange, canRead func(string) error) {
 	for i := range changes {
 		changes[i].err = errs[changes[i].to]
 	}
+}
+
+// networkErrors are signs that git ls-remote failed for want of a
+// connection, rather than because the repo can't be read over SSH.
+var networkErrors = []string{
+	"could not resolve hostname",
+	"timed out",
+	"network is unreachable",
+	"no route to host",
+	"connection refused",
+	"connection reset",
+}
+
+// isNetworkError reports whether err is one of the networkErrors, which
+// shouldn't mark a repo ssh: false, as it may work next time.
+func isNetworkError(err error) bool {
+	msg := strings.ToLower(err.Error())
+	return slices.ContainsFunc(networkErrors, func(e string) bool { return strings.Contains(msg, e) })
+}
+
+// tidyNeeds is what clonager config tidy may have to do, as far as can be
+// told offline (see needsTidy).
+type tidyNeeds struct {
+	urls    int // HTTPS URLs that may switch to SSH
+	landed  int // airlifted branches that exist here
+	waiting int // airlifted branches that don't yet
+}
+
+func (n tidyNeeds) any() bool { return n.urls+n.landed+n.waiting > 0 }
+
+// needsTidy works out, without the network, what tidy may have to do for
+// repos: statuses (by path) are what's here, for their airlifted branches.
+func needsTidy(repos []config.Repo, statuses map[string]*repostatus.Status) tidyNeeds {
+	n := tidyNeeds{urls: len(sshChanges(repos))}
+	var airlifted []*repostatus.Status
+	for _, r := range repos {
+		if len(r.Branches) == 0 {
+			continue
+		}
+		s := repostatus.Status{Missing: true} // e.g. only in the config's source so far
+		if found := statuses[r.Path]; found != nil {
+			s = *found
+		}
+		s.Repo = r // the config's, which may be its source's
+		airlifted = append(airlifted, &s)
+	}
+	for _, l := range landBranches(airlifted) {
+		n.landed += len(l.landed)
+		n.waiting += len(l.waiting)
+	}
+	return n
 }
 
 // landing is what tidy does with a repo's airlifted branches.
@@ -183,14 +240,23 @@ func runTidy(cmd *cobra.Command, args []string) error {
 		heading string
 		rows    []row
 	}
-	var switched, notSwitched, landed, waiting, failed section
+	var switched, marked, unchecked, landed, waiting, failed section
 	code := exitOK
 	changed := false
 	for _, c := range changes {
-		if c.err != nil {
-			notSwitched.rows = append(notSwitched.rows, row{c.repo.Path, styleError.Render("✗"),
+		if c.err != nil && isNetworkError(c.err) {
+			unchecked.rows = append(unchecked.rows, row{c.repo.Path, styleError.Render("✗"),
 				styleBranch.Render(c.remote) + "  " + styleDim.Render(c.err.Error())})
 			code = max(code, exitErrors)
+			continue
+		}
+		if c.err != nil {
+			if err := cfg.SetNoSSH(c.repo.Path); err != nil {
+				return err
+			}
+			changed = true
+			marked.rows = append(marked.rows, row{c.repo.Path, styleWarn.Render("!"),
+				styleBranch.Render(c.remote) + "  " + styleDim.Render(c.err.Error())})
 			continue
 		}
 		if err := cfg.SetURL(c.repo.Path, c.remote, c.to); err != nil {
@@ -227,16 +293,18 @@ func runTidy(cmd *cobra.Command, args []string) error {
 	}
 
 	switched.heading = "Switched to SSH:"
-	notSwitched.heading = "Can't switch to SSH:"
+	marked.heading = "Can't be read over SSH, so marked ssh: false:"
+	unchecked.heading = "Couldn't check over SSH:"
 	landed.heading = "Removed from the config, as they exist here:"
 	waiting.heading = "Airlifted branches not created here yet (clonager clone prints the commands):"
 	failed.heading = "Couldn't check airlifted branches:"
 	if tidyFlags.dryRun {
 		switched.heading = "Would switch to SSH:"
+		marked.heading = "Can't be read over SSH, so would mark ssh: false:"
 		landed.heading = "Would remove from the config, as they exist here:"
 	}
 
-	sections := []section{switched, notSwitched, landed, waiting, failed}
+	sections := []section{switched, marked, unchecked, landed, waiting, failed}
 	pathW := 0
 	for _, s := range sections {
 		for _, r := range s.rows {
