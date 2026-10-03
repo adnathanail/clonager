@@ -29,9 +29,9 @@ var tidyCmd = &cobra.Command{
     once git ls-remote shows the repo can be read over SSH. Repos where it
     can't (e.g. not found, or permission denied) get ssh: false, so they
     aren't tried again; remove it to retry. Network failures (no
-    connection, timeouts) are only reported. Existing clones keep their old
-    URLs: clonager clone prints the git remote set-url commands for them
-    (commented out, to check first).
+    connection, timeouts) are only reported. Last, it prints the git remote
+    set-url commands to switch existing clones whose remote still has the
+    old URL, for you to run.
   - Branches recorded by clonager config airlift that now exist on this
     laptop are removed from the config (a repo with nothing else set goes
     back to just its URL). The rest stay listed until they're created, which
@@ -130,6 +130,35 @@ func checkSSH(changes []urlChange, canRead func(string) error) {
 	}
 }
 
+// setURLCommands are the commands to switch clones to the SSH URLs in the
+// config, for remotes whose URL in the clone (from remoteURL, "" if there's
+// no clone or remote) is the HTTPS one it was switched from, now or by an
+// earlier tidy. Other differences are left for clonager clone to point out.
+func setURLCommands(repos []config.Repo, remoteURL func(path, remote string) string) []string {
+	var out []string
+	for _, r := range repos {
+		for _, rem := range append([]config.Remote{{Name: "origin", URL: r.URL}}, r.Remotes...) {
+			if !strings.HasPrefix(rem.URL, "git@") {
+				continue
+			}
+			if ssh, ok := sshURL(remoteURL(r.Path, rem.Name)); !ok || ssh != rem.URL {
+				continue
+			}
+			out = append(out, "git -C "+shellPath(r.Path)+" remote set-url "+shellQuote(rem.Name)+" "+shellQuote(rem.URL))
+		}
+	}
+	return out
+}
+
+// cloneRemoteURL is the URL of remote in the clone at path, or "".
+func cloneRemoteURL(path, remote string) string {
+	url, err := cli.Git(path, "config", "--get", "remote."+remote+".url")
+	if err != nil {
+		return ""
+	}
+	return url
+}
+
 // networkErrors are signs that git ls-remote failed for want of a
 // connection, rather than because the repo can't be read over SSH.
 var networkErrors = []string{
@@ -152,16 +181,23 @@ func isNetworkError(err error) bool {
 // told offline (see needsTidy).
 type tidyNeeds struct {
 	urls    int // HTTPS URLs that may switch to SSH
+	clones  int // clone remotes to switch to the SSH URLs in the config
 	landed  int // airlifted branches that exist here
 	waiting int // airlifted branches that don't yet
 }
 
-func (n tidyNeeds) any() bool { return n.urls+n.landed+n.waiting > 0 }
+func (n tidyNeeds) any() bool { return n.urls+n.clones+n.landed+n.waiting > 0 }
 
 // needsTidy works out, without the network, what tidy may have to do for
 // repos: statuses (by path) are what's here, for their airlifted branches.
 func needsTidy(repos []config.Repo, statuses map[string]*repostatus.Status) tidyNeeds {
 	n := tidyNeeds{urls: len(sshChanges(repos))}
+	n.clones = len(setURLCommands(repos, func(path, remote string) string {
+		if s := statuses[path]; s != nil {
+			return s.RemoteURLs[remote]
+		}
+		return ""
+	}))
 	var airlifted []*repostatus.Status
 	for _, r := range repos {
 		if len(r.Branches) == 0 {
@@ -323,6 +359,10 @@ func runTidy(cmd *cobra.Command, args []string) error {
 		lipgloss.Println()
 	}
 
+	cmds := setURLCommands(cfg.Repos, cloneRemoteURL)
+	if len(cmds) > 0 {
+		code = max(code, exitAttention)
+	}
 	switch {
 	case !changed && code == exitOK:
 		lipgloss.Println(styleDim.Render("Nothing to tidy."))
@@ -338,8 +378,16 @@ func runTidy(cmd *cobra.Command, args []string) error {
 		if fromSource {
 			lipgloss.Println(styleDim.Render("Rebuild (e.g. darwin-rebuild switch) to apply it."))
 		}
-		if len(switched.rows) > 0 {
-			lipgloss.Println(styleDim.Render("clonager clone prints the git remote set-url commands for clones still using the old URLs."))
+	}
+	if len(cmds) > 0 {
+		lipgloss.Println()
+		heading := "Switch the clones too with:"
+		if tidyFlags.dryRun {
+			heading = "Then switch the clones too with:"
+		}
+		lipgloss.Println(styleHeading.Render(heading))
+		for _, c := range cmds {
+			lipgloss.Println("  " + c)
 		}
 	}
 	return codeFor(code)

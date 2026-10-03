@@ -145,15 +145,45 @@ func TestNeedsTidy(t *testing.T) {
 		{Path: "/w/elsewhere", URL: "https://git.acme.example/me/elsewhere"},
 		{Path: "/w/airlifted", URL: "git@github.com:me/airlifted.git", Branches: []config.Branch{feat, fix}},
 		{Path: "/w/new", URL: "git@github.com:me/new.git", Branches: []config.Branch{feat}}, // no status: only in the source
+		{Path: "/w/switched", URL: "git@github.com:me/switched.git"},
 	}
 	statuses := map[string]*repostatus.Status{
-		"/w/airlifted": {Repo: config.Repo{Path: "/w/airlifted"}, Branches: []repostatus.Branch{{Name: "main"}, {Name: "feat"}}},
+		"/w/airlifted": {Repo: config.Repo{Path: "/w/airlifted"}, Branches: []repostatus.Branch{{Name: "main"}, {Name: "feat"}},
+			RemoteURLs: map[string]string{"origin": "git@github.com:me/airlifted.git"}},
+		"/w/switched": {Repo: config.Repo{Path: "/w/switched"}, RemoteURLs: map[string]string{"origin": "https://github.com/me/switched"}},
 	}
 	got := needsTidy(repos, statuses)
-	if want := (tidyNeeds{urls: 2, landed: 1, waiting: 2}); got != want {
+	if want := (tidyNeeds{urls: 2, clones: 1, landed: 1, waiting: 2}); got != want {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
 	if needsTidy(repos[1:3], nil).any() {
 		t.Error("nothing to tidy for ssh: false or unknown hosts")
+	}
+}
+
+func TestSetURLCommands(t *testing.T) {
+	repos := []config.Repo{
+		{Path: "/w/vip-proj", URL: "git@github.com:acmeltd/vip-proj.git"},
+		{Path: "/w/it's here", URL: "git@github.com:me/here.git", Remotes: []config.Remote{{Name: "up stream", URL: "git@github.com:me/x.git"}}},
+		{Path: "/w/done", URL: "git@github.com:me/done.git"},       // clone already switched
+		{Path: "/w/missing", URL: "git@github.com:me/missing.git"}, // not cloned
+		{Path: "/w/other", URL: "git@github.com:me/other.git"},     // clone has some other URL: clone's to point out
+		{Path: "/w/https", URL: "https://github.com/me/https"},     // still HTTPS in the config
+	}
+	clones := map[string]string{
+		"/w/vip-proj origin":     "https://github.com/acmeltd/vip-proj",
+		"/w/it's here origin":    "git@github.com:me/here.git",
+		"/w/it's here up stream": "https://github.com/me/x.git",
+		"/w/done origin":         "git@github.com:me/done.git",
+		"/w/other origin":        "https://github.com/someone/other",
+		"/w/https origin":        "https://github.com/me/https",
+	}
+	got := setURLCommands(repos, func(path, remote string) string { return clones[path+" "+remote] })
+	want := []string{
+		"git -C /w/vip-proj remote set-url origin git@github.com:acmeltd/vip-proj.git",
+		`git -C '/w/it'\''s here' remote set-url 'up stream' git@github.com:me/x.git`,
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }

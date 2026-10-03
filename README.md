@@ -216,8 +216,9 @@ It reports:
   add). Not shown with `--tag`.
 - **Config to tidy** — what [`config tidy`](#clonager-config-tidy) has to
   do, as far as can be told offline: HTTPS URLs to try switching to SSH
-  (other than in repos marked `ssh: false`), and airlifted branches, whether
-  they're created here yet or not. Not shown with `--tag`.
+  (other than in repos marked `ssh: false`), clone remotes to switch to the
+  SSH URLs in the config, and airlifted branches, whether they're created
+  here yet or not. Not shown with `--tag`.
 
 | Flag | |
 |---|---|
@@ -403,9 +404,12 @@ Tidies up the config:
   `ssh: false`, so neither `tidy` nor status brings them up again; remove it
   to have `tidy` try again. Network failures (no connection, timeouts) are
   only reported, as they may work next time. URLs on other hosts aren't touched,
-  since there's no telling what their SSH URL is. Existing clones keep their
-  old URLs: [`clone`](#clonager-clone) prints the `git remote set-url`
-  commands for them, commented out to check first.
+  since there's no telling what their SSH URL is.
+- **Clones' remotes** — last, it prints the `git remote set-url` commands to
+  switch clones to the SSH URLs now in the config, for remotes still using
+  the HTTPS URL they replaced (whether this run or an earlier one switched
+  it). It doesn't run them. Clones with some other URL are left for
+  [`clone`](#clonager-clone) to point out.
 - **Airlifted branches** — branches recorded by
   [`airlift`](#clonager-config-airlift) that now exist on this laptop are
   removed from the config (a repo with nothing else set goes back to just its
@@ -425,6 +429,9 @@ Removed from the config, as they exist here:
   - ~/Documents/Uni/uni-work   fix-typos, lecture-notes
 
 Updated ~/.config/nix-darwin/clonager.yaml.
+
+Switch the clones too with:
+  git -C ~/Documents/ACME/vip-proj remote set-url origin git@github.com:acmeltd/vip-proj.git
 ```
 
 | Flag | |
@@ -440,7 +447,7 @@ non-zero when there's something to deal with, for use in scripts:
 |---|---|
 | 0 | all fine: nothing needs attention, `# Nothing to prune` or `# Nothing to clone` |
 | 1 | clonager itself failed (e.g. no config file) |
-| 2 | `clonager`: a repo needs attention (●), there are repos not in the config, or there's config to tidy; `prune`/`clone`: there's something to do, even if only commented out; `airlift`: something needs tidying first; `tidy`: airlifted branches aren't created here yet |
+| 2 | `clonager`: a repo needs attention (●), there are repos not in the config, or there's config to tidy; `prune`/`clone`: there's something to do, even if only commented out; `airlift`: something needs tidying first; `tidy`: airlifted branches aren't created here yet, or clones' remotes to switch |
 | 3 | `clonager`: a repo has an error (✗); `prune`/`clone`/`airlift`: a check failed; `tidy`: a URL couldn't be checked over the network, or a repo couldn't be checked |
 
 For `prune | sh` (or `clone | sh`), the pipeline's exit code is `sh`'s, not clonager's.
