@@ -53,15 +53,19 @@ func TestParse(t *testing.T) {
 
 func TestParseErrors(t *testing.T) {
 	cases := map[string]struct{ yaml, want string }{
-		"relative top-level":  {"Documents:\n  a: url\n", "must be an absolute path"},
-		"reserved folder key": {"~/x:\n  tags: [a]\n", `"tags" is only valid in a repo`},
-		"missing url":         {"~/x:\n  a:\n", "missing url"},
-		"unknown option":      {"~/x:\n  a:\n    url: u\n    sub: v\n", `unknown repo option "sub"`},
-		"slash in name":       {"~/x:\n  a/b: u\n", "not a valid folder or repo name"},
-		"origin in remotes":   {"~/x:\n  a:\n    url: u\n    remotes: {origin: v}\n", "origin is set by url"},
-		"duplicate":           {"~/x:\n  a: u\n~/x/a: v\n", "is also listed on line"},
-		"nested repo":         {"~/x: u\n~/x/a: v\n", "is inside the repo"},
-		"not a mapping":       {"- a\n", "top level must be a mapping"},
+		"relative top-level":         {"Documents:\n  a: url\n", "must be an absolute path"},
+		"reserved folder key":        {"~/x:\n  tags: [a]\n", `"tags" is only valid in a repo`},
+		"missing url":                {"~/x:\n  a:\n", "missing url"},
+		"unknown option":             {"~/x:\n  a:\n    url: u\n    sub: v\n", `unknown repo option "sub"`},
+		"slash in name":              {"~/x:\n  a/b: u\n", "not a valid folder or repo name"},
+		"branches not a list":        {"~/x:\n  a:\n    url: u\n    branches: feat\n", "expected a list of branch names"},
+		"branch without ref":         {"~/x:\n  a:\n    url: u\n    branches:\n      - feat: main\n", "expected a branch name, or name: remote/branch"},
+		"branch from unknown remote": {"~/x:\n  a:\n    url: u\n    branches:\n      - feat: fork/feat\n", "isn't one of the repo's remotes"},
+		"branches as folder":         {"~/x:\n  branches:\n    a: u\n", `"branches" is only valid in a repo`},
+		"origin in remotes":          {"~/x:\n  a:\n    url: u\n    remotes: {origin: v}\n", "origin is set by url"},
+		"duplicate":                  {"~/x:\n  a: u\n~/x/a: v\n", "is also listed on line"},
+		"nested repo":                {"~/x: u\n~/x/a: v\n", "is inside the repo"},
+		"not a mapping":              {"- a\n", "top level must be a mapping"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {

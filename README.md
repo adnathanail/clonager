@@ -154,16 +154,19 @@ It's a YAML tree that mirrors your folders:
   - `tags` — labels for filtering, e.g. `clonager -t work`
   - `mine: false` — the remote isn't yours to change, so clonager won't
     suggest deleting branches there or changing its settings (see `prune`)
+  - `branches` — local branches to recreate on another laptop, written by
+    [`airlift`](#clonager-airlift): each a name, for the same-named branch on
+    `origin`, or `name: remote/branch`
 - **Any other mapping** is a folder, and can nest as deep as you like. A
   folder can set `mine: false` for every repo inside it; a repo can override
   it with `mine: true`.
 
 A repo's path is its chain of keys, so `vip-proj` above lives at
 `~/Documents/ACME/vip-proj`. The option names (`url`, `remotes`, `gitbutler`,
-`tags`, `mine`) can't be used as folder names, and repos can't contain other repos.
+`tags`, `mine`, `branches`) can't be used as folder names, and repos can't contain other repos.
 
-clonager edits this file itself (see `discover`), keeping your comments and
-ordering.
+clonager edits this file itself (see `discover` and `airlift`), keeping your
+comments and ordering.
 
 ## Commands
 
@@ -325,6 +328,9 @@ git -C ~/Documents/Uni/uni-work remote add -f upstream git@github.com:my-uni/uni
 - `git clone` for repos that aren't cloned yet, or whose folder is empty.
 - `git remote add -f` (which also fetches it) for remotes in the config that
   a clone doesn't have, including `origin` on an existing clone without one.
+- `git branch <name> <remote>/<branch>` for branches recorded by
+  [`airlift`](#clonager-airlift) that don't exist yet. These need the remote
+  branch fetched: a new clone has it, an older one may need `git fetch`.
 - `git remote set-url`, commented out, for remotes whose URL differs from the
   config: the config may be the one that's out of date.
 - `but setup`, commented out, for repos marked `gitbutler: true` that aren't
@@ -336,17 +342,54 @@ only prints `# Nothing to clone` once there's nothing left to do and every
 check succeeded. To run everything that isn't commented out:
 `clonager clone | sh`.
 
+### `clonager airlift`
+
+Records this laptop's local branches in the config, so they can be recreated
+on another one: run `airlift` on the old laptop, then `clone` on the new one.
+
+It only airlifts a tidy laptop. First it checks that `prune --forge` has
+nothing to do, and that nothing needs attention in status (with `--forge`): no
+uncommitted changes, stashes, unpushed or local-only branches, and no repos in
+the `discoverPaths` missing from the config. Otherwise it shows what it found
+and leaves the config alone.
+
+Each repo's `branches` list is then replaced with its local branches, other
+than the default branch (which a clone checks out anyway):
+
+```yaml
+  Uni:
+    uni-work:
+      url: git@github.com:me/uni-work.git
+      remotes:
+        upstream: git@github.com:my-uni/uni-work.git
+      branches:
+        - fix-typos
+        - lecture-notes: upstream/lecture-notes
+```
+
+On the new laptop, `clonager clone` prints a `git branch` for each one that
+isn't there yet. Once they're all created, `clonager airlift --land` removes
+the lists from the config (a repo with nothing else set goes back to just its
+URL); it refuses while any are missing.
+
+Like `discover`, it edits the config's source when the Home Manager module
+installs the config with `configSource` set.
+
+| Flag | |
+|---|---|
+| `--land` | remove the branch lists, once the branches exist on this laptop |
+
 ### Exit codes
 
-`clonager`, `prune` and `clone` exit non-zero when there's something to deal with, for
+`clonager`, `prune`, `clone` and `airlift` exit non-zero when there's something to deal with, for
 use in scripts:
 
 | Code | |
 |---|---|
 | 0 | all fine: nothing needs attention, `# Nothing to prune` or `# Nothing to clone` |
 | 1 | clonager itself failed (e.g. no config file) |
-| 2 | `clonager`: a repo needs attention (●), or there are repos not in the config; `prune`/`clone`: there's something to do, even if only commented out |
-| 3 | `clonager`: a repo has an error (✗); `prune`/`clone`: a check failed |
+| 2 | `clonager`: a repo needs attention (●), or there are repos not in the config; `prune`/`clone`: there's something to do, even if only commented out; `airlift`: something needs tidying first (or for `--land`, creating) |
+| 3 | `clonager`: a repo has an error (✗); `prune`/`clone`/`airlift`: a check failed |
 
 For `prune | sh` (or `clone | sh`), the pipeline's exit code is `sh`'s, not clonager's.
 

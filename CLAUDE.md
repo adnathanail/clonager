@@ -32,8 +32,8 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 ## Layout
 
 - `main.go` → `cmd.Execute()`
-- `cmd/` — Cobra commands (`root.go`, `discover.go`, `prune.go`) and Lip Gloss
-  styles (`style.go`). Rendering lives here. A bare `clonager` shows status
+- `cmd/` — Cobra commands (`root.go`, `discover.go`, `prune.go`, `clone.go`,
+  `airlift.go`) and Lip Gloss styles (`style.go`). Rendering lives here. A bare `clonager` shows status
   (`status.go`: the root command's `RunE` and flags); there's no `status`
   subcommand.
 - `internal/config/` — parsing the YAML tree into a flat `[]Repo` (`config.go`)
@@ -49,8 +49,9 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 ## Design decisions
 
 - **clonager only ever reads.** It never changes a repo, remote, setting or
-  file other than its own config (which `discover` edits); where something
-  should change, it prints the command for the user to run (`prune`).
+  file other than its own config (which `discover` and `airlift` edit); where
+  something should change, it prints the command for the user to run
+  (`prune`, `clone`).
 - **All external programs run through `internal/cli`** (`cli.Git`,
   `cli.GitStdin`, `cli.GH`, `cli.But`, `cli.Installed`), which checks each call
   against the `allowed` list of read-only subcommands and refuses anything
@@ -94,7 +95,7 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   (case-insensitive) among siblings; new top-level keys are appended.
 - **Config format:** top-level keys are absolute or `~` paths; a string value is
   a repo URL; a mapping with `url` is a repo with options (`remotes`,
-  `gitbutler`, `tags`, `mine`); any other mapping is a folder. Those option
+  `gitbutler`, `tags`, `mine`, `branches`); any other mapping is a folder. Those option
   names are reserved and can't be folder names. Child keys can't contain `/`.
   Folders can set `mine` (listed in `folderKeys`) for the repos inside them;
   it's read before the folder's children, whatever the key order. In Go it's

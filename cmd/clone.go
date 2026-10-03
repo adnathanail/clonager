@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -15,11 +16,12 @@ import (
 var cloneCmd = &cobra.Command{
 	Use:     "clone",
 	Aliases: []string{"c"},
-	Short:   "Print git commands to clone repos and add remotes from the config",
+	Short:   "Print git commands to clone repos, add remotes and create branches from the config",
 	Long: `Print the git commands to set up the repos in the config: git clone for
-repos that aren't cloned yet, and git remote add -f for remotes that are
-missing (on new clones and existing ones). Nothing is run: review the output
-and run the commands yourself (or pipe them to sh).
+repos that aren't cloned yet, git remote add -f for remotes that are missing
+(on new clones and existing ones), and git branch for branches recorded by
+clonager airlift that don't exist yet. Nothing is run: review the output and
+run the commands yourself (or pipe them to sh).
 
 Commented out, to check first:
   - git remote set-url for remotes whose URL differs from the config, as the
@@ -53,6 +55,7 @@ func runClone(cmd *cobra.Command, args []string) error {
 type cloneCounts struct {
 	clones    int // repos to clone
 	remotes   int // remotes to add
+	branches  int // airlifted branches to create
 	review    int // commented-out commands to check first
 	unchecked int // repos that couldn't be checked
 }
@@ -63,7 +66,7 @@ func (n cloneCounts) exitCode() int {
 	switch {
 	case n.unchecked > 0:
 		return exitErrors
-	case n.clones+n.remotes+n.review > 0:
+	case n.clones+n.remotes+n.branches+n.review > 0:
 		return exitAttention
 	}
 	return exitOK
@@ -99,6 +102,9 @@ func cloneScript(statuses []*repostatus.Status, isEmpty func(string) bool) (stri
 	}
 	if n.remotes > 0 {
 		summary = append(summary, plural(n.remotes, "remote", "remotes")+" to add")
+	}
+	if n.branches > 0 {
+		summary = append(summary, plural(n.branches, "branch", "branches")+" to create")
 	}
 	if n.review > 0 {
 		summary = append(summary, fmt.Sprintf("%d commented out to review", n.review))
@@ -152,6 +158,18 @@ func repoCloneLines(s *repostatus.Status, isEmpty func(string) bool, n *cloneCou
 			addRemote(rem.Name, rem.URL)
 		case got != rem.URL:
 			setURL(rem.Name, rem.URL, got)
+		}
+	}
+
+	// Branches airlifted from another laptop.
+	var here []string
+	for _, b := range s.Branches {
+		here = append(here, b.Name)
+	}
+	for _, b := range s.Repo.Branches {
+		if !slices.Contains(here, b.Name) {
+			lines = append(lines, "git -C "+path+" branch "+shellQuote(b.Name)+" "+shellQuote(b.From))
+			n.branches++
 		}
 	}
 

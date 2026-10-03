@@ -14,8 +14,8 @@ import (
 )
 
 // cloneCommand is the only kind of line clone may print uncommented: a git
-// command that creates a local clone or adds a remote to one.
-var cloneCommand = regexp.MustCompile(`^git (clone \S+ ` + arg + `|-C ` + arg + ` remote add -f \S+ \S+)$`)
+// command that creates a local clone, or adds a remote or branch to one.
+var cloneCommand = regexp.MustCompile(`^git (clone \S+ ` + arg + `|-C ` + arg + ` (remote add -f \S+ \S+|branch ` + arg + ` \S+))$`)
 
 // arg is a shell word: bare, or single-quoted by shellQuote.
 const arg = `(\S+|'[^']*')`
@@ -34,6 +34,10 @@ func TestCloneOutput(t *testing.T) {
 	moved := repo("moved")
 	gb := withGitButler(repo("gb"))
 	gbDone := withGitButler(repo("gb-done"))
+	airlifted := withRemotes(repo("airlifted"))
+	airlifted.Branches = []config.Branch{{Name: "feat", From: "origin/feat"}, {Name: "it's", From: "upstream/its"}, {Name: "here", From: "origin/here"}}
+	newAirlifted := repo("new-airlifted")
+	newAirlifted.Branches = []config.Branch{{Name: "feat", From: "origin/feat"}}
 	statuses := []*repostatus.Status{
 		{Repo: withGitButler(fork), Missing: true},
 		{Repo: config.Repo{Path: "/work/my repo", URL: "https://example.com/me/x.git"}, Missing: true},
@@ -54,6 +58,13 @@ func TestCloneOutput(t *testing.T) {
 		{Repo: gb, OriginURL: gb.URL, RemoteURLs: urls(gb)},
 		{Repo: gbDone, OriginURL: gbDone.URL, RemoteURLs: urls(gbDone),
 			GitButler: repostatus.GitButler{Mode: repostatus.GitButlerActive}},
+		{ // airlifted from another laptop, one branch already here
+			Repo:       airlifted,
+			OriginURL:  airlifted.URL,
+			RemoteURLs: map[string]string{"origin": airlifted.URL, "upstream": upstream[0].URL},
+			Branches:   []repostatus.Branch{{Name: "main"}, {Name: "here"}},
+		},
+		{Repo: newAirlifted, Missing: true},
 	}
 	isEmpty := func(p string) bool { return p == "/work/empty" }
 
@@ -88,6 +99,11 @@ func TestCloneOutput(t *testing.T) {
 		},
 		"/work/fork2": {"# git -C /work/fork2 remote set-url upstream git@github.com:acmeltd/fork.git  # upstream is git@github.com:other/fork.git"},
 		"/work/gb":    {"# but -C /work/gb setup"},
+		"/work/airlifted": {
+			"git -C /work/airlifted branch feat origin/feat",
+			`git -C /work/airlifted branch 'it'\''s' upstream/its`,
+		},
+		"/work/new-airlifted": {"git clone git@github.com:me/new-airlifted.git /work/new-airlifted\ngit -C /work/new-airlifted branch feat origin/feat"},
 	}
 	for repo, wants := range mustContain {
 		for _, want := range wants {
@@ -101,11 +117,14 @@ func TestCloneOutput(t *testing.T) {
 			t.Errorf("%s: should have nothing to do, got:\n%s", repo, b)
 		}
 	}
+	if strings.Contains(blocks["/work/airlifted"], "branch here") {
+		t.Errorf("/work/airlifted: here already exists:\n%s", blocks["/work/airlifted"])
+	}
 	if strings.Contains(blocks["/work/fork"], "remote add -f origin") {
 		t.Errorf("/work/fork: git clone already adds origin:\n%s", blocks["/work/fork"])
 	}
 
-	want := "# 3 repos to clone, 3 remotes to add, 4 commented out to review, 1 check failed"
+	want := "# 4 repos to clone, 3 remotes to add, 3 branches to create, 4 commented out to review, 1 check failed"
 	if got := lastLine(out); got != want {
 		t.Errorf("summary %q, want %q", got, want)
 	}
