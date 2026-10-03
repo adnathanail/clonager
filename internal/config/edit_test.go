@@ -181,3 +181,66 @@ func TestReadOnly(t *testing.T) {
 		t.Errorf("a config that doesn't exist yet should be writable: %v", err)
 	}
 }
+
+func TestSetBranches(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	cfg, err := Parse("test.yaml", []byte(`~/x:
+  plain: git@github.com:me/plain.git # a comment
+  fork:
+    url: git@github.com:me/fork.git
+    remotes:
+      upstream: git@github.com:acmeltd/fork.git
+    branches: [stale]
+  old:
+    url: git@github.com:me/old.git
+    branches: [gone]
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	x := filepath.Join(home, "x")
+	set := func(name string, branches ...Branch) {
+		t.Helper()
+		if err := cfg.SetBranches(filepath.Join(x, name), branches); err != nil {
+			t.Fatalf("SetBranches(%s): %v", name, err)
+		}
+	}
+	set("plain", Branch{"feat", "origin/feat"})
+	set("fork", Branch{"fix", "origin/fix"}, Branch{"theirs", "upstream/main"})
+	set("old")
+
+	got, err := cfg.encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `~/x:
+  plain:
+    url: git@github.com:me/plain.git # a comment
+    branches:
+      - feat
+  fork:
+    url: git@github.com:me/fork.git
+    remotes:
+      upstream: git@github.com:acmeltd/fork.git
+    branches:
+      - fix
+      - theirs: upstream/main
+  old: git@github.com:me/old.git
+`
+	if string(got) != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+	if b := cfg.Repos[0].Branches; len(b) != 1 || b[0] != (Branch{"feat", "origin/feat"}) {
+		t.Errorf("plain's branches after reparse: %+v", b)
+	}
+	if b := cfg.Repos[1].Branches; len(b) != 2 || b[1] != (Branch{"theirs", "upstream/main"}) {
+		t.Errorf("fork's branches after reparse: %+v", b)
+	}
+
+	if err := cfg.SetBranches(filepath.Join(x, "missing"), nil); err == nil {
+		t.Error("SetBranches on a repo not in the config should fail")
+	}
+	if err := cfg.SetBranches(filepath.Join(x, "plain"), []Branch{{"feat", "nowhere/feat"}}); err == nil {
+		t.Error("SetBranches from an unknown remote should fail")
+	}
+}

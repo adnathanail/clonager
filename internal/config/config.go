@@ -26,6 +26,7 @@ var repoKeys = map[string]bool{
 	"gitbutler": true,
 	"tags":      true,
 	"mine":      true,
+	"branches":  true,
 }
 
 // Repo options a folder can set for everything inside it.
@@ -43,12 +44,20 @@ type Remote struct {
 	URL  string
 }
 
+// Branch is a local branch to recreate on another laptop (see airlift),
+// starting from a remote-tracking ref.
+type Branch struct {
+	Name string
+	From string // remote-tracking ref, e.g. origin/fix-login
+}
+
 type Repo struct {
 	Path      string // absolute path on disk
 	URL       string // clone URL for origin
 	Remotes   []Remote
 	GitButler bool
 	Tags      []string
+	Branches  []Branch // recorded by airlift, until airlift --land
 	// NotMine is set (by mine: false, on the repo or a folder above it) for
 	// repos whose remote isn't the user's to change, so clonager never
 	// suggests deleting branches there or changing its settings.
@@ -210,6 +219,8 @@ func (p *parser) repo(path string, n *yaml.Node, in inherited) {
 			err = val.Decode(&r.Tags)
 		case "remotes":
 			r.Remotes, err = decodeRemotes(val)
+		case "branches":
+			r.Branches, err = decodeBranches(val)
 		case "mine":
 			var mine bool
 			err = val.Decode(&mine)
@@ -225,7 +236,56 @@ func (p *parser) repo(path string, n *yaml.Node, in inherited) {
 	if r.URL == "" {
 		p.errorf(n, "%s: missing url", TildePath(path))
 	}
+	for _, b := range r.Branches {
+		if !r.HasRemote(b.Remote()) {
+			p.errorf(n, "%s: branches: %s is from %s, which isn't one of the repo's remotes", TildePath(path), b.Name, b.From)
+		}
+	}
 	p.repos = append(p.repos, r)
+}
+
+// HasRemote reports whether the repo is configured with the named remote.
+func (r Repo) HasRemote(name string) bool {
+	if name == "origin" {
+		return true
+	}
+	for _, rem := range r.Remotes {
+		if rem.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+// Remote is the remote From is on, e.g. origin.
+func (b Branch) Remote() string {
+	remote, _, _ := strings.Cut(b.From, "/")
+	return remote
+}
+
+// decodeBranches reads a list of branches: each a name, for the same-named
+// branch on origin, or a name: remote/branch pair.
+func decodeBranches(n *yaml.Node) ([]Branch, error) {
+	if n.Kind != yaml.SequenceNode {
+		return nil, errors.New("expected a list of branch names")
+	}
+	var out []Branch
+	for _, item := range n.Content {
+		var b Branch
+		switch {
+		case item.Kind == yaml.ScalarNode && item.Value != "":
+			b = Branch{Name: item.Value, From: "origin/" + item.Value}
+		case item.Kind == yaml.MappingNode && len(item.Content) == 2:
+			b = Branch{Name: item.Content[0].Value, From: item.Content[1].Value}
+		default:
+			return nil, fmt.Errorf("line %d: expected a branch name, or name: remote/branch", item.Line)
+		}
+		if b.Name == "" || !strings.Contains(b.From, "/") {
+			return nil, fmt.Errorf("line %d: expected a branch name, or name: remote/branch", item.Line)
+		}
+		out = append(out, b)
+	}
+	return out, nil
 }
 
 // decodeRemotes reads a name: url mapping, keeping the file's order.

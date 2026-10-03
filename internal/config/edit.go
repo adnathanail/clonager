@@ -98,6 +98,85 @@ func (c *Config) Add(repo Repo, rootDir string) error {
 	return c.reparse()
 }
 
+// SetBranches replaces the branches listed for the repo at path, or removes
+// the list when branches is empty. A repo given as just its URL becomes a
+// mapping to hold the list, and goes back to just its URL when the list is
+// removed and nothing else is set. The file isn't written until Save.
+func (c *Config) SetBranches(path string, branches []Branch) error {
+	parent, i := c.findRepo(path)
+	if parent == nil {
+		return fmt.Errorf("%s isn't in the config", TildePath(path))
+	}
+	n := parent.Content[i+1]
+	if n.Kind == yaml.ScalarNode {
+		if len(branches) == 0 {
+			return nil
+		}
+		url := *n
+		n = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: []*yaml.Node{str("url"), &url}}
+		parent.Content[i+1] = n
+	}
+
+	mappingDelete(n, "branches")
+	if len(branches) > 0 {
+		list := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+		for _, b := range branches {
+			if b.From == "origin/"+b.Name {
+				list.Content = append(list.Content, str(b.Name))
+			} else {
+				list.Content = append(list.Content, &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map",
+					Content: []*yaml.Node{str(b.Name), str(b.From)}})
+			}
+		}
+		n.Content = append(n.Content, str("branches"), list)
+	} else if len(n.Content) == 2 && n.Content[0].Value == "url" {
+		parent.Content[i+1] = n.Content[1]
+	}
+	return c.reparse()
+}
+
+// findRepo returns the mapping holding the repo at path, and the index of
+// its key there, or nil if it isn't in the config.
+func (c *Config) findRepo(path string) (*yaml.Node, int) {
+	if c.doc == nil || len(c.doc.Content) == 0 {
+		return nil, 0
+	}
+	root := c.doc.Content[0]
+	for i := 0; i < len(root.Content); i += 2 {
+		dir, err := ExpandHome(root.Content[i].Value)
+		if err != nil {
+			continue
+		}
+		dir = filepath.Clean(dir)
+		if path == dir {
+			return root, i
+		}
+		if !isUnder(path, dir) {
+			continue
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			continue
+		}
+		parts := strings.Split(rel, string(filepath.Separator))
+		parent := root.Content[i+1]
+		for j, name := range parts {
+			if !isFolder(parent) {
+				break
+			}
+			k := mappingIndex(parent, name)
+			if k < 0 {
+				break
+			}
+			if j == len(parts)-1 {
+				return parent, k
+			}
+			parent = parent.Content[k+1]
+		}
+	}
+	return nil, 0
+}
+
 // ErrReadOnly is returned (wrapped) for a config that can't be written, such
 // as one Home Manager generates into the Nix store.
 var ErrReadOnly = errors.New("config file is read-only")
@@ -250,12 +329,26 @@ func isFolder(n *yaml.Node) bool {
 }
 
 func mappingGet(n *yaml.Node, key string) *yaml.Node {
-	for i := 0; i < len(n.Content); i += 2 {
-		if n.Content[i].Value == key {
-			return n.Content[i+1]
-		}
+	if i := mappingIndex(n, key); i >= 0 {
+		return n.Content[i+1]
 	}
 	return nil
+}
+
+// mappingIndex returns the index of key in the mapping n, or -1.
+func mappingIndex(n *yaml.Node, key string) int {
+	for i := 0; i < len(n.Content); i += 2 {
+		if n.Content[i].Value == key {
+			return i
+		}
+	}
+	return -1
+}
+
+func mappingDelete(n *yaml.Node, key string) {
+	if i := mappingIndex(n, key); i >= 0 {
+		n.Content = append(n.Content[:i], n.Content[i+2:]...)
+	}
 }
 
 // insertSorted adds key: val before the first existing key that sorts after
