@@ -35,7 +35,7 @@ func TestConfigHelpShowsShortcuts(t *testing.T) {
 	help := ansi.Strip(out.String())
 	for _, want := range []string{
 		"  airlift     Record",
-		"  (d)iscover  Find",
+		"  discover    Find",
 		"  tidy        Switch",
 	} {
 		if !strings.Contains(help, want) {

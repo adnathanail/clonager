@@ -172,9 +172,8 @@ keeping your comments and ordering.
 
 ## Commands
 
-Each command has a one-letter shortcut, shown in brackets in `--help`:
-`cg p` is `clonager prune`, `cg c` is `clone` and `cg config d` is `config
-discover`.
+`prune` and `clone` have one-letter shortcuts, shown in brackets in `--help`:
+`cg p` is `clonager prune` and `cg c` is `clonager clone`.
 
 ### `clonager`
 
