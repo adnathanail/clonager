@@ -7,8 +7,8 @@ import (
 
 func TestFolderLink(t *testing.T) {
 	cases := map[string]string{
-		"vscode": "vscode://file/Users/me/My%20Projects/vip-proj",
-		"cursor": "cursor://file/Users/me/My%20Projects/vip-proj",
+		"vscode": "vscode://file/Users/me/My%20Projects/vip-proj?windowId=_blank",
+		"cursor": "cursor://file/Users/me/My%20Projects/vip-proj?windowId=_blank",
 		"zed":    "zed://file/Users/me/My%20Projects/vip-proj",
 		"files":  "file:///Users/me/My%20Projects/vip-proj",
 		"none":   "",
