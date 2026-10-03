@@ -294,3 +294,57 @@ func TestSetURL(t *testing.T) {
 		}
 	}
 }
+
+func TestSetNoSSH(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	cfg, err := Parse("test.yaml", []byte(`~/x:
+  plain: https://git.acme.example/me/plain # a comment
+  airlifted:
+    url: https://github.com/me/airlifted
+    branches: [feat]
+  again:
+    url: https://github.com/me/again
+    ssh: true
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	x := filepath.Join(home, "x")
+	for _, name := range []string{"plain", "airlifted", "again"} {
+		if err := cfg.SetNoSSH(filepath.Join(x, name)); err != nil {
+			t.Fatalf("SetNoSSH(%s): %v", name, err)
+		}
+	}
+
+	got, err := cfg.encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `~/x:
+  plain:
+    url: https://git.acme.example/me/plain # a comment
+    ssh: false
+  airlifted:
+    url: https://github.com/me/airlifted
+    ssh: false
+    branches: [feat]
+  again:
+    url: https://github.com/me/again
+    ssh: false
+`
+	if string(got) != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+	for _, r := range cfg.Repos {
+		if !r.NoSSH {
+			t.Errorf("%s: NoSSH not set after reparse", r.Path)
+		}
+	}
+	// Removing the branches leaves it a mapping, as ssh: false is set.
+	if err := cfg.SetBranches(filepath.Join(x, "airlifted"), nil); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := cfg.encode(); !strings.Contains(string(got), "  airlifted:\n    url: https://github.com/me/airlifted\n    ssh: false\n") {
+		t.Errorf("after removing branches:\n%s", got)
+	}
+}

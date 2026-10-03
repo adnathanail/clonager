@@ -118,3 +118,32 @@ func TestMine(t *testing.T) {
 		t.Errorf("bad mine value: got %v", err)
 	}
 }
+
+func TestSSH(t *testing.T) {
+	cfg, err := Parse("test.yaml", []byte(`
+~/x:
+  plain: https://github.com/me/plain
+  no:
+    url: https://git.acme.example/me/no
+    ssh: false
+  yes:
+    url: https://github.com/me/yes
+    ssh: true
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{"plain": false, "no": true, "yes": false}
+	for _, r := range cfg.Repos {
+		if r.NoSSH != want[r.Name()] {
+			t.Errorf("%s: NoSSH %v, want %v", r.Name(), r.NoSSH, want[r.Name()])
+		}
+	}
+
+	if _, err := Parse("test.yaml", []byte("~/x:\n  a:\n    url: u\n    ssh: nope\n")); err == nil || !strings.Contains(err.Error(), "ssh") {
+		t.Errorf("bad ssh value: got %v", err)
+	}
+	if _, err := Parse("test.yaml", []byte("~/x:\n  ssh:\n    a: u\n")); err == nil {
+		t.Error("ssh accepted as a folder name")
+	}
+}

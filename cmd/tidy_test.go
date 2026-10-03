@@ -105,3 +105,55 @@ func TestLandBranches(t *testing.T) {
 	check(2, nil, []config.Branch{feat, fix}, false)
 	check(3, nil, nil, true)
 }
+
+func TestSSHChangesSkipsNoSSH(t *testing.T) {
+	repos := []config.Repo{{Path: "/w/a", URL: "https://github.com/me/a", NoSSH: true}}
+	if got := sshChanges(repos); len(got) != 0 {
+		t.Errorf("got %+v, want none for ssh: false", got)
+	}
+}
+
+func TestIsNetworkError(t *testing.T) {
+	network := []string{
+		"git ls-remote: ssh: Could not resolve hostname github.com: nodename nor servname provided, or not known",
+		"git ls-remote: ssh: connect to host github.com port 22: Operation timed out",
+		"git ls-remote: ssh: connect to host github.com port 22: Network is unreachable",
+		"git ls-remote: ssh: connect to host github.com port 22: Connection refused",
+	}
+	for _, msg := range network {
+		if !isNetworkError(errors.New(msg)) {
+			t.Errorf("%q: not a network error", msg)
+		}
+	}
+	definite := []string{
+		"git ls-remote: ERROR: Repository not found.",
+		"git ls-remote: git@github.com: Permission denied (publickey).",
+		"git ls-remote: Host key verification failed.",
+	}
+	for _, msg := range definite {
+		if isNetworkError(errors.New(msg)) {
+			t.Errorf("%q: is a network error", msg)
+		}
+	}
+}
+
+func TestNeedsTidy(t *testing.T) {
+	feat, fix := config.Branch{Name: "feat", From: "origin/feat"}, config.Branch{Name: "fix", From: "origin/fix"}
+	repos := []config.Repo{
+		{Path: "/w/https", URL: "https://github.com/me/https", Remotes: []config.Remote{{Name: "upstream", URL: "https://github.com/acmeltd/https"}}},
+		{Path: "/w/marked", URL: "https://github.com/me/marked", NoSSH: true},
+		{Path: "/w/elsewhere", URL: "https://git.acme.example/me/elsewhere"},
+		{Path: "/w/airlifted", URL: "git@github.com:me/airlifted.git", Branches: []config.Branch{feat, fix}},
+		{Path: "/w/new", URL: "git@github.com:me/new.git", Branches: []config.Branch{feat}}, // no status: only in the source
+	}
+	statuses := map[string]*repostatus.Status{
+		"/w/airlifted": {Repo: config.Repo{Path: "/w/airlifted"}, Branches: []repostatus.Branch{{Name: "main"}, {Name: "feat"}}},
+	}
+	got := needsTidy(repos, statuses)
+	if want := (tidyNeeds{urls: 2, landed: 1, waiting: 2}); got != want {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+	if needsTidy(repos[1:3], nil).any() {
+		t.Error("nothing to tidy for ssh: false or unknown hosts")
+	}
+}

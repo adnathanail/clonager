@@ -159,13 +159,15 @@ It's a YAML tree that mirrors your folders:
   - `branches` — local branches to recreate on another laptop, written by
     [`airlift`](#clonager-config-airlift): each a name, for the same-named branch on
     `origin`, or `name: remote/branch`
+  - `ssh: false` — the repo's HTTPS URLs can't be switched to SSH, written by
+    [`tidy`](#clonager-config-tidy) so it doesn't try again
 - **Any other mapping** is a folder, and can nest as deep as you like. A
   folder can set `mine: false` for every repo inside it; a repo can override
   it with `mine: true`.
 
 A repo's path is its chain of keys, so `vip-proj` above lives at
 `~/Documents/ACME/vip-proj`. The option names (`url`, `remotes`, `gitbutler`,
-`tags`, `mine`, `branches`) can't be used as folder names, and repos can't contain other repos.
+`tags`, `mine`, `branches`, `ssh`) can't be used as folder names, and repos can't contain other repos.
 
 clonager edits this file itself (see [`clonager config`](#clonager-config)),
 keeping your comments and ordering.
@@ -212,6 +214,10 @@ It reports:
   [`config discover`](#clonager-config-discover-dir)), clones in those folders that aren't
   in the config yet, including ones with no `origin` (which `discover` can't
   add). Not shown with `--tag`.
+- **Config to tidy** — what [`config tidy`](#clonager-config-tidy) has to
+  do, as far as can be told offline: HTTPS URLs to try switching to SSH
+  (other than in repos marked `ssh: false`), and airlifted branches, whether
+  they're created here yet or not. Not shown with `--tag`.
 
 | Flag | |
 |---|---|
@@ -392,8 +398,11 @@ Tidies up the config:
   (`https://github.com/acmeltd/vip-proj`) are switched to SSH
   (`git@github.com:acmeltd/vip-proj.git`), for `url` and `remotes` alike.
   Each is checked first with `git ls-remote`, so only URLs you can read over
-  SSH are switched; the rest are listed with the reason (e.g. `Permission
-  denied (publickey)`) and left alone. URLs on other hosts aren't touched,
+  SSH are switched. Repos where one can't be (e.g. `Repository not found`,
+  `Permission denied (publickey)`) are listed with the reason and marked
+  `ssh: false`, so neither `tidy` nor status brings them up again; remove it
+  to have `tidy` try again. Network failures (no connection, timeouts) are
+  only reported, as they may work next time. URLs on other hosts aren't touched,
   since there's no telling what their SSH URL is. Existing clones keep their
   old URLs: [`clone`](#clonager-clone) prints the `git remote set-url`
   commands for them, commented out to check first.
@@ -431,8 +440,8 @@ non-zero when there's something to deal with, for use in scripts:
 |---|---|
 | 0 | all fine: nothing needs attention, `# Nothing to prune` or `# Nothing to clone` |
 | 1 | clonager itself failed (e.g. no config file) |
-| 2 | `clonager`: a repo needs attention (●), or there are repos not in the config; `prune`/`clone`: there's something to do, even if only commented out; `airlift`: something needs tidying first; `tidy`: airlifted branches aren't created here yet |
-| 3 | `clonager`: a repo has an error (✗); `prune`/`clone`/`airlift`: a check failed; `tidy`: a URL can't be switched to SSH, or a repo couldn't be checked |
+| 2 | `clonager`: a repo needs attention (●), there are repos not in the config, or there's config to tidy; `prune`/`clone`: there's something to do, even if only commented out; `airlift`: something needs tidying first; `tidy`: airlifted branches aren't created here yet |
+| 3 | `clonager`: a repo has an error (✗); `prune`/`clone`/`airlift`: a check failed; `tidy`: a URL couldn't be checked over the network, or a repo couldn't be checked |
 
 For `prune | sh` (or `clone | sh`), the pipeline's exit code is `sh`'s, not clonager's.
 

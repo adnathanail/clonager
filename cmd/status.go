@@ -37,7 +37,9 @@ rebase or squash) are listed separately and don't need attention, as are
 origin's merged branches.
 
 Repos in the discoverPaths (see clonager config discover) that aren't in the config
-are listed at the end, including ones with no origin. Not with --tag.
+are listed at the end, including ones with no origin, followed by what
+clonager config tidy has to do, as far as can be told offline: HTTPS URLs to
+try switching to SSH, and airlifted branches. Neither with --tag.
 
 With --forge, GitHub is also asked (via gh):
   - about merged PRs, which catches merges git alone can't see
@@ -94,6 +96,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		if untracked {
+			code = max(code, exitAttention)
+		}
+		if printTidy(cfg, pending, statuses) {
 			code = max(code, exitAttention)
 		}
 	}
@@ -158,6 +163,43 @@ func printUntracked(cfg, pending *config.Config) (bool, error) {
 		lipgloss.Println(styleDim.Render("clonager config discover can add them once they have an origin."))
 	}
 	return true, nil
+}
+
+// printTidy shows what clonager config tidy may have to do (see needsTidy)
+// for the config, or its source waiting to be applied (pending, which may be
+// nil), and reports whether there's anything.
+func printTidy(cfg, pending *config.Config, statuses []*repostatus.Status) bool {
+	repos := cfg.Repos
+	if pending != nil {
+		repos = pending.Repos
+	}
+	byPath := map[string]*repostatus.Status{}
+	for _, s := range statuses {
+		byPath[s.Repo.Path] = s
+	}
+	n := needsTidy(repos, byPath)
+	if !n.any() {
+		return false
+	}
+
+	lipgloss.Println()
+	lipgloss.Println(styleHeading.Render("Config to tidy"))
+	line := func(count int, one, many, detail string) {
+		if count > 0 {
+			lipgloss.Println("  " + styleWarn.Render("●") + " " + plural(count, one, many) + detail)
+		}
+	}
+	line(n.urls, "HTTPS URL", "HTTPS URLs", " to try switching to SSH")
+	line(n.landed, "airlifted branch", "airlifted branches", " now here, to remove from the config")
+	line(n.waiting, "airlifted branch", "airlifted branches", " to create here "+styleDim.Render("(see clonager clone)"))
+	if n.urls+n.landed > 0 {
+		hint := "Run clonager config tidy."
+		if n.landed > 0 {
+			hint += " If this is the laptop the branches were airlifted from, delete its clones first."
+		}
+		lipgloss.Println(styleDim.Render(hint))
+	}
+	return true
 }
 
 func findUntracked(dirs []string, cfg, pending *config.Config) ([]untrackedRepo, error) {

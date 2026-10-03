@@ -98,7 +98,7 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   (case-insensitive) among siblings; new top-level keys are appended.
 - **Config format:** top-level keys are absolute or `~` paths; a string value is
   a repo URL; a mapping with `url` is a repo with options (`remotes`,
-  `gitbutler`, `tags`, `mine`, `branches`); any other mapping is a folder. Those option
+  `gitbutler`, `tags`, `mine`, `branches`, `ssh`); any other mapping is a folder. Those option
   names are reserved and can't be folder names. Child keys can't contain `/`.
   Folders can set `mine` (listed in `folderKeys`) for the repos inside them;
   it's read before the folder's children, whatever the key order. In Go it's
@@ -133,7 +133,12 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   deliberately no marker of where an airlift came from.
 - **SSH URLs are only derived for known forges** (`sshHosts` in `tidy.go`),
   and only switched once `git ls-remote` reads them, with ssh in batch mode
-  unless the user has their own `core.sshCommand`/`GIT_SSH_COMMAND`.
+  unless the user has their own `core.sshCommand`/`GIT_SSH_COMMAND`. Repos
+  where that fails get `ssh: false` (`Repo.NoSSH`), except for network
+  failures (`isNetworkError`), so being offline once can't mark them all.
+- **Status shows what `config tidy` would do, offline** (`needsTidy`): it
+  never runs `ls-remote`, so URLs are only candidates, and airlifted
+  branches are checked against the statuses it already has.
 
 ## Gotchas
 
