@@ -43,8 +43,12 @@ func folderLink(path, text string) string {
 		return text
 	case "files":
 		u = url.URL{Scheme: "file", Path: path}
-	default: // vscode://file/<path>, and the same for editors forked from it, and Zed
+	case "zed":
 		u = url.URL{Scheme: openIn, Host: "file", Path: path}
+	default: // vscode://file/<path>, and the same for editors forked from it
+		// windowId=_blank opens a new window rather than replacing the
+		// folder open in the current one.
+		u = url.URL{Scheme: openIn, Host: "file", Path: path, RawQuery: "windowId=_blank"}
 	}
 	return lipgloss.NewStyle().Hyperlink(u.String()).Render(text)
 }
