@@ -1,5 +1,7 @@
 # [<img width="32" height="32" alt="Clonager logo" src="./img/logo.png" />](https://github.com/adnathanail/clonager) clonager
 
+**🚨 This tool was created with AI 🚨**
+
 ✨ The missing link for [NixOS](https://nixos.org) and [nix-darwin](https://github.com/nix-darwin/nix-darwin) ✨
 
 Once you've got your software and OS config managed through Nix, the final gap between you and complete device statelessness is your data.
@@ -17,6 +19,40 @@ $ cg
    5d ● work-stuff     main        5 branches deleted on remote · 26 branches merged · 1 branch behind
 
 4 repos · 2 ok (-a to show) · 2 need attention
+```
+
+## Features
+
+- Auto-discover repos in a given directory, and write them to the config file
+- Show 'local-only' data:
+    - un-committed changes
+    - un-pushed commits
+    - stashes
+- Show 'redundant' data that you can delete:
+    - local branches already merged
+    - remote branches already merged
+    - remote links to now dead branches
+- Delete redundant data ([write only](#read-only))
+- 'Airlift' the names of your current local branches, checking all local data has been removed, and clone repos (and airlifted branches) onto a new machine ([write only](#read-only))
+- Links to open repos in your desired tool (e.g. VSCode)
+- Integration with GitButler CLI (`but`)
+    - Show applied branches
+    - Show conflicted commits
+    - Open in GitButler
+- Integration with GitHub CLI (`gh`)
+    - Check merge status of branches
+- Nix flake for easy install
+
+### Read only
+
+Because this tool was created with AI, and is interacting with critical data, it does not executed any commands which modify your files by itself, except for `clonager`'s own config file. The allowed commands and subcommands are defined in [cli.go](./internal/cli/cli.go).
+
+Functionality which needs to modify your files, like deleting branches and cloning, will just print the necessary commands to the terminal, for you to check and run yourself.
+
+If you want to allow it to run commands unchecked, you can just pipe its output into the shell:
+
+```shell
+clonager clone | sh
 ```
 
 ## Install
