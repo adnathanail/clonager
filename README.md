@@ -1,12 +1,14 @@
-# [<img width="32" height="32" alt="Clonager logo" src="./img/logo.png" />](https://github.com/adnathanail/clonager) clonager
-
 **🚨 This tool was created with AI 🚨**
+
+_The logo was not 😉_
+
+# [<img width="32" height="32" alt="Clonager logo" src="./img/logo.png" />](https://github.com/adnathanail/clonager) clonager
 
 ✨ The missing link for [NixOS](https://nixos.org) and [nix-darwin](https://github.com/nix-darwin/nix-darwin) ✨
 
 Once you've got your software and OS config managed through Nix, the final gap between you and complete device statelessness is your data.
 
-For me, the only files stored directly on my device live in git repositories, synced off-machine, but sometimes I forget to commit or push, and getting everything cloned into its proper home is annoying on a fresh OS install. This is where `clonager` comes in!
+For me, the only files stored directly on my device live in git repositories, synced off-machine. But, sometimes I forget to commit or push, and getting everything cloned into its proper home is annoying on a fresh OS install. This is where `clonager` comes in!
 
 `clonager` keeps track of your repos' statuses, with their locations managed in a config file. A single command shows you any repos with uncommitted files, unpushed commits, and any stashes. Also, with a single command, it will clone everything into the locations defined in the config, so you can hit the ground running on a new machine.
 
@@ -91,7 +93,7 @@ inputs.clonager.url = "github:adnathanail/clonager";
 }
 ```
 
-For more info see the [Nix flake docs](./docs/installation/nix-flake.md).
+For more info, see the [Nix flake docs](./docs/installation/nix-flake.md).
 
 ### With Go
 
@@ -108,7 +110,7 @@ clonager config tidy                                # switch URLs to SSH
 clonager
 ```
 
-For more info see the [config docs](./docs/config.md), and the [commands docs](./docs/commands.md).
+For more info, see the [config docs](./docs/config.md), and the [commands docs](./docs/commands.md).
 
 ## Development
 
