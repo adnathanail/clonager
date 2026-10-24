@@ -1,0 +1,74 @@
+name: Dependabot vendorHash
+
+# Dependabot updates go.mod/go.sum but not vendorHash in flake.nix, so the
+# Nix build fails on its PRs. This works out the new hash, commits it to the
+# PR, and starts CI on that commit.
+#
+# Pushes made with the workflow's own token don't trigger other workflows, so
+# CI is started with workflow_dispatch (which is allowed) instead.
+
+on:
+  pull_request:
+    paths: [go.mod, go.sum]
+
+permissions:
+  contents: write # push the vendorHash commit
+  actions: write # start CI on it
+
+concurrency:
+  group: dependabot-vendor-hash-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  vendor-hash:
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+
+      - uses: cachix/install-nix-action@v31
+
+      - name: Work out vendorHash
+        run: |
+          sed -i -E 's|vendorHash = "sha256-[^"]*";|vendorHash = pkgs.lib.fakeHash;|' flake.nix
+          if ! grep -q 'vendorHash = pkgs.lib.fakeHash;' flake.nix; then
+            echo "::error::Couldn't find vendorHash in flake.nix"
+            exit 1
+          fi
+          # With the fake hash the build fails, and the error says what it got.
+          nix build -L 2>&1 | tee build.log || true
+          hash=$(grep -oE 'got: +sha256-[A-Za-z0-9+/=]+' build.log | awk '{print $2}' | head -n 1)
+          rm build.log
+          if [ -z "$hash" ]; then
+            echo "::error::The build didn't report a vendorHash"
+            exit 1
+          fi
+          sed -i "s|vendorHash = pkgs.lib.fakeHash;|vendorHash = \"$hash\";|" flake.nix
+          echo "vendorHash is $hash"
+
+      - name: Check it builds
+        run: nix build -L
+
+      - name: Commit and push
+        id: push
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          if git diff --quiet flake.nix; then
+            echo "vendorHash is already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update vendorHash" flake.nix
+          git push origin "HEAD:$BRANCH"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Start CI
+        if: steps.push.outputs.pushed == 'true'
+        env:
+          BRANCH: ${{ github.head_ref }}
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --ref "$BRANCH"
