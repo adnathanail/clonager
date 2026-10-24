@@ -25,7 +25,11 @@ commits made by `.github/workflows/release.yml`, which are reachable from
 their tag but not from main. Never add `VERSION` to main.
 
 When `go.mod`/`go.sum` change, `vendorHash` in `flake.nix` must be updated
-(set it to `pkgs.lib.fakeHash`, `nix build`, copy the "got:" hash). Nix copies
+(set it to `pkgs.lib.fakeHash`, `nix build`, copy the "got:" hash).
+`dependabot-vendor-hash.yml` does this on Dependabot's Go PRs, and
+`update-flake-lock.yml` opens a weekly PR for `flake.lock` (Dependabot doesn't
+do Nix). Both push with the workflow token, which doesn't trigger
+`pull_request`, so they start CI with `workflow_dispatch`. Nix copies
 dependencies into `vendor/` inside the source tree when building, so anything
 that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 

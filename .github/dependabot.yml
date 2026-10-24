@@ -2,6 +2,7 @@ version: 2
 
 updates:
   # dependabot-vendor-hash.yml updates vendorHash in flake.nix on these PRs.
+  # Nix inputs (flake.lock) are updated by update-flake-lock.yml.
   - package-ecosystem: gomod
     directory: /
     schedule:
