@@ -1,4 +1,4 @@
-## How merged branches are detected
+# How merged branches are detected
 
 Rebase and squash merges create new commits, so a merged branch isn't
 necessarily in the default branch's history. For each local branch, and each of

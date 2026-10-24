@@ -1,6 +1,6 @@
-## Go
+# Go
 
-Requires Go 1.23+.
+Requires Go 1.25+.
 
 ```sh
 go install github.com/adnathanail/clonager@latest

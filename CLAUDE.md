@@ -1,8 +1,8 @@
 # clonager
 
 A Go CLI for managing the git clones on a laptop, driven by a YAML config at
-`~/.config/clonager/config.yaml`. User-facing docs are in README.md; keep it in
-sync when commands, flags or the config format change.
+`~/.config/clonager/config.yaml`. User-facing docs are in README.md and `docs/`;
+keep them in sync when commands, flags or the config format change.
 
 ## Commands
 
