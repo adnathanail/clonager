@@ -13,10 +13,10 @@ For me, the only files stored directly on my device live in git repositories, sy
 ```
 $ cg
 ~/Documents/Projects
-  23m ● you-cool-blog  ⧓ new-post  1 stash · 2 local-only branches
+  23m ● your-cool-blog  ⧓ new-post  1 stash · 2 local-only branches
 
 ~/Documents/Work
-   5d ● work-stuff     main        5 branches deleted on remote · 26 branches merged · 1 branch behind
+   5d ● work-stuff      main        5 branches deleted on remote · 26 branches merged · 1 branch behind
 
 4 repos · 2 ok (-a to show) · 2 need attention
 ```
@@ -32,8 +32,8 @@ $ cg
     - local branches already merged
     - remote branches already merged
     - remote links to now dead branches
-- Delete redundant data ([write only](#read-only))
-- 'Airlift' the names of your current local branches, checking all local data has been removed, and clone repos (and airlifted branches) onto a new machine ([write only](#read-only))
+- Delete redundant data ([Read only](#read-only))
+- 'Airlift' the names of your current local branches, checking all local data has been removed, and clone repos (and airlifted branches) onto a new machine ([Read only](#read-only))
 - Links to open repos in your desired tool (e.g. VSCode)
 - Integration with GitButler CLI (`but`)
     - Show applied branches
@@ -45,7 +45,7 @@ $ cg
 
 ### Read only
 
-Because this tool was created with AI, and is interacting with critical data, it does not executed any commands which modify your files by itself, except for `clonager`'s own config file. The allowed commands and subcommands are defined in [cli.go](./internal/cli/cli.go).
+Because this tool was created with AI, and is interacting with critical data, it does not execute any commands which modify your files by itself, except for `clonager`'s own config file. The allowed commands and subcommands are defined in [cli.go](./internal/cli/cli.go).
 
 Functionality which needs to modify your files, like deleting branches and cloning, will just print the necessary commands to the terminal, for you to check and run yourself.
 

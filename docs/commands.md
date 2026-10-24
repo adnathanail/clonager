@@ -1,9 +1,9 @@
-## Commands
+# Commands
 
 `prune` and `clone` have one-letter shortcuts, shown in brackets in `--help`:
 `cg p` is `clonager prune` and `cg c` is `clonager clone`.
 
-### `clonager`
+## `clonager`
 
 With no command, clonager shows the configured repos that need attention
 (●) or have an error (✗), grouped by folder; `--all` also shows the ones that
@@ -14,7 +14,8 @@ branches (just ⧓ if none are applied). In terminals that support links
 its folder in the file manager, and cmd-clicking ⧓ opens it in the GitButler
 app. To open folders in an editor instead, set `openIn`
 in `~/.config/clonager/settings.json` (`programs.clonager.openIn` with the Home
-Manager module) to `vscode`, `cursor` or `zed`, or to `none` for no links:
+Manager module) to `vscode`, `cursor` or `zed`, to `files` for the file
+manager (the default), or to `none` for no links:
 
 ```json
 { "openIn": "vscode" }
@@ -60,10 +61,10 @@ month, or `never`. With
 `--forge` it takes a few seconds, mostly waiting on GitHub for repos with long
 PR histories.
 
-### `clonager prune`
+## `clonager prune`
 
 Prints the commands to tidy up merged branches (see
-[below](#how-merged-branches-are-detected)). It never deletes anything itself:
+[how merged branches are detected](./methodology/merged-branch-detection.md)). It never deletes anything itself:
 review the output, then run it.
 
 ```
@@ -115,7 +116,7 @@ To run everything that isn't commented out: `clonager prune -f | sh`.
 | `-f`, `--forge` | also check GitHub, and cover branches there |
 | `-t`, `--tag <tag>` | only repos with this tag (repeatable) |
 
-### `clonager clone`
+## `clonager clone`
 
 Prints the commands to set up the repos in the config, e.g. on a new laptop.
 Like `prune`, it never runs anything itself.
@@ -149,14 +150,14 @@ only prints `# Nothing to clone` once there's nothing left to do and every
 check succeeded. To run everything that isn't commented out:
 `clonager clone | sh`.
 
-### `clonager config`
+## `clonager config`
 
 The commands that change the config, the one file clonager ever changes. They
 keep your comments and ordering, and with the Home Manager module's
 `configSource` set they edit that source instead of the read-only installed
-copy (see [With Nix](#with-nix)).
+copy (see the [Nix flake docs](./installation/nix-flake.md)).
 
-#### `clonager config discover [<dir>...]`
+### `clonager config discover [<dir>...]`
 
 Finds git repos under each `<dir>` that aren't in the config and adds them,
 with `origin` as the `url`, any other remotes, and `gitbutler: true` if the repo
@@ -185,7 +186,7 @@ It doesn't look inside repos, or in `node_modules`, `.venv`, `Library` and
 similar. Repos are added with the URLs their remotes have;
 [`tidy`](#clonager-config-tidy) switches them to SSH.
 
-#### `clonager config airlift`
+### `clonager config airlift`
 
 Records this laptop's local branches in the config, so they can be recreated
 on another one: run `airlift` on the old laptop, then `clone` on the new one.
@@ -217,7 +218,7 @@ tidy`](#clonager-config-tidy) removes them from the config.
 Don't run `config tidy` on the old laptop until its clones are deleted: the
 branches still exist there, so it would remove them from the config.
 
-#### `clonager config tidy`
+### `clonager config tidy`
 
 Tidies up the config:
 
@@ -264,7 +265,7 @@ Switch the clones too with:
 |---|---|
 | `-n`, `--dry-run` | show what would change without changing the config |
 
-### Exit codes
+## Exit codes
 
 `clonager`, `prune`, `clone`, `config airlift` and `config tidy` exit
 non-zero when there's something to deal with, for use in scripts:
@@ -278,7 +279,7 @@ non-zero when there's something to deal with, for use in scripts:
 
 For `prune | sh` (or `clone | sh`), the pipeline's exit code is `sh`'s, not clonager's.
 
-### `clonager completion <shell>`
+## `clonager completion <shell>`
 
 Prints a shell completion script. Installing with Nix sets up bash, fish and
 zsh completions (for `cg` too), so you only need this otherwise. For zsh:
