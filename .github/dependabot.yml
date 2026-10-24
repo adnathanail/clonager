@@ -1,0 +1,20 @@
+version: 2
+
+updates:
+  # Go module PRs change go.sum, so they also need vendorHash in flake.nix
+  # updated before the Nix build job passes (see CLAUDE.md).
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      go:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
