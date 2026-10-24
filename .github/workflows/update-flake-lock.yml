@@ -1,0 +1,37 @@
+name: Update flake.lock
+
+# Dependabot doesn't support Nix, so this opens (or updates) a PR bumping the
+# flake's inputs each week. Run by hand with Actions > Update flake.lock >
+# Run workflow.
+#
+# PRs made with the workflow's own token don't trigger other workflows, so CI
+# is started with workflow_dispatch (which is allowed) instead.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays, 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write # push the update branch
+  pull-requests: write # open the PR
+  actions: write # start CI on it
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+
+      - uses: DeterminateSystems/update-flake-lock@v29
+        id: update
+        with:
+          branch: update_flake_lock_action
+          pr-title: "Update flake.lock"
+
+      - name: Start CI
+        if: steps.update.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --ref update_flake_lock_action
