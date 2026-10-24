@@ -1,4 +1,4 @@
-name: Release
+name: 🚀 Release
 
 # Run by hand: Actions > Release > Run workflow, choosing patch, minor or
 # major. The new version is the latest release tag (vX.Y.Z) bumped by that.
