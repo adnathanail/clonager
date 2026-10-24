@@ -1,11 +1,15 @@
-# clonager
+# [<img width="32" height="32" alt="Clonager logo" src="./img/logo.png" />](https://github.com/adnathanail/clonager) clonager
 
-Keep track of the git clones on your laptop. One config file lists every repo
-and where it lives, so you can check them all at a glance and (soon) recreate
-them on a fresh machine.
+✨ The missing link for [NixOS](https://nixos.org) and [nix-darwin](https://github.com/nix-darwin/nix-darwin) ✨
+
+Once you've got your software and OS config managed through Nix, the final gap between you and complete device statelessness is your data.
+
+For me, the only files stored directly on my device live in git repositories, synced off-machine, but sometimes I forget to commit or push, and getting everything cloned into its proper home is annoying on a fresh OS install. This is where `clonager` comes in!
+
+`clonager` keeps track of your repos' statuses, with their locations managed in a config file. A single command shows you any repos with uncommitted files, unpushed commits, and any stashes. Also, with a single command, it will clone everything into the locations defined in the config, so you can hit the ground running on a new machine.
 
 ```
-$ clonager
+$ cg
 ~/Documents/Projects
   23m ● you-cool-blog  ⧓ new-post  1 stash · 2 local-only branches
 
