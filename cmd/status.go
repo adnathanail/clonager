@@ -196,8 +196,7 @@ func findUntracked(dirs []string, cfg, pending *config.Config) ([]untrackedRepo,
 			if cfg.Contains(path) || (pending != nil && pending.Contains(path)) {
 				continue
 			}
-			_, err := discover.Describe(path)
-			repos = append(repos, untrackedRepo{path: path, noOrigin: errors.Is(err, discover.ErrNoOrigin)})
+			repos = append(repos, untrackedRepo{path: path, noOrigin: !discover.HasOrigin(path)})
 		}
 	}
 	return repos, nil
