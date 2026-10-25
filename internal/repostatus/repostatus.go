@@ -60,12 +60,12 @@ type GitButler struct {
 	Conflicted int               // commits GitButler marks as conflicted
 	// Target and Push are the workspace's target branch and push remote,
 	// each "" where it's what `but setup` picks, or where it couldn't be read
-	// (see discover.GitButlerSettings). Only set with
+	// (see GitButlerSettings). Only set with
 	// Options.GitButlerSettings, which sets Settings once they've been read.
 	Target, Push string
 	Settings     bool
 	// SetupTarget is the target `but setup` picks, which an empty Target
-	// means (discover.SetupTarget). It isn't always DefaultBranch, which
+	// means (SetupTarget). It isn't always DefaultBranch, which
 	// falls back to guesses where origin/HEAD isn't set; `but setup`
 	// doesn't. Set along with Target.
 	SetupTarget string

@@ -13,6 +13,7 @@ import (
 
 	"github.com/adnathanail/clonager/internal/config"
 	"github.com/adnathanail/clonager/internal/discover"
+	"github.com/adnathanail/clonager/internal/repostatus"
 )
 
 // defaultDepth is how many folders deep discover looks by default, and how
@@ -69,7 +70,7 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 			if err == nil && repo.GitButler {
 				// Without them the repo is still added, as gitbutler: true, and
 				// config tidy fills them in later.
-				repo.GitButlerTarget, repo.GitButlerPush, gbErr = discover.GitButlerSettings(path)
+				repo.GitButlerTarget, repo.GitButlerPush, gbErr = repostatus.GitButlerSettings(path)
 			}
 			if err == nil {
 				err = cfg.Add(repo, dir)

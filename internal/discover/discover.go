@@ -3,9 +3,7 @@
 package discover
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -77,7 +75,7 @@ var ErrNoOrigin = errors.New("no origin remote, so there's nothing to clone it f
 
 // Describe builds the config entry for the repo at path: origin as its URL,
 // any other remotes, and whether it's in a GitButler workspace. Its target
-// branch and push remote there are left for GitButlerSettings.
+// branch and push remote there are left for repostatus.GitButlerSettings.
 func Describe(path string) (config.Repo, error) {
 	repo := config.Repo{Path: path}
 
@@ -104,56 +102,6 @@ func Describe(path string) (config.Repo, error) {
 
 	repo.GitButler = InGitButler(path)
 	return repo, nil
-}
-
-// SetupTarget is the target branch `but setup` picks for the repo at path:
-// origin's HEAD (refs/remotes/origin/HEAD, which a fresh clone has), e.g.
-// origin/main. It's "" where that isn't set, as a clone made some other way
-// may not have it. Where it's "", a target is always recorded, as a fresh
-// clone's origin/HEAD can't be known offline.
-func SetupTarget(path string) string {
-	ref, _ := git(path, "symbolic-ref", "--short", "-q", "refs/remotes/origin/HEAD")
-	return ref
-}
-
-// GitButlerSettings reads the target branch (e.g. upstream/main) and push
-// remote of the GitButler workspace at path. Each is "" where it's what `but
-// setup` picks: SetupTarget, and origin.
-func GitButlerSettings(path string) (target, push string, err error) {
-	var t struct {
-		Branch string `json:"branch"`
-	}
-	if err := butJSON(path, &t, "config", "target", "--json"); err != nil {
-		return "", "", err
-	}
-	var p struct {
-		PushRemote string `json:"push_remote"`
-	}
-	if err := butJSON(path, &p, "config", "push-remote", "--json"); err != nil {
-		return "", "", err
-	}
-	if t.Branch != SetupTarget(path) {
-		target = t.Branch
-	}
-	if p.PushRemote != "origin" {
-		push = p.PushRemote
-	}
-	return target, push, nil
-}
-
-// butJSON runs but in dir and decodes its JSON output into v.
-func butJSON(dir string, v any, args ...string) error {
-	if !cli.Installed("but") {
-		return errors.New("but is not installed")
-	}
-	out, err := cli.But(dir, args...)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(out, v); err != nil {
-		return fmt.Errorf("but %s %s: unexpected output: %w", args[0], args[1], err)
-	}
-	return nil
 }
 
 // HasOrigin reports whether the repo at path has an origin remote, which

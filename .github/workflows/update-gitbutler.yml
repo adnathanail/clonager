@@ -94,7 +94,7 @@ jobs:
           {
             echo "Updates the pinned GitButler from $CURRENT to $LATEST."
             echo
-            echo "Before merging, check that the \`but\` JSON clonager reads (\`internal/repostatus/gitbutler.go\`, \`internal/discover/discover.go\`) hasn't changed."
+            echo "Before merging, check that the \`but\` JSON clonager reads (\`internal/repostatus/gitbutler.go\`) hasn't changed."
             echo
             echo "## Release notes"
             echo

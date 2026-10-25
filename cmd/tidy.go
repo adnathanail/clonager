@@ -355,7 +355,7 @@ func runTidy(cmd *cobra.Command, args []string) error {
 	// Without but, workspaces can still be marked (that only needs git), but
 	// their target and push remote can't be read. That's a note rather than
 	// a failure for each repo, as installing but is the only fix.
-	readGitButler := discover.GitButlerSettings
+	readGitButler := repostatus.GitButlerSettings
 	if !cli.Installed("but") {
 		readGitButler = nil
 	}
