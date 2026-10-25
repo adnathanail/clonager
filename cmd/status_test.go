@@ -110,7 +110,8 @@ func TestForgeUnreachable(t *testing.T) {
 		"gh api: To get started with GitHub CLI, please run:  gh auth login": "gh isn't logged in (run gh auth login)",
 		"gh api: HTTP 401: Bad credentials (https://api.github.com/graphql)": "gh isn't logged in (run gh auth login)",
 		"gh api: error connecting to api.github.com":                         "no connection",
-		"gh pr list: HTTP 404: Not Found":                                    "",
+		"gh is not installed":             "gh isn't installed",
+		"gh pr list: HTTP 404: Not Found": "",
 	} {
 		if got := forgeUnreachable(errors.New(msg)); got != want {
 			t.Errorf("forgeUnreachable(%q) = %q, want %q", msg, got, want)

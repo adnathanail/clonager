@@ -49,10 +49,6 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	openIn = settings.OpenIn
-	offline := settings.AlwaysOffline
-	if cmd.Flags().Changed("offline") {
-		offline = statusFlags.offline
-	}
 	cfg, err := loadConfig()
 	if err != nil {
 		return err
@@ -81,7 +77,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	switch {
-	case offline:
+	case offline(cmd, statusFlags.offline, settings):
 	case !cli.Installed("gh"):
 		v.forgeWarning = "Couldn't check GitHub: gh isn't installed."
 	case liveTerminal():
@@ -93,6 +89,15 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	out, code := v.render()
 	lipgloss.Print(out)
 	return codeFor(code)
+}
+
+// offline is whether to skip GitHub: the --offline flag (given as flag) if
+// it was passed, otherwise the alwaysOffline setting.
+func offline(cmd *cobra.Command, flag bool, settings config.Settings) bool {
+	if cmd.Flags().Changed("offline") {
+		return flag
+	}
+	return settings.AlwaysOffline
 }
 
 // statusView is everything status shows, so it can be drawn again once
@@ -159,6 +164,8 @@ func (v *statusView) foldForgeErrors() {
 func forgeUnreachable(err error) string {
 	msg := strings.ToLower(err.Error())
 	switch {
+	case strings.Contains(msg, "gh is not installed"):
+		return "gh isn't installed"
 	case strings.Contains(msg, "gh auth login"), strings.Contains(msg, "http 401"):
 		return "gh isn't logged in (run gh auth login)"
 	case isNetworkError(err):
@@ -360,15 +367,6 @@ func findUntracked(dirs []string, cfg, pending *config.Config) ([]untrackedRepo,
 		}
 	}
 	return repos, nil
-}
-
-// checkForgeAvailable fails early if --forge was given without gh installed,
-// rather than reporting it for every repo.
-func checkForgeAvailable(forge bool) error {
-	if forge && !cli.Installed("gh") {
-		return errors.New("--forge needs the GitHub CLI (gh) on your PATH")
-	}
-	return nil
 }
 
 func filterByTags(repos []config.Repo, tags []string) []config.Repo {

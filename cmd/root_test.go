@@ -58,8 +58,8 @@ func TestStyleCode(t *testing.T) {
 	for code, style := range map[string]lipgloss.Style{
 		"clonager config tidy": styleBranch,
 		"config tidy":          styleBranch,
-		"prune --forge":        styleBranch,
-		"--forge":              styleBranch,
+		"prune --offline":      styleBranch,
+		"--offline":            styleBranch,
 		"git branch -D":        styleDim,
 		"<dir>":                styleDim,
 		"gitbutler: true":      styleDim,
