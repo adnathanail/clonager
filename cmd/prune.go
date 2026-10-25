@@ -69,21 +69,20 @@ func runPrune(cmd *cobra.Command, args []string) error {
 // was pressed, in which case the statuses aren't returned.
 func inspectSpinning(repos []config.Repo, w io.Writer) ([]*repostatus.Status, bool) {
 	var statuses []*repostatus.Status
-	var checked atomic.Int32
-	local, finished := make(chan struct{}), make(chan struct{})
+	var inspected, checked atomic.Int32
+	finished := make(chan struct{})
 	go func() {
-		statuses = inspectAll(repos, repostatus.Options{})
-		close(local)
-		forgeAll(statuses, &checked)
+		// Each repo's GitHub check starts once it's inspected, as with
+		// Options.Forge, so the slowest repo doesn't hold up the rest.
+		statuses = inspectThen(repos, repostatus.Options{}, func(s *repostatus.Status) {
+			inspected.Add(1)
+			s.CheckForge()
+			checked.Add(1)
+		})
 		close(finished)
 	}()
 	label := func() string {
-		select {
-		case <-local:
-			return fmt.Sprintf("Checking GitHub… %d/%d", checked.Load(), len(repos))
-		default:
-			return "Checking repos…"
-		}
+		return fmt.Sprintf("Checking repos… %d/%d, GitHub %d/%d", inspected.Load(), len(repos), checked.Load(), len(repos))
 	}
 	width, _, err := term.GetSize(os.Stderr.Fd())
 	if err != nil {

@@ -366,6 +366,12 @@ func filterByTags(repos []config.Repo, tags []string) []config.Repo {
 
 // inspectAll inspects repos in parallel, returning results in config order.
 func inspectAll(repos []config.Repo, opts repostatus.Options) []*repostatus.Status {
+	return inspectThen(repos, opts, nil)
+}
+
+// inspectThen is inspectAll, running then, if given, on each status as soon
+// as it's inspected, without waiting for the other repos.
+func inspectThen(repos []config.Repo, opts repostatus.Options, then func(*repostatus.Status)) []*repostatus.Status {
 	out := make([]*repostatus.Status, len(repos))
 	sem := make(chan struct{}, max(4, runtime.NumCPU()))
 	var wg sync.WaitGroup
@@ -376,22 +382,20 @@ func inspectAll(repos []config.Repo, opts repostatus.Options) []*repostatus.Stat
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			out[i] = repostatus.Inspect(r, opts)
+			if then != nil {
+				then(out[i])
+			}
 		}()
 	}
 	wg.Wait()
 	return out
 }
 
-// forgeAll checks GitHub for statuses in parallel (see Status.CheckForge),
-// adding one to checked, if given, as each is done.
-func forgeAll(statuses []*repostatus.Status, checked *atomic.Int32) {
-	eachStatus(statuses, checked, (*repostatus.Status).CheckForge)
-}
-
-// checkAll is forgeAll for status, which also reads GitButler workspaces'
-// target branches and push remotes (Status.ReadGitButlerSettings) for the
-// config tidy note: they're left until now, rather than read by Inspect, so
-// the first view doesn't wait for the `but` calls.
+// checkAll checks GitHub for statuses in parallel (see Status.CheckForge),
+// adding one to checked, if given, as each is done. It also reads GitButler
+// workspaces' target branches and push remotes (ReadGitButlerSettings) for
+// the config tidy note: they're left until now, rather than read by Inspect,
+// so the first view doesn't wait for the `but` calls.
 func checkAll(statuses []*repostatus.Status, checked *atomic.Int32) {
 	eachStatus(statuses, checked, func(s *repostatus.Status) {
 		s.CheckForge()

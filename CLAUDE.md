@@ -90,7 +90,7 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   `alwaysOffline` in settings.json). Whether it's checked never depends on
   whether output is a terminal: only how it's shown does. In a terminal
   (`liveTerminal`), `showLive` prints the local view, spins while
-  `forgeAll` runs, then redraws in place, or below after a separator (`updateSeparator`)
+  `checkAll` runs, then redraws in place, or below after a separator (`updateSeparator`)
   if the view no longer all fits on screen or the window was resized
   (`SIGWINCH`), since rows that scrolled off can't be reached. Otherwise it
   waits and prints once. Failures that aren't about one repo (no
