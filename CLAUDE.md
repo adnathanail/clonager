@@ -36,8 +36,8 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 ## Layout
 
 - `main.go` → `cmd.Execute()`
-- `cmd/` — Cobra commands (`root.go`, `prune.go`, `clone.go`) and Lip Gloss
-  styles (`style.go`). Rendering lives here. A bare `clonager` shows status
+- `cmd/` — Cobra commands (`root.go`, `prune.go`, `clone.go`), Lip Gloss
+  styles (`style.go`) and the styled help template (`help.go`). Rendering lives here. A bare `clonager` shows status
   (`status.go`: the root command's `RunE` and flags); there's no `status`
   subcommand. Everything that edits the config is under `clonager config`
   (`config.go`): `discover.go`, `airlift.go` and `tidy.go`.
