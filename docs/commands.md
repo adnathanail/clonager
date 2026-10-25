@@ -233,6 +233,10 @@ uncommitted changes, stashes, unpushed or local-only branches, and no repos in
 the `discoverPaths` missing from the config. Otherwise it shows what it found
 and leaves the config alone.
 
+It can't skip checking GitHub. If [`alwaysOffline`](#clonager) is set, it asks
+before checking, and leaves the config alone if you say no. Where there's no
+terminal to ask in, pass `--offline=false` to check without asking.
+
 Each repo's `branches` list is then replaced with its local branches, other
 than the default branch (which a clone checks out anyway):
 

@@ -14,5 +14,9 @@ On the other laptop, `clonager clone` prints a `git branch` command for each
 listed branch that doesn't exist there yet. Once they're created,
 `clonager config tidy` removes them from the config.
 
+Checking GitHub can't be skipped. If `alwaysOffline` is set in
+settings.json, airlift asks first; `--offline=false` checks without
+asking, e.g. where there's no terminal to ask in.
+
 Don't run `config tidy` here until the clones are deleted: the branches
 still exist here, so it would remove them from the config.

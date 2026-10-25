@@ -97,7 +97,10 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   warning at the end rather than an error per repo, and still exit 3.
   `prune` checks GitHub the same way (`--offline`, `alwaysOffline`, and the
   same failures noted once at the end) but just waits, with no redraw;
-  it and `airlift` inspect with `Options.Forge`.
+  it and `airlift` inspect with `Options.Forge`. `airlift` can't skip
+  GitHub: with `alwaysOffline` it asks first (stderr/stdin; the only
+  prompt in clonager), and without a terminal it refuses unless given
+  `--offline=false`.
 - **Where the config lives:** `status`/`prune` read the installed config
   (`config.DefaultPath`). With the Home Manager module (`homeModules.default`
   in `flake.nix`), that's read-only (a copy in the Nix store, or a secret

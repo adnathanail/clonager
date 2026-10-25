@@ -153,6 +153,7 @@
               description = ''
                 Whether `clonager` and `clonager prune` skip checking GitHub,
                 as with `--offline`. `--offline=false` checks it anyway.
+                `clonager config airlift` can't skip it, so asks first.
               '';
             };
           };

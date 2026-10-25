@@ -23,7 +23,7 @@ type Settings struct {
 	// DefaultOpenIn.
 	OpenIn string `json:"openIn,omitempty"`
 	// AlwaysOffline makes status and prune skip GitHub, as if run with
-	// --offline.
+	// --offline, and airlift ask before checking it.
 	AlwaysOffline bool `json:"alwaysOffline,omitempty"`
 }
 
