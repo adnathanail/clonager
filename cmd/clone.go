@@ -31,8 +31,7 @@ func runClone(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	statuses := inspectAll(cfg.Repos, repostatus.Options{})
-	readGitButlerSettings(statuses)
+	statuses := inspectAll(cfg.Repos, repostatus.Options{GitButlerSettings: true})
 	script, n := cloneScript(statuses, emptyDir)
 	lipgloss.Print(script)
 	return codeFor(n.exitCode())
@@ -199,7 +198,7 @@ type gitButlerDrift struct {
 func (d gitButlerDrift) any() bool { return d.target != "" || d.push != "" }
 
 // gitButlerDriftOf compares the workspace at s (once its settings are read,
-// see Status.ReadGitButlerSettings) with r's config entry. It's only for
+// see repostatus.Options.GitButlerSettings) with r's config entry. It's only for
 // entries with a target or push: for the rest, config tidy records the
 // workspace's. Either left out, in the config or the workspace, means what
 // `but setup` picks: origin's HEAD (GitButler.SetupTarget), and origin.

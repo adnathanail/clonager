@@ -24,12 +24,10 @@ type butStatus struct {
 	} `json:"stacks"`
 }
 
-// ReadGitButlerSettings reads the target branch and push remote of a repo in
-// a GitButler workspace (GitButler.Target and Push). It's separate from
-// Inspect as the two `but` calls add noticeably to it, and they're only for
-// status's note of what config tidy would record. tidy reports it itself if
-// they can't be read.
-func (s *Status) ReadGitButlerSettings() {
+// readGitButlerSettings reads the target branch and push remote of a repo in
+// a GitButler workspace (GitButler.Target and Push), for
+// Options.GitButlerSettings.
+func (s *Status) readGitButlerSettings() {
 	if s.GitButler.Mode != GitButlerActive {
 		return
 	}

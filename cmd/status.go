@@ -58,12 +58,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	statuses := inspectAll(repos, repostatus.Options{Forge: statusFlags.forge})
-	if statusFlags.forge {
-		// Only with --forge, which is slow anyway: the two `but` calls per
-		// GitButler repo would add noticeably to status otherwise.
-		readGitButlerSettings(statuses)
-	}
+	// GitButler's settings only with --forge, which is slow anyway: the two
+	// `but` calls per GitButler repo would add noticeably to status otherwise.
+	statuses := inspectAll(repos, repostatus.Options{Forge: statusFlags.forge, GitButlerSettings: statusFlags.forge})
 	reports := make([]report, len(statuses))
 	for i, s := range statuses {
 		reports[i] = buildReport(s)
@@ -226,20 +223,6 @@ func filterByTags(repos []config.Repo, tags []string) []config.Repo {
 		}
 	}
 	return out
-}
-
-// readGitButlerSettings runs Status.ReadGitButlerSettings in parallel, for
-// the config tidy note (see needsTidy).
-func readGitButlerSettings(statuses []*repostatus.Status) {
-	var wg sync.WaitGroup
-	for _, s := range statuses {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			s.ReadGitButlerSettings()
-		}()
-	}
-	wg.Wait()
 }
 
 // inspectAll inspects repos in parallel, returning results in config order.
