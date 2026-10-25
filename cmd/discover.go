@@ -65,6 +65,12 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 				continue
 			}
 			repo, err := discover.Describe(path)
+			var gbErr error
+			if err == nil && repo.GitButler {
+				// Without them the repo is still added, as gitbutler: true, and
+				// config tidy fills them in later.
+				repo.GitButlerTarget, repo.GitButlerPush, gbErr = discover.GitButlerSettings(path)
+			}
 			if err == nil {
 				err = cfg.Add(repo, dir)
 			}
@@ -78,6 +84,10 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 			}
 			for _, r := range repo.Remotes {
 				notes = append(notes, styleBranch.Render("+"+r.Name))
+			}
+			if gbErr != nil {
+				notes = append(notes, styleWarn.Render("!")+" "+styleDim.Render(
+					"couldn't read GitButler's target branch and push remote, for config tidy to fill in: "+gbErr.Error()))
 			}
 			added = append(added, row{path, repo.URL, strings.Join(notes, " ")})
 		}
