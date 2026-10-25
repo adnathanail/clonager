@@ -344,7 +344,17 @@ func runTidy(cmd *cobra.Command, args []string) error {
 		switched.rows = append(switched.rows, row{c.repo.Path, styleOK.Render("→"),
 			styleBranch.Render(c.remote) + "  " + c.to})
 	}
-	for _, c := range gitButlerChanges(cfg.Repos, discover.InGitButler, discover.GitButlerSettings) {
+	// Without but, workspaces can still be marked (that only needs git), but
+	// their target and push remote can't be read. That's a note rather than
+	// a failure for each repo, as installing but is the only fix.
+	readGitButler, butMissing := discover.GitButlerSettings, false
+	if !cli.Installed("but") {
+		readGitButler = func(string) (string, string, error) {
+			butMissing = true
+			return "", "", nil
+		}
+	}
+	for _, c := range gitButlerChanges(cfg.Repos, discover.InGitButler, readGitButler) {
 		if c.err != nil {
 			gbFailed.rows = append(gbFailed.rows, row{c.repo.Path, styleError.Render("✗"), styleDim.Render(c.err.Error())})
 			code = max(code, exitErrors)
@@ -419,13 +429,17 @@ func runTidy(cmd *cobra.Command, args []string) error {
 		}
 		lipgloss.Println()
 	}
+	if butMissing {
+		lipgloss.Println(styleDim.Render("GitButler's CLI (but) isn't on your PATH, so target branches and push remotes weren't read."))
+		lipgloss.Println()
+	}
 
 	cmds := setURLCommands(cfg.Repos, cloneRemoteURL)
 	if len(cmds) > 0 {
 		code = max(code, exitAttention)
 	}
 	switch {
-	case !changed && code == exitOK:
+	case !changed && code == exitOK && !butMissing:
 		lipgloss.Println(styleDim.Render("Nothing to tidy."))
 	case !changed:
 		lipgloss.Println(styleDim.Render("The config is unchanged."))

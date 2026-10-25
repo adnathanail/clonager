@@ -259,7 +259,9 @@ Tidies up the config:
   target branch or push remote differ from what `but setup` picks, they're
   recorded too (`gitbutler: {target: upstream/main}`), including for repos
   already marked `true`. A `target` or `push` already in the config is
-  left as it is. `gitbutler` is never removed from repos that aren't in a
+  left as it is. Reading them needs GitButler's CLI (`but`); without it,
+  repos are still marked `true` and tidy notes that the rest was skipped.
+  `gitbutler` is never removed from repos that aren't in a
   workspace: [`clone`](#clonager-clone) prints the `but setup` command for
   those instead.
 - **Airlifted branches** — branches recorded by
