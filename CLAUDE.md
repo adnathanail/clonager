@@ -75,7 +75,8 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   and a case in `TestCheck`. Nothing else may import `os/exec`:
   `TestOnlyPackageRunsPrograms` enforces this (tests are exempt, as they build
   throwaway repos). `internal/cli` also sets `GIT_OPTIONAL_LOCKS=0` (so `git
-  status` doesn't refresh the index) and disables prompts.
+  status` doesn't refresh the index), disables prompts, and runs programs
+  in their own process group, so Ctrl-C reaches only clonager.
 - **Shell out to `git`, `but` and `gh`** rather than using libraries, so results
   match what the user sees and respect their git config.
 - **`prune` only prints commands; it must never delete anything itself.** Its

@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
+	"syscall"
 )
 
 // A check validates a subcommand's arguments (those after the subcommand).
@@ -175,6 +176,10 @@ func run(program, dir, stdin string, env, args []string, prefix ...string) ([]by
 		"GH_NO_UPDATE_NOTIFIER=1",
 	)
 	cmd.Env = append(cmd.Env, env...)
+	// In a process group of its own, so Ctrl-C reaches only clonager. If it
+	// also killed the programs, their failures could race the interrupt,
+	// and be reported as errors in each repo rather than as one interrupt.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if stdin != "" {
 		cmd.Stdin = strings.NewReader(stdin)
 	}
