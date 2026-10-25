@@ -44,7 +44,8 @@ It reports:
 - **Config to tidy** — what [`config tidy`](#clonager-config-tidy) has to
   do, as far as can be told offline: HTTPS URLs to try switching to SSH
   (other than in repos marked `ssh: false`), clone remotes to switch to the
-  SSH URLs in the config, and airlifted branches, whether they're created
+  SSH URLs in the config, repos in a GitButler workspace to mark
+  `gitbutler: true`, and airlifted branches, whether they're created
   here yet or not. Not shown with `--tag`.
 
 | Flag | |
@@ -237,6 +238,10 @@ Tidies up the config:
   the HTTPS URL they replaced (whether this run or an earlier one switched
   it). It doesn't run them. Clones with some other URL are left for
   [`clone`](#clonager-clone) to point out.
+- **GitButler** — repos in a GitButler workspace get `gitbutler: true`, e.g.
+  ones you've run `but setup` in since adding them. It's never removed from
+  repos that aren't in one: [`clone`](#clonager-clone) prints the `but setup`
+  command for those instead.
 - **Airlifted branches** — branches recorded by
   [`airlift`](#clonager-config-airlift) that now exist on this laptop are
   removed from the config (a repo with nothing else set goes back to just its

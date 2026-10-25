@@ -99,9 +99,16 @@ func Describe(path string) (config.Repo, error) {
 	}
 	sort.Slice(repo.Remotes, func(i, j int) bool { return repo.Remotes[i].Name < repo.Remotes[j].Name })
 
-	head, _ := git(path, "symbolic-ref", "--short", "-q", "HEAD")
-	repo.GitButler = head == "gitbutler/workspace" || head == "gitbutler/integration"
+	repo.GitButler = InGitButler(path)
 	return repo, nil
+}
+
+// InGitButler reports whether the repo at path is in a GitButler workspace:
+// HEAD is gitbutler/workspace, or the older gitbutler/integration. It's
+// false when path isn't a repo.
+func InGitButler(path string) bool {
+	head, _ := git(path, "symbolic-ref", "--short", "-q", "HEAD")
+	return head == "gitbutler/workspace" || head == "gitbutler/integration"
 }
 
 func git(dir string, args ...string) (string, error) {

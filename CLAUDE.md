@@ -140,6 +140,9 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   unless the user has their own `core.sshCommand`/`GIT_SSH_COMMAND`. Repos
   where that fails get `ssh: false` (`Repo.NoSSH`), except for network
   failures (`isNetworkError`), so being offline once can't mark them all.
+- **`config tidy` only ever adds `gitbutler: true`**, for repos in a
+  GitButler workspace. A repo marked but not in one is a request to set it up
+  (`clone` prints `but setup`), so it's never removed.
 - **Status shows what `config tidy` would do, offline** (`needsTidy`): it
   never runs `ls-remote`, so URLs are only candidates, and airlifted
   branches are checked against the statuses it already has.
