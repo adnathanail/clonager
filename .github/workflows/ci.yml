@@ -29,8 +29,15 @@ jobs:
           go-version: ${{ matrix.go == 'stable' && 'stable' || '' }}
           go-version-file: ${{ matrix.go == 'min' && 'go.mod' || '' }}
 
+      # For the tests that run `but`, which comes from the GitButler app, so
+      # macOS only. They skip without it, except where CLONAGER_TEST_BUT is set.
+      - uses: ./.github/actions/install-gitbutler
+        if: runner.os == 'macOS'
+
       # The tests build throwaway git repos, so they need git (on both runners).
       - name: Test
+        env:
+          CLONAGER_TEST_BUT: ${{ runner.os == 'macOS' && '1' || '' }}
         run: go test -race ./...
 
       - name: Build static binary

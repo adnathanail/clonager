@@ -1,0 +1,26 @@
+name: Install GitButler
+description: >
+  Installs the GitButler version clonager is tested against, and links its
+  `but` CLI onto the PATH, as Homebrew does. Homebrew itself only installs the
+  latest version. macOS (Apple silicon) runners only.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        # "<version>-<build>". The URL format and checksum come from Homebrew's
+        # gitbutler cask (Casks/g/gitbutler.rb). update-gitbutler.yml bumps
+        # them.
+        GITBUTLER_VERSION: 0.22.3-3234
+        GITBUTLER_SHA256: edf0f680c102ff86faee1d919ea2a6166fcbe6e3a98986706c91a38eed662f74
+      run: |
+        archive="$RUNNER_TEMP/GitButler.app.tar.gz"
+        curl -fsSL -o "$archive" \
+          "https://releases.gitbutler.com/releases/release/$GITBUTLER_VERSION/macos/aarch64/GitButler.app.tar.gz"
+        echo "$GITBUTLER_SHA256  $archive" | shasum -a 256 -c
+        tar -xzf "$archive" -C "$RUNNER_TEMP"
+        mkdir -p "$RUNNER_TEMP/bin"
+        ln -s "$RUNNER_TEMP/GitButler.app/Contents/MacOS/gitbutler-tauri" "$RUNNER_TEMP/bin/but"
+        echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+        "$RUNNER_TEMP/bin/but" --version
