@@ -27,6 +27,21 @@ func TestGitButlerSettings(t *testing.T) {
 	t.Setenv("GIT_AUTHOR_EMAIL", "t@example.com")
 	t.Setenv("GIT_COMMITTER_NAME", "t")
 	t.Setenv("GIT_COMMITTER_EMAIL", "t@example.com")
+	// With metrics on, each but command leaves a `but metrics` process
+	// running, which can still be writing in dir when the test's cleanup
+	// removes it.
+	for _, settings := range []string{
+		filepath.Join(dir, "Library/Application Support/gitbutler"), // macOS
+		filepath.Join(dir, ".config/gitbutler"),                     // Linux
+	} {
+		if err := os.MkdirAll(settings, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		noMetrics := []byte(`{"telemetry": {"appMetricsEnabled": false}}`)
+		if err := os.WriteFile(filepath.Join(settings, "settings.json"), noMetrics, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
 	run := func(dir, name string, args ...string) {
 		t.Helper()
 		cmd := exec.Command(name, args...)
