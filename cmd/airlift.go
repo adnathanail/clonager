@@ -41,7 +41,7 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	// It has to know branches are merged on GitHub, so it can't do without.
-	settings, err := config.ReadSettings()
+	settings, err := loadSettings()
 	if err != nil {
 		return err
 	}
