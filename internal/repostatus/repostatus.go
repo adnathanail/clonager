@@ -60,8 +60,10 @@ type GitButler struct {
 	Conflicted int               // commits GitButler marks as conflicted
 	// Target and Push are the workspace's target branch and push remote,
 	// each "" where it's what `but setup` picks, or where it couldn't be read
-	// (see discover.GitButlerSettings). Only set by ReadGitButlerSettings.
+	// (see discover.GitButlerSettings). Only set by ReadGitButlerSettings,
+	// which sets Settings once they've been read.
 	Target, Push string
+	Settings     bool
 	Err          error // `but status` failed; the rest is unknown
 }
 

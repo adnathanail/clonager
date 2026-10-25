@@ -167,11 +167,12 @@ type tidyNeeds struct {
 	urls      int // HTTPS URLs that may switch to SSH
 	clones    int // clone remotes to switch to the SSH URLs in the config
 	gitbutler int // repos in a GitButler workspace whose gitbutler tidy sets
+	gbDrift   int // GitButler workspaces whose target or push remote differ from the config
 	landed    int // airlifted branches that exist here
 	waiting   int // airlifted branches that don't yet
 }
 
-func (n tidyNeeds) any() bool { return n.urls+n.clones+n.gitbutler+n.landed+n.waiting > 0 }
+func (n tidyNeeds) any() bool { return n.urls+n.clones+n.gitbutler+n.gbDrift+n.landed+n.waiting > 0 }
 
 // needsTidy works out, without the network, what tidy may have to do for
 // repos: statuses (by path) are what's here, for their airlifted branches.
@@ -189,6 +190,11 @@ func needsTidy(repos []config.Repo, statuses map[string]*repostatus.Status) tidy
 	}, func(path string) (string, string, error) {
 		return statuses[path].GitButler.Target, statuses[path].GitButler.Push, nil
 	}))
+	for _, r := range repos {
+		if s := statuses[r.Path]; s != nil && gitButlerDriftOf(r, s).any() {
+			n.gbDrift++
+		}
+	}
 	var airlifted []*repostatus.Status
 	for _, r := range repos {
 		if len(r.Branches) == 0 {

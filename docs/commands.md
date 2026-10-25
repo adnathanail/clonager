@@ -47,7 +47,10 @@ It reports:
   SSH URLs in the config, repos in a GitButler workspace to mark
   `gitbutler: true` (or, with `--forge`, whose target branch or push
   remote to record), and airlifted branches, whether they're created
-  here yet or not. Not shown with `--tag`.
+  here yet or not. With `--forge`, it also counts GitButler workspaces
+  whose target branch or push remote differ from a `target` or `push` in
+  the config, which [`clone`](#clonager-clone) prints the commands for, as
+  tidy never changes them. Not shown with `--tag`.
 
 | Flag | |
 |---|---|
@@ -150,6 +153,10 @@ git -C ~/Documents/Uni/uni-work remote add -f upstream git@github.com:my-uni/uni
   `gitbutler/workspace` branch. It's followed by `but config target` (or
   `but config push-remote`) for repos with a `target` or `push` in the
   config (see [the config format](./config.md)).
+- `but config target` and `but config push-remote`, commented out, for
+  GitButler workspaces whose target branch or push remote differ from a
+  `target` or `push` in the config: as with remote URLs, the config may be
+  the one that's out of date.
 
 Paths that exist but aren't a git repo are listed with the reason. `clone`
 only prints `# Nothing to clone` once there's nothing left to do and every

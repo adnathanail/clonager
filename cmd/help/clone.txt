@@ -11,6 +11,8 @@ Commented out, to check first:
     GitButler workspace, as it switches the repo to GitButler's workspace
     branch, then `but config target` for repos with a target branch or push
     remote in the config
+  - `but config target` and `but config push-remote` for GitButler
+    workspaces whose target branch or push remote differ from the config
 
 Paths that exist but aren't a git repo (other than empty folders, which git
 can clone into) are listed with the reason, and clone only says "Nothing to

@@ -43,8 +43,19 @@ func TestCloneOutput(t *testing.T) {
 	gbPush := withGitButler(repo("gb-push"))
 	gbPush.GitButlerPush = "upstream"
 	gbPush.Remotes = upstream
+	gbDrift := withGitButler(withRemotes(repo("gb-drift")))
+	gbDrift.GitButlerTarget = "upstream/main"
+	gbUnread := gbDrift
+	gbUnread.Path = "/work/gb-unread"
+	active := func(r config.Repo, gb repostatus.GitButler) *repostatus.Status {
+		gb.Mode = repostatus.GitButlerActive
+		return &repostatus.Status{Repo: r, OriginURL: r.URL, DefaultBranch: "origin/main", GitButler: gb,
+			RemoteURLs: map[string]string{"origin": r.URL, "upstream": upstream[0].URL}}
+	}
 	statuses := []*repostatus.Status{
 		{Repo: gbFork, Missing: true},
+		active(gbDrift, repostatus.GitButler{Settings: true, Push: "upstream"}), // targets origin/main, pushes to upstream
+		active(gbUnread, repostatus.GitButler{}),                                // settings unknown, so nothing to say
 		{Repo: gbPush, Missing: true},
 		{Repo: config.Repo{Path: "/work/my repo", URL: "https://example.com/me/x.git"}, Missing: true},
 		{Repo: repo("empty"), Err: errors.New("not a git repo")},
@@ -95,6 +106,10 @@ func TestCloneOutput(t *testing.T) {
 			"git -C /work/fork remote add -f upstream git@github.com:acmeltd/fork.git",
 			"# but -C /work/fork setup  # switches to GitButler's workspace branch\n# but -C /work/fork config target upstream/main",
 		},
+		"/work/gb-drift": {
+			"# but -C /work/gb-drift config target upstream/main  # the target is origin/main; check which is right",
+			"# but -C /work/gb-drift config push-remote origin  # pushes go to upstream; check which is right",
+		},
 		"/work/gb-push":   {"setup  # switches to GitButler's workspace branch\n# but -C /work/gb-push config push-remote upstream"},
 		"/work/my repo":   {"git clone https://example.com/me/x.git '/work/my repo'"},
 		"/work/empty":     {"git clone git@github.com:me/empty.git /work/empty"},
@@ -119,7 +134,7 @@ func TestCloneOutput(t *testing.T) {
 			}
 		}
 	}
-	for _, repo := range []string{"/work/tidy", "/work/gb-done"} {
+	for _, repo := range []string{"/work/tidy", "/work/gb-done", "/work/gb-unread"} {
 		if b, ok := blocks[repo]; ok {
 			t.Errorf("%s: should have nothing to do, got:\n%s", repo, b)
 		}
@@ -131,7 +146,7 @@ func TestCloneOutput(t *testing.T) {
 		t.Errorf("/work/fork: git clone already adds origin:\n%s", blocks["/work/fork"])
 	}
 
-	want := "# 5 repos to clone, 4 remotes to add, 3 branches to create, 5 commented out to review, 1 check failed"
+	want := "# 5 repos to clone, 4 remotes to add, 3 branches to create, 7 commented out to review, 1 check failed"
 	if got := lastLine(out); got != want {
 		t.Errorf("summary %q, want %q", got, want)
 	}
