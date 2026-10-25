@@ -133,10 +133,15 @@ func (v *statusView) render() (string, int) {
 		fmt.Fprintln(&w, styleWarn.Render(v.note))
 	}
 	if v.forgeWarning != "" {
-		fmt.Fprintln(&w, styleWarn.Render(v.forgeWarning)+styleDim.Render(" (--offline skips checking it)"))
+		fmt.Fprintln(&w, forgeWarningLine(v.forgeWarning))
 		code = max(code, exitErrors)
 	}
 	return w.String(), code
+}
+
+// forgeWarningLine is how a warning that GitHub couldn't be checked is shown.
+func forgeWarningLine(warning string) string {
+	return styleWarn.Render(warning) + styleDim.Render(" (--offline skips checking it)")
 }
 
 // foldForgeErrors moves forge errors that aren't about a particular repo
@@ -186,8 +191,8 @@ var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "�
 
 // showLive prints the view straight away, then checks GitHub with a spinner
 // below it, and redraws it with what GitHub says: in place if all of it is
-// still on screen, otherwise again below a separator. Ctrl-C stops waiting, leaving the
-// view as it was.
+// still on screen, otherwise again below a separator. Ctrl-C stops waiting,
+// leaving the view as it was with a warning in place of the spinner.
 func showLive(v *statusView) error {
 	out, code := v.render()
 	lipgloss.Print(out)
@@ -233,8 +238,8 @@ func showLive(v *statusView) error {
 		case <-resized:
 			inPlace = false
 		case <-interrupted:
-			lipgloss.Print(clearLine)
-			return codeFor(code)
+			lipgloss.Println(clearLine + forgeWarningLine("Couldn't check GitHub: interrupted."))
+			return codeFor(max(code, exitErrors))
 		case <-finished:
 			waiting = false
 		}
