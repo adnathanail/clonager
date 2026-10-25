@@ -78,10 +78,11 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	case offline(cmd, statusFlags.offline, settings):
 	case !cli.Installed("gh"):
 		v.forgeWarning = "Couldn't check GitHub: gh isn't installed."
+		eachStatus(v.statuses, nil, (*repostatus.Status).ReadGitButlerSettings)
 	case liveTerminal(os.Stdout):
 		return showLive(v)
 	default:
-		forgeAll(v.statuses, nil)
+		checkAll(v.statuses, nil)
 		v.forgeWarning = foldForgeErrors(v.statuses)
 	}
 	out, code := v.render()
@@ -199,7 +200,7 @@ func showLive(v *statusView) error {
 	var checked atomic.Int32
 	finished := make(chan struct{})
 	go func() {
-		forgeAll(v.statuses, &checked)
+		checkAll(v.statuses, &checked)
 		close(finished)
 	}()
 	label := func() string { return fmt.Sprintf("Checking GitHub… %d/%d", checked.Load(), len(v.statuses)) }
@@ -389,6 +390,23 @@ func inspectAll(repos []config.Repo, opts repostatus.Options) []*repostatus.Stat
 // forgeAll checks GitHub for statuses in parallel (see Status.CheckForge),
 // adding one to checked, if given, as each is done.
 func forgeAll(statuses []*repostatus.Status, checked *atomic.Int32) {
+	eachStatus(statuses, checked, (*repostatus.Status).CheckForge)
+}
+
+// checkAll is forgeAll for status, which also reads GitButler workspaces'
+// target branches and push remotes (Status.ReadGitButlerSettings) for the
+// config tidy note: they're left until now, rather than read by Inspect, so
+// the first view doesn't wait for the `but` calls.
+func checkAll(statuses []*repostatus.Status, checked *atomic.Int32) {
+	eachStatus(statuses, checked, func(s *repostatus.Status) {
+		s.CheckForge()
+		s.ReadGitButlerSettings()
+	})
+}
+
+// eachStatus runs fn on statuses in parallel, a few at a time, adding one to
+// checked, if given, as each is done.
+func eachStatus(statuses []*repostatus.Status, checked *atomic.Int32, fn func(*repostatus.Status)) {
 	sem := make(chan struct{}, max(4, runtime.NumCPU()))
 	var wg sync.WaitGroup
 	for _, s := range statuses {
@@ -397,7 +415,7 @@ func forgeAll(statuses []*repostatus.Status, checked *atomic.Int32) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			s.CheckForge()
+			fn(s)
 			if checked != nil {
 				checked.Add(1)
 			}

@@ -181,10 +181,11 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   that storage has moved before.
   `discover` and `tidy` fill them in; `tidy` never overwrites ones already
   in the config. `Inspect` only reads them with
-  `Options.GitButlerSettings`, which status sets only with `--forge`: the
-  two `but` calls per GitButler repo add ~100ms, which is lost among `gh`'s
-  calls but not otherwise. `clone` always sets it. Without
-  `--forge`, `needsTidy` only counts repos not yet marked. Where a
+  `Options.GitButlerSettings`, which `clone` sets. Status reads them
+  (`Status.ReadGitButlerSettings`) during its GitHub checks instead
+  (`checkAll`): the two `but` calls per GitButler repo add ~100ms, which
+  would delay the first view. With `--offline`, `needsTidy` only counts
+  repos not yet marked. Where a
   workspace differs from a recorded `target`/`push` (`gitButlerDriftOf`),
   `clone` prints commented-out `but config` commands and status counts it,
   as with differing remote URLs; `Status.GitButler.Settings` says whether

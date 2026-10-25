@@ -227,7 +227,7 @@ func (s *Status) inspect(opts Options) error {
 	s.readLastFetch(g, gitDir)
 	s.readGitButler(gitDir)
 	if opts.GitButlerSettings {
-		s.readGitButlerSettings()
+		s.ReadGitButlerSettings()
 	}
 	s.checkMerged(g)
 	if opts.Forge {
