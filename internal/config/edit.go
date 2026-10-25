@@ -158,6 +158,29 @@ func (c *Config) SetNoSSH(path string) error {
 	return c.reparse()
 }
 
+// SetGitButler sets gitbutler: true on the repo at path, after its url and
+// remotes. A repo given as just its URL becomes a mapping to hold it. The
+// file isn't written until Save.
+func (c *Config) SetGitButler(path string) error {
+	parent, i := c.findRepo(path)
+	if parent == nil {
+		return fmt.Errorf("%s isn't in the config", TildePath(path))
+	}
+	n := asMapping(parent, i)
+	val := str("true")
+	val.Tag = "!!bool"
+	if old := mappingGet(n, "gitbutler"); old != nil {
+		*old = *val
+		return c.reparse()
+	}
+	at := mappingIndex(n, "remotes")
+	if at < 0 {
+		at = mappingIndex(n, "url")
+	}
+	n.Content = slices.Insert(n.Content, at+2, str("gitbutler"), val)
+	return c.reparse()
+}
+
 // asMapping returns the repo whose key is at index i of parent as a mapping,
 // first turning a repo given as just its URL into one.
 func asMapping(parent *yaml.Node, i int) *yaml.Node {

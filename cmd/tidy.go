@@ -13,6 +13,7 @@ import (
 
 	"github.com/adnathanail/clonager/internal/cli"
 	"github.com/adnathanail/clonager/internal/config"
+	"github.com/adnathanail/clonager/internal/discover"
 	"github.com/adnathanail/clonager/internal/repostatus"
 )
 
@@ -22,7 +23,7 @@ var tidyFlags struct {
 
 var tidyCmd = &cobra.Command{
 	Use:   "tidy",
-	Short: "Switch the config's URLs to SSH, and remove airlifted branches that exist here",
+	Short: "Switch the config's URLs to SSH, mark GitButler repos, and remove airlifted branches that exist here",
 	Long: `Tidy up the config:
 
   - HTTPS URLs on GitHub, GitLab, Bitbucket and Codeberg are switched to SSH,
@@ -32,6 +33,9 @@ var tidyCmd = &cobra.Command{
     connection, timeouts) are only reported. Last, it prints the git remote
     set-url commands to switch existing clones whose remote still has the
     old URL, for you to run.
+  - Repos in a GitButler workspace get gitbutler: true. It's never removed
+    from repos that aren't: clonager clone prints the but setup command for
+    those.
   - Branches recorded by clonager config airlift that now exist on this
     laptop are removed from the config (a repo with nothing else set goes
     back to just its URL). The rest stay listed until they're created, which
@@ -180,13 +184,14 @@ func isNetworkError(err error) bool {
 // tidyNeeds is what clonager config tidy may have to do, as far as can be
 // told offline (see needsTidy).
 type tidyNeeds struct {
-	urls    int // HTTPS URLs that may switch to SSH
-	clones  int // clone remotes to switch to the SSH URLs in the config
-	landed  int // airlifted branches that exist here
-	waiting int // airlifted branches that don't yet
+	urls      int // HTTPS URLs that may switch to SSH
+	clones    int // clone remotes to switch to the SSH URLs in the config
+	gitbutler int // repos in a GitButler workspace without gitbutler: true
+	landed    int // airlifted branches that exist here
+	waiting   int // airlifted branches that don't yet
 }
 
-func (n tidyNeeds) any() bool { return n.urls+n.clones+n.landed+n.waiting > 0 }
+func (n tidyNeeds) any() bool { return n.urls+n.clones+n.gitbutler+n.landed+n.waiting > 0 }
 
 // needsTidy works out, without the network, what tidy may have to do for
 // repos: statuses (by path) are what's here, for their airlifted branches.
@@ -197,6 +202,10 @@ func needsTidy(repos []config.Repo, statuses map[string]*repostatus.Status) tidy
 			return s.RemoteURLs[remote]
 		}
 		return ""
+	}))
+	n.gitbutler = len(gitButlerRepos(repos, func(path string) bool {
+		s := statuses[path]
+		return s != nil && s.GitButler.Mode == repostatus.GitButlerActive
 	}))
 	var airlifted []*repostatus.Status
 	for _, r := range repos {
@@ -215,6 +224,18 @@ func needsTidy(repos []config.Repo, statuses map[string]*repostatus.Status) tidy
 		n.waiting += len(l.waiting)
 	}
 	return n
+}
+
+// gitButlerRepos lists the repos without gitbutler: true that are in a
+// GitButler workspace, by inWorkspace.
+func gitButlerRepos(repos []config.Repo, inWorkspace func(path string) bool) []config.Repo {
+	var out []config.Repo
+	for _, r := range repos {
+		if !r.GitButler && inWorkspace(r.Path) {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 // landing is what tidy does with a repo's airlifted branches.
@@ -276,7 +297,7 @@ func runTidy(cmd *cobra.Command, args []string) error {
 		heading string
 		rows    []row
 	}
-	var switched, marked, unchecked, landed, waiting, failed section
+	var switched, marked, unchecked, gitbutler, landed, waiting, failed section
 	code := exitOK
 	changed := false
 	for _, c := range changes {
@@ -301,6 +322,13 @@ func runTidy(cmd *cobra.Command, args []string) error {
 		changed = true
 		switched.rows = append(switched.rows, row{c.repo.Path, styleOK.Render("→"),
 			styleBranch.Render(c.remote) + "  " + c.to})
+	}
+	for _, r := range gitButlerRepos(cfg.Repos, discover.InGitButler) {
+		if err := cfg.SetGitButler(r.Path); err != nil {
+			return err
+		}
+		changed = true
+		gitbutler.rows = append(gitbutler.rows, row{r.Path, styleOK.Render("+"), styleGB.Render("gitbutler")})
 	}
 	names := func(branches []config.Branch) string {
 		out := make([]string, len(branches))
@@ -331,16 +359,18 @@ func runTidy(cmd *cobra.Command, args []string) error {
 	switched.heading = "Switched to SSH:"
 	marked.heading = "Can't be read over SSH, so marked ssh: false:"
 	unchecked.heading = "Couldn't check over SSH:"
+	gitbutler.heading = "Marked gitbutler: true, as they're in a GitButler workspace:"
 	landed.heading = "Removed from the config, as they exist here:"
 	waiting.heading = "Airlifted branches not created here yet (clonager clone prints the commands):"
 	failed.heading = "Couldn't check airlifted branches:"
 	if tidyFlags.dryRun {
 		switched.heading = "Would switch to SSH:"
 		marked.heading = "Can't be read over SSH, so would mark ssh: false:"
+		gitbutler.heading = "Would mark gitbutler: true, as they're in a GitButler workspace:"
 		landed.heading = "Would remove from the config, as they exist here:"
 	}
 
-	sections := []section{switched, marked, unchecked, landed, waiting, failed}
+	sections := []section{switched, marked, unchecked, gitbutler, landed, waiting, failed}
 	pathW := 0
 	for _, s := range sections {
 		for _, r := range s.rows {

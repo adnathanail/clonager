@@ -106,7 +106,7 @@ Build a config from the repos you already have:
 ```sh
 clonager config discover -n ~/Documents ~/Projects  # preview
 clonager config discover ~/Documents ~/Projects     # write the config
-clonager config tidy                                # switch URLs to SSH
+clonager config tidy                                # switch URLs to SSH, etc.
 clonager
 ```
 

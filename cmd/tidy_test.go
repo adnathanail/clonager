@@ -146,14 +146,18 @@ func TestNeedsTidy(t *testing.T) {
 		{Path: "/w/airlifted", URL: "git@github.com:me/airlifted.git", Branches: []config.Branch{feat, fix}},
 		{Path: "/w/new", URL: "git@github.com:me/new.git", Branches: []config.Branch{feat}}, // no status: only in the source
 		{Path: "/w/switched", URL: "git@github.com:me/switched.git"},
+		{Path: "/w/gb", URL: "git@github.com:me/gb.git"},
+		{Path: "/w/gb-marked", URL: "git@github.com:me/gb-marked.git", GitButler: true},
 	}
 	statuses := map[string]*repostatus.Status{
 		"/w/airlifted": {Repo: config.Repo{Path: "/w/airlifted"}, Branches: []repostatus.Branch{{Name: "main"}, {Name: "feat"}},
 			RemoteURLs: map[string]string{"origin": "git@github.com:me/airlifted.git"}},
-		"/w/switched": {Repo: config.Repo{Path: "/w/switched"}, RemoteURLs: map[string]string{"origin": "https://github.com/me/switched"}},
+		"/w/switched":  {Repo: config.Repo{Path: "/w/switched"}, RemoteURLs: map[string]string{"origin": "https://github.com/me/switched"}},
+		"/w/gb":        {Repo: config.Repo{Path: "/w/gb"}, GitButler: repostatus.GitButler{Mode: repostatus.GitButlerActive}},
+		"/w/gb-marked": {Repo: config.Repo{Path: "/w/gb-marked"}, GitButler: repostatus.GitButler{Mode: repostatus.GitButlerActive}},
 	}
 	got := needsTidy(repos, statuses)
-	if want := (tidyNeeds{urls: 2, clones: 1, landed: 1, waiting: 2}); got != want {
+	if want := (tidyNeeds{urls: 2, clones: 1, gitbutler: 1, landed: 1, waiting: 2}); got != want {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
 	if needsTidy(repos[1:3], nil).any() {

@@ -28,7 +28,9 @@ It's a YAML tree that mirrors your folders:
 - **A string** is a repo, and the string is its clone URL (its `origin`).
 - **A mapping with `url`** is a repo with options:
   - `remotes` — other remotes by name (`origin` comes from `url`)
-  - `gitbutler: true` — the repo should be in a GitButler workspace
+  - `gitbutler: true` — the repo should be in a GitButler workspace. Set by
+    [`discover`](./commands.md#clonager-config-discover-dir) and
+    [`tidy`](./commands.md#clonager-config-tidy) for repos that are in one
   - `tags` — labels for filtering, e.g. `clonager -t work`
   - `mine: false` — the remote isn't yours to change, so clonager won't
     suggest deleting branches there or changing its settings (see [`prune`](./commands.md#clonager-prune))

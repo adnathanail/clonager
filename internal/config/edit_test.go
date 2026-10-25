@@ -295,6 +295,64 @@ func TestSetURL(t *testing.T) {
 	}
 }
 
+func TestSetGitButler(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	cfg, err := Parse("test.yaml", []byte(`~/x:
+  plain: https://git.acme.example/me/plain # a comment
+  forked:
+    url: https://github.com/me/forked
+    remotes:
+      upstream: https://github.com/acmeltd/forked
+    tags: [work]
+  airlifted:
+    url: https://github.com/me/airlifted
+    branches: [feat]
+  off:
+    url: https://github.com/me/off
+    gitbutler: false
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	x := filepath.Join(home, "x")
+	for _, name := range []string{"plain", "forked", "airlifted", "off"} {
+		if err := cfg.SetGitButler(filepath.Join(x, name)); err != nil {
+			t.Fatalf("SetGitButler(%s): %v", name, err)
+		}
+	}
+
+	got, err := cfg.encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `~/x:
+  plain:
+    url: https://git.acme.example/me/plain # a comment
+    gitbutler: true
+  forked:
+    url: https://github.com/me/forked
+    remotes:
+      upstream: https://github.com/acmeltd/forked
+    gitbutler: true
+    tags: [work]
+  airlifted:
+    url: https://github.com/me/airlifted
+    gitbutler: true
+    branches: [feat]
+  off:
+    url: https://github.com/me/off
+    gitbutler: true
+`
+	if string(got) != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+	for _, r := range cfg.Repos {
+		if !r.GitButler {
+			t.Errorf("%s: GitButler not set after reparse", r.Path)
+		}
+	}
+}
+
 func TestSetNoSSH(t *testing.T) {
 	home, _ := os.UserHomeDir()
 	cfg, err := Parse("test.yaml", []byte(`~/x:
