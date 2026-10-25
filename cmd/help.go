@@ -10,7 +10,7 @@ import (
 
 // helpFiles are the commands' long help, in help/<command>.txt (status.txt
 // is the root command's, for a bare clonager). Code is marked with
-// backticks, as in Markdown.
+// backticks, as in Markdown, and styled by styleCode when help is shown.
 //
 //go:embed help/*.txt
 var helpFiles embed.FS
@@ -18,18 +18,48 @@ var helpFiles embed.FS
 // codeSpan matches text in backticks, on one line.
 var codeSpan = regexp.MustCompile("`([^`\n]+)`")
 
-// helpText returns help/<name>.txt with its code spans styled dim and the
-// backticks removed.
+// helpText returns help/<name>.txt.
 func helpText(name string) string {
 	b, err := helpFiles.ReadFile("help/" + name + ".txt")
 	if err != nil {
 		panic(err) // a missing file is a bug, which any test of the cmd package catches
 	}
-	text := strings.TrimRight(string(b), "\n")
+	return strings.TrimRight(string(b), "\n")
+}
+
+// styleCode removes the backticks from text's code spans and styles them:
+// clonager commands and flags like the commands in help, anything else
+// (other programs' commands, paths, config) dim.
+func styleCode(text string) string {
 	return codeSpan.ReplaceAllStringFunc(text, func(span string) string {
-		return styleDim.Render(span[1 : len(span)-1])
+		code := span[1 : len(span)-1]
+		if isClonagerCode(code) {
+			return styleBranch.Render(code)
+		}
+		return styleDim.Render(code)
 	})
 }
+
+// isClonagerCode reports whether code is a clonager command ("clonager
+// config tidy", or just "config tidy") or flag ("--forge").
+func isClonagerCode(code string) bool {
+	first, _, _ := strings.Cut(code, " ")
+	if first == "clonager" || strings.HasPrefix(first, "-") {
+		return true
+	}
+	for _, c := range rootCmd.Commands() {
+		if c.Name() == first {
+			return true
+		}
+	}
+	return false
+}
+
+// helpTemplate is Cobra's default help template, with code in the long help
+// styled (see styleCode).
+const helpTemplate = `{{with (or .Long .Short)}}{{. | trimTrailingWhitespaces | code}}
+
+{{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`
 
 // usageTemplate is Cobra's default usage template (without command groups,
 // which clonager doesn't use), with headings, commands and flags styled.
@@ -110,5 +140,7 @@ func init() {
 	cobra.AddTemplateFunc("command", func(s string) string { return styleBranch.Render(s) })
 	cobra.AddTemplateFunc("dim", func(s string) string { return styleDim.Render(s) })
 	cobra.AddTemplateFunc("flags", styleFlags)
+	cobra.AddTemplateFunc("code", styleCode)
+	rootCmd.SetHelpTemplate(helpTemplate)
 	rootCmd.SetUsageTemplate(usageTemplate)
 }

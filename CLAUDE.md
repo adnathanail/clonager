@@ -39,8 +39,9 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - `cmd/` — Cobra commands (`root.go`, `prune.go`, `clone.go`), Lip Gloss
   styles (`style.go`) and the styled help template (`help.go`). Each
   command's long help is in `cmd/help/<command>.txt` (`status.txt` for a
-  bare `clonager`), embedded, with code in backticks, which `helpText`
-  renders dim. Keep each code span on one line. Rendering lives here. A bare `clonager` shows status
+  bare `clonager`), embedded, with code in backticks. When help is shown, `styleCode` colours
+  clonager commands and flags like the command list, and other code dim.
+  Keep each code span on one line. Rendering lives here. A bare `clonager` shows status
   (`status.go`: the root command's `RunE` and flags); there's no `status`
   subcommand. Everything that edits the config is under `clonager config`
   (`config.go`): `discover.go`, `airlift.go` and `tidy.go`.
