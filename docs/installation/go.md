@@ -17,4 +17,4 @@ The Nix package also installs clonager as `cg`; with Go, add
 
 `git` must be on your `PATH`. [GitButler's `but` CLI](https://docs.gitbutler.com/cli-overview)
 is used for repos in a GitButler workspace, and [`gh`](https://cli.github.com)
-for `clonager --forge`; both are optional.
+for checking GitHub; both are optional (`clonager --offline` doesn't use `gh`).

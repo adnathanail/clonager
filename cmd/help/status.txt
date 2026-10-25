@@ -13,10 +13,14 @@ by what `clonager config tidy` has to do, as far as can be told offline:
 HTTPS URLs to try switching to SSH, and airlifted branches. Neither with
 `--tag`.
 
-With `--forge`, GitHub is also asked (via `gh`):
+GitHub is also asked (via `gh`):
   - about merged PRs, which catches merges git alone can't see
   - which of `origin`'s branches still exist, to spot stale remote refs
   - whether the repo deletes merged branches automatically
+In a terminal, the local results are shown straight away and redrawn once
+GitHub answers. If it can't be asked (no connection, `gh` not installed or
+not logged in), a warning says so. `--offline` skips it, as does
+`alwaysOffline` in settings.json (`--offline=false` asks anyway).
 
 Remote state is as of each repo's last fetch; clonager never fetches. The
 column before each repo shows how long ago that was (e.g. 23m, 7h, 5d),

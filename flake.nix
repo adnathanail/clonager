@@ -146,6 +146,15 @@
                 the file manager.
               '';
             };
+
+            alwaysOffline = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = ''
+                Whether `clonager` skips checking GitHub, as with `--offline`.
+                `--offline=false` checks it anyway.
+              '';
+            };
           };
 
           config = lib.mkIf cfg.enable {
@@ -177,7 +186,8 @@
                       else { inherit (cfg.configSource) decrypt encrypt; };
                   }
                   // lib.optionalAttrs (cfg.discoverPaths != [ ]) { inherit (cfg) discoverPaths; }
-                  // lib.optionalAttrs (cfg.openIn != null) { inherit (cfg) openIn; };
+                  // lib.optionalAttrs (cfg.openIn != null) { inherit (cfg) openIn; }
+                  // lib.optionalAttrs cfg.alwaysOffline { inherit (cfg) alwaysOffline; };
               in
               lib.mkIf (settings != { }) { text = builtins.toJSON settings; };
           };

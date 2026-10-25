@@ -3,14 +3,20 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"syscall"
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/term"
 	"github.com/spf13/cobra"
 
 	"github.com/adnathanail/clonager/internal/cli"
@@ -22,7 +28,7 @@ import (
 var statusFlags struct {
 	verbose bool
 	all     bool
-	forge   bool
+	offline bool
 	tags    []string
 }
 
@@ -31,18 +37,21 @@ func init() {
 	// leaves the version as just --version.
 	rootCmd.Flags().BoolVarP(&statusFlags.verbose, "verbose", "v", false, "list the branches behind each count")
 	rootCmd.Flags().BoolVarP(&statusFlags.all, "all", "a", false, "also show repos that are fine")
-	rootCmd.Flags().BoolVarP(&statusFlags.forge, "forge", "f", false, "also check GitHub (via gh): merged PRs, stale refs, repo settings")
+	rootCmd.Flags().BoolVarP(&statusFlags.offline, "offline", "o", false, "don't check GitHub (default from alwaysOffline in settings.json)")
 	rootCmd.Flags().StringSliceVarP(&statusFlags.tags, "tag", "t", nil, "only show repos with this tag (repeatable)")
 	rootCmd.Args = cobra.NoArgs
 	rootCmd.RunE = runStatus
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
-	if err := checkForgeAvailable(statusFlags.forge); err != nil {
+	settings, err := config.ReadSettings()
+	if err != nil {
 		return err
 	}
-	if err := loadOpenIn(); err != nil {
-		return err
+	openIn = settings.OpenIn
+	offline := settings.AlwaysOffline
+	if cmd.Flags().Changed("offline") {
+		offline = statusFlags.offline
 	}
 	cfg, err := loadConfig()
 	if err != nil {
@@ -58,32 +67,188 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// GitButler's settings only with --forge, which is slow anyway: the two
-	// `but` calls per GitButler repo would add noticeably to status otherwise.
-	statuses := inspectAll(repos, repostatus.Options{Forge: statusFlags.forge, GitButlerSettings: statusFlags.forge})
-	reports := make([]report, len(statuses))
-	for i, s := range statuses {
-		reports[i] = buildReport(s)
-	}
-	printReports(reports)
-	code := statusCode(reports)
-	pending, note := unapplied(cfg.Path)
+	v := &statusView{cfg: cfg, statuses: inspectAll(repos, repostatus.Options{})}
+	v.pending, v.note = unapplied(cfg.Path)
 	if len(statusFlags.tags) == 0 {
-		untracked, err := printUntracked(cfg, pending)
+		dirs, _, err := settingsDirs()
 		if err != nil {
 			return err
 		}
-		if untracked {
+		if v.untracked, err = findUntracked(dirs, cfg, v.pending); err != nil {
+			return err
+		}
+		v.showUntracked = true
+	}
+
+	switch {
+	case offline:
+	case !cli.Installed("gh"):
+		v.forgeWarning = "Couldn't check GitHub: gh isn't installed."
+	case liveTerminal():
+		return showLive(v)
+	default:
+		forgeAll(v.statuses, nil)
+		v.foldForgeErrors()
+	}
+	out, code := v.render()
+	lipgloss.Print(out)
+	return codeFor(code)
+}
+
+// statusView is everything status shows, so it can be drawn again once
+// GitHub has been checked.
+type statusView struct {
+	cfg           *config.Config
+	pending       *config.Config // the config's source, if it has changes not applied yet
+	note          string         // saying so
+	statuses      []*repostatus.Status
+	showUntracked bool // and what config tidy has to do (not with --tag)
+	untracked     []untrackedRepo
+	forgeWarning  string // why GitHub couldn't be checked
+}
+
+// render draws the view, and gives the exit code for it.
+func (v *statusView) render() (string, int) {
+	var w strings.Builder
+	reports := make([]report, len(v.statuses))
+	for i, s := range v.statuses {
+		reports[i] = buildReport(s)
+	}
+	writeReports(&w, reports)
+	code := statusCode(reports)
+	if v.showUntracked {
+		if writeUntracked(&w, v.untracked) {
 			code = max(code, exitAttention)
 		}
-		if printTidy(cfg, pending, statuses) {
+		if writeTidy(&w, v.cfg, v.pending, v.statuses) {
 			code = max(code, exitAttention)
 		}
 	}
-	if note != "" {
-		lipgloss.Println(styleWarn.Render(note))
+	if v.note != "" {
+		fmt.Fprintln(&w, styleWarn.Render(v.note))
+	}
+	if v.forgeWarning != "" {
+		fmt.Fprintln(&w, styleWarn.Render(v.forgeWarning)+styleDim.Render(" (--offline skips checking it)"))
+		code = max(code, exitErrors)
+	}
+	return w.String(), code
+}
+
+// foldForgeErrors moves forge errors that aren't about a particular repo
+// (no connection, gh not logged in) out of the repos and into one warning.
+func (v *statusView) foldForgeErrors() {
+	var reason string
+	n := 0
+	for _, s := range v.statuses {
+		if s.ForgeErr == nil {
+			continue
+		}
+		if r := forgeUnreachable(s.ForgeErr); r != "" {
+			reason = r
+			n++
+			s.ForgeErr = nil
+		}
+	}
+	if n > 0 {
+		v.forgeWarning = fmt.Sprintf("Couldn't check GitHub for %s: %s.", plural(n, "repo", "repos"), reason)
+	}
+}
+
+// forgeUnreachable says why GitHub couldn't be asked at all, if that's what
+// err is, or "" for an error about the repo itself.
+func forgeUnreachable(err error) string {
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "gh auth login"), strings.Contains(msg, "http 401"):
+		return "gh isn't logged in (run gh auth login)"
+	case isNetworkError(err):
+		return "no connection"
+	}
+	return ""
+}
+
+// liveTerminal reports whether stdout is a terminal that status can draw
+// a spinner in, and redraw.
+func liveTerminal() bool {
+	return term.IsTerminal(os.Stdout.Fd()) && os.Getenv("TERM") != "dumb"
+}
+
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+// showLive prints the view straight away, then checks GitHub with a spinner
+// below it, and redraws it with what GitHub says: in place if all of it is
+// still on screen, otherwise again below. Ctrl-C stops waiting, leaving the
+// view as it was.
+func showLive(v *statusView) error {
+	out, code := v.render()
+	lipgloss.Print(out)
+	width, height, err := term.GetSize(os.Stdout.Fd())
+	if err != nil {
+		width, height = 0, 0
+	}
+	rows := 0
+	if width > 0 {
+		rows = outputRows(out, width)
+	}
+	inPlace := width > 0 && rows+1 <= height // +1 for the spinner
+
+	// A resize can rewrap what's on screen, so the rows no longer add up.
+	resized := make(chan os.Signal, 1)
+	signal.Notify(resized, syscall.SIGWINCH)
+	interrupted := make(chan os.Signal, 1)
+	signal.Notify(interrupted, os.Interrupt)
+	defer signal.Stop(resized)
+	defer signal.Stop(interrupted)
+
+	var checked atomic.Int32
+	finished := make(chan struct{})
+	go func() {
+		forgeAll(v.statuses, &checked)
+		close(finished)
+	}()
+
+	lipgloss.Print(ansi.HideCursor)
+	defer lipgloss.Print(ansi.ShowCursor)
+	tick := time.NewTicker(80 * time.Millisecond)
+	defer tick.Stop()
+	clearLine := "\r" + ansi.EraseEntireLine
+	for frame, waiting := 0, true; waiting; frame++ {
+		spinner := styleDim.Render(fmt.Sprintf("%s Checking GitHub… %d/%d",
+			spinnerFrames[frame%len(spinnerFrames)], checked.Load(), len(v.statuses)))
+		if width > 0 {
+			spinner = ansi.Truncate(spinner, width-1, "")
+		}
+		lipgloss.Print(clearLine + spinner)
+		select {
+		case <-tick.C:
+		case <-resized:
+			inPlace = false
+		case <-interrupted:
+			lipgloss.Print(clearLine)
+			return codeFor(code)
+		case <-finished:
+			waiting = false
+		}
+	}
+
+	v.foldForgeErrors()
+	out, code = v.render()
+	if inPlace {
+		lipgloss.Print(clearLine + ansi.CursorUp(rows) + ansi.EraseScreenBelow + out)
+	} else {
+		lipgloss.Print(clearLine + "\n\n" + out)
 	}
 	return codeFor(code)
+}
+
+// outputRows is how many rows out takes up in a terminal width columns wide,
+// with long lines wrapping.
+func outputRows(out string, width int) int {
+	n := 0
+	for _, line := range strings.Split(strings.TrimSuffix(out, "\n"), "\n") {
+		n += max(1, (ansi.StringWidth(line)+width-1)/width)
+	}
+	return n
 }
 
 // statusCode is the exit code for the reports: exitErrors if any repo has an
@@ -107,21 +272,15 @@ type untrackedRepo struct {
 	noOrigin bool // so discover can't add it
 }
 
-// printUntracked lists the repos in the discoverPaths (see settingsDirs)
-// that aren't in the config, nor in its source waiting to be applied
-// (pending, which may be nil), and reports whether there were any.
-func printUntracked(cfg, pending *config.Config) (bool, error) {
-	dirs, _, err := settingsDirs()
-	if err != nil {
-		return false, err
-	}
-	repos, err := findUntracked(dirs, cfg, pending)
-	if err != nil || len(repos) == 0 {
-		return false, err
+// writeUntracked lists the repos in the discoverPaths that aren't in the
+// config (see findUntracked), and reports whether there were any.
+func writeUntracked(w *strings.Builder, repos []untrackedRepo) bool {
+	if len(repos) == 0 {
+		return false
 	}
 
-	lipgloss.Println()
-	lipgloss.Println(styleHeading.Render("Not in the config"))
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, styleHeading.Render("Not in the config"))
 	addable := 0
 	for _, r := range repos {
 		line := "  " + styleWarn.Render("?") + " " + folderLink(r.path, config.TildePath(r.path))
@@ -130,23 +289,23 @@ func printUntracked(cfg, pending *config.Config) (bool, error) {
 		} else {
 			addable++
 		}
-		lipgloss.Println(line)
+		fmt.Fprintln(w, line)
 	}
 	switch {
 	case addable == len(repos):
-		lipgloss.Println(styleDim.Render("Add them with clonager config discover."))
+		fmt.Fprintln(w, styleDim.Render("Add them with clonager config discover."))
 	case addable > 0:
-		lipgloss.Println(styleDim.Render("Add them with clonager config discover, once those without an origin have one."))
+		fmt.Fprintln(w, styleDim.Render("Add them with clonager config discover, once those without an origin have one."))
 	default:
-		lipgloss.Println(styleDim.Render("clonager config discover can add them once they have an origin."))
+		fmt.Fprintln(w, styleDim.Render("clonager config discover can add them once they have an origin."))
 	}
-	return true, nil
+	return true
 }
 
-// printTidy shows what clonager config tidy may have to do (see needsTidy)
+// writeTidy shows what clonager config tidy may have to do (see needsTidy)
 // for the config, or its source waiting to be applied (pending, which may be
 // nil), and reports whether there's anything.
-func printTidy(cfg, pending *config.Config, statuses []*repostatus.Status) bool {
+func writeTidy(w *strings.Builder, cfg, pending *config.Config, statuses []*repostatus.Status) bool {
 	repos := cfg.Repos
 	if pending != nil {
 		repos = pending.Repos
@@ -160,11 +319,11 @@ func printTidy(cfg, pending *config.Config, statuses []*repostatus.Status) bool 
 		return false
 	}
 
-	lipgloss.Println()
-	lipgloss.Println(styleHeading.Render("Config to tidy"))
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, styleHeading.Render("Config to tidy"))
 	line := func(count int, one, many, detail string) {
 		if count > 0 {
-			lipgloss.Println("  " + styleWarn.Render("●") + " " + plural(count, one, many) + detail)
+			fmt.Fprintln(w, "  "+styleWarn.Render("●")+" "+plural(count, one, many)+detail)
 		}
 	}
 	line(n.urls, "HTTPS URL", "HTTPS URLs", " to try switching to SSH")
@@ -179,11 +338,13 @@ func printTidy(cfg, pending *config.Config, statuses []*repostatus.Status) bool 
 		if n.landed > 0 {
 			hint += " If this is the laptop the branches were airlifted from, delete its clones first."
 		}
-		lipgloss.Println(styleDim.Render(hint))
+		fmt.Fprintln(w, styleDim.Render(hint))
 	}
 	return true
 }
 
+// findUntracked finds the repos in dirs that aren't in the config, nor in
+// its source waiting to be applied (pending, which may be nil).
 func findUntracked(dirs []string, cfg, pending *config.Config) ([]untrackedRepo, error) {
 	var repos []untrackedRepo
 	for _, dir := range dirs {
@@ -242,6 +403,26 @@ func inspectAll(repos []config.Repo, opts repostatus.Options) []*repostatus.Stat
 	}
 	wg.Wait()
 	return out
+}
+
+// forgeAll checks GitHub for statuses in parallel (see Status.CheckForge),
+// adding one to checked, if given, as each is done.
+func forgeAll(statuses []*repostatus.Status, checked *atomic.Int32) {
+	sem := make(chan struct{}, max(4, runtime.NumCPU()))
+	var wg sync.WaitGroup
+	for _, s := range statuses {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			s.CheckForge()
+			if checked != nil {
+				checked.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 type severity int
@@ -503,7 +684,7 @@ func plural(n int, one, many string) string {
 	return fmt.Sprintf("%d %s", n, many)
 }
 
-func printReports(reports []report) {
+func writeReports(w *strings.Builder, reports []report) {
 	// Repos that are fine are only shown with --all. Size the columns to the
 	// rows shown, not the hidden ones.
 	counts := map[severity]int{}
@@ -529,9 +710,9 @@ func printReports(reports []report) {
 
 		if dir := config.TildePath(filepath.Dir(r.status.Repo.Path)); dir != group {
 			if group != "" {
-				lipgloss.Println()
+				fmt.Fprintln(w)
 			}
-			lipgloss.Println(styleHeading.Render(dir))
+			fmt.Fprintln(w, styleHeading.Render(dir))
 			group = dir
 		}
 
@@ -554,20 +735,20 @@ func printReports(reports []report) {
 		if len(parts) > 0 {
 			line += "  " + strings.Join(parts, styleDim.Render(" · "))
 		}
-		lipgloss.Println(strings.TrimRight(line, " "))
+		fmt.Fprintln(w, strings.TrimRight(line, " "))
 
 		if statusFlags.verbose {
 			indent := strings.Repeat(" ", 2+fetchW+3+nameW+2)
 			for _, i := range r.issues {
 				if len(i.details) > 0 {
-					lipgloss.Println(indent + severityStyle(i.sev).Render(i.text+":") + " " + strings.Join(i.details, ", "))
+					fmt.Fprintln(w, indent+severityStyle(i.sev).Render(i.text+":")+" "+strings.Join(i.details, ", "))
 				}
 			}
 		}
 	}
 
 	if len(shown) > 0 {
-		lipgloss.Println()
+		fmt.Fprintln(w)
 	}
 	summary := []string{plural(len(reports), "repo", "repos")}
 	if n := counts[sevInfo]; n > 0 {
@@ -583,7 +764,7 @@ func printReports(reports []report) {
 	if n := counts[sevError]; n > 0 {
 		summary = append(summary, styleError.Render(fmt.Sprintf("%d with errors", n)))
 	}
-	lipgloss.Println(strings.Join(summary, styleDim.Render(" · ")))
+	fmt.Fprintln(w, strings.Join(summary, styleDim.Render(" · ")))
 }
 
 func severityStyle(s severity) lipgloss.Style {

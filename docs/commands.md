@@ -31,7 +31,7 @@ It reports:
   needing attention)
 - **Merged branches** — branches already in the default branch are listed
   separately, as safe to delete, rather than as local-only or unpushed
-- **Remote branches** — `origin`'s branches that are merged. With `--forge`,
+- **Remote branches** — `origin`'s branches that are merged. From GitHub,
   also stale remote refs (branches already deleted on GitHub, still in your
   clone until `git remote prune`), and repos where GitHub doesn't delete
   merged branches automatically
@@ -57,14 +57,32 @@ It reports:
 | `-v`, `--verbose` | list the branches behind each count |
 | `-a`, `--all` | also show repos that are fine |
 | `-t`, `--tag <tag>` | only show repos with this tag (repeatable) |
-| `-f`, `--forge` | also check GitHub, via `gh` (see below) |
+| `-o`, `--offline` | don't check GitHub |
 
 Remote state is as of each repo's last fetch: clonager never fetches. The
 column before each repo shows how long ago that was (`23m`, `7h`, `5d`), from
 any remote and including GitButler's background fetches; it's yellow if over a
-month, or `never`. With
-`--forge` it takes a few seconds, mostly waiting on GitHub for repos with long
-PR histories.
+month, or `never`.
+
+It also checks GitHub, via `gh`: merged PRs (which catch merges git alone
+can't see), which of `origin`'s branches still exist, and whether the repo
+deletes merged branches automatically. That takes a few seconds, mostly
+waiting on GitHub for repos with long PR histories, so in a terminal the local
+results are shown straight away, with a spinner below them, and redrawn once
+GitHub answers. If they no longer all fit on screen (or the window was
+resized), the new results are printed again below instead. Ctrl-C stops
+waiting and leaves the local results. When output isn't a terminal, it waits
+and prints once.
+
+If GitHub can't be asked (no connection, `gh` not installed or not logged
+in), a warning at the end says so, and clonager exits 3. `--offline` skips
+GitHub; to skip it by default, set `alwaysOffline` in
+`~/.config/clonager/settings.json` (`programs.clonager.alwaysOffline` with the
+Home Manager module), and use `--offline=false` to check it anyway:
+
+```json
+{ "alwaysOffline": true }
+```
 
 ## `clonager prune`
 
@@ -209,7 +227,7 @@ Records this laptop's local branches in the config, so they can be recreated
 on another one: run `airlift` on the old laptop, then `clone` on the new one.
 
 It only airlifts a tidy laptop. First it checks that `prune --forge` has
-nothing to do, and that nothing needs attention in status (with `--forge`): no
+nothing to do, and that nothing needs attention in status (checking GitHub): no
 uncommitted changes, stashes, unpushed or local-only branches, and no repos in
 the `discoverPaths` missing from the config. Otherwise it shows what it found
 and leaves the config alone.
@@ -305,7 +323,7 @@ non-zero when there's something to deal with, for use in scripts:
 | 0 | all fine: nothing needs attention, `# Nothing to prune` or `# Nothing to clone` |
 | 1 | clonager itself failed (e.g. no config file) |
 | 2 | `clonager`: a repo needs attention (●), there are repos not in the config, or there's config to tidy; `prune`/`clone`: there's something to do, even if only commented out; `airlift`: something needs tidying first; `tidy`: airlifted branches aren't created here yet, or clones' remotes to switch |
-| 3 | `clonager`: a repo has an error (✗); `prune`/`clone`/`airlift`: a check failed; `tidy`: a URL couldn't be checked over the network, or a repo couldn't be checked |
+| 3 | `clonager`: a repo has an error (✗), or GitHub couldn't be checked; `prune`/`clone`/`airlift`: a check failed; `tidy`: a URL couldn't be checked over the network, or a repo couldn't be checked |
 
 For `prune | sh` (or `clone | sh`), the pipeline's exit code is `sh`'s, not clonager's.
 
