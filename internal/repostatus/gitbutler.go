@@ -38,25 +38,33 @@ func SetupTarget(path string) string {
 // remote of the GitButler workspace at path. Each is "" where it's what `but
 // setup` picks: SetupTarget, and origin.
 func GitButlerSettings(path string) (target, push string, err error) {
+	target, push, _, err = gitButlerSettings(path)
+	return target, push, err
+}
+
+// gitButlerSettings is GitButlerSettings, also returning the SetupTarget it
+// compared the target with.
+func gitButlerSettings(path string) (target, push, setupTarget string, err error) {
 	var t struct {
 		Branch string `json:"branch"`
 	}
 	if err := butJSON(path, &t, "config", "target", "--json"); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	var p struct {
 		PushRemote string `json:"push_remote"`
 	}
 	if err := butJSON(path, &p, "config", "push-remote", "--json"); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	if t.Branch != SetupTarget(path) {
+	setupTarget = SetupTarget(path)
+	if t.Branch != setupTarget {
 		target = t.Branch
 	}
 	if p.PushRemote != "origin" {
 		push = p.PushRemote
 	}
-	return target, push, nil
+	return target, push, setupTarget, nil
 }
 
 // readGitButlerSettings reads the target branch and push remote of a repo in
@@ -67,11 +75,8 @@ func (s *Status) readGitButlerSettings() {
 		return
 	}
 	var err error
-	s.GitButler.Target, s.GitButler.Push, err = GitButlerSettings(s.Repo.Path)
+	s.GitButler.Target, s.GitButler.Push, s.GitButler.SetupTarget, err = gitButlerSettings(s.Repo.Path)
 	s.GitButler.Settings = err == nil
-	if s.GitButler.Settings {
-		s.GitButler.SetupTarget = SetupTarget(s.Repo.Path)
-	}
 }
 
 func (s *Status) readGitButler(gitDir string) {
