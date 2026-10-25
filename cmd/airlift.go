@@ -53,7 +53,8 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 		return errors.New("airlift needs the GitHub CLI (gh) on your PATH")
 	}
 	if settings.AlwaysOffline && !given {
-		if !term.IsTerminal(os.Stdin.Fd()) {
+		// The question goes on stderr, so it has to be seen as well as answered.
+		if !term.IsTerminal(os.Stdin.Fd()) || !term.IsTerminal(os.Stderr.Fd()) {
 			return errors.New("alwaysOffline is set, and airlift has to check GitHub: " +
 				"run it in a terminal to be asked, or pass --offline=false")
 		}
