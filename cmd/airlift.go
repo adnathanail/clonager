@@ -1,11 +1,15 @@
 package cmd
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/term"
 	"github.com/spf13/cobra"
 
 	"github.com/adnathanail/clonager/internal/cli"
@@ -21,7 +25,13 @@ var airliftCmd = &cobra.Command{
 	RunE:  runAirlift,
 }
 
+var airliftFlags struct {
+	offline bool
+}
+
 func init() {
+	airliftCmd.Flags().BoolVarP(&airliftFlags.offline, "offline", "o", false,
+		"--offline=false checks GitHub without asking, when alwaysOffline is set")
 	configCmd.AddCommand(airliftCmd)
 }
 
@@ -31,8 +41,26 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	// It has to know branches are merged on GitHub, so it can't do without.
+	settings, err := config.ReadSettings()
+	if err != nil {
+		return err
+	}
+	given := cmd.Flags().Changed("offline")
+	if given && airliftFlags.offline {
+		return errors.New("airlift has to check GitHub, so it can't run --offline")
+	}
 	if !cli.Installed("gh") {
 		return errors.New("airlift needs the GitHub CLI (gh) on your PATH")
+	}
+	if settings.AlwaysOffline && !given {
+		if !term.IsTerminal(os.Stdin.Fd()) {
+			return errors.New("alwaysOffline is set, and airlift has to check GitHub: " +
+				"run it in a terminal to be asked, or pass --offline=false")
+		}
+		if !askGitHub(os.Stdin, cmd.ErrOrStderr()) {
+			fmt.Fprintln(cmd.ErrOrStderr(), styleDim.Render("Not airlifting; the config is unchanged."))
+			return codeFor(exitFailed)
+		}
 	}
 
 	statuses := inspectAll(cfg.Repos, repostatus.Options{Forge: true})
@@ -143,4 +171,16 @@ func airliftBranches(s *repostatus.Status) []config.Branch {
 		out = append(out, config.Branch{Name: b.Name, From: b.Remote})
 	}
 	return out
+}
+
+// askGitHub asks on out whether airlift may check GitHub despite
+// alwaysOffline, and reads the answer from in: yes only for y or yes.
+func askGitHub(in io.Reader, out io.Writer) bool {
+	fmt.Fprint(out, "alwaysOffline is set, but airlift has to check GitHub to know every branch is merged or pushed. Check GitHub? [y/N] ")
+	answer, _ := bufio.NewReader(in).ReadString('\n')
+	switch strings.ToLower(strings.TrimSpace(answer)) {
+	case "y", "yes":
+		return true
+	}
+	return false
 }

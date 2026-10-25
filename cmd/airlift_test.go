@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/adnathanail/clonager/internal/config"
@@ -24,5 +25,25 @@ func TestAirliftBranches(t *testing.T) {
 	want := []config.Branch{{Name: "feat", From: "origin/feat"}, {Name: "theirs", From: "upstream/theirs"}}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestAskGitHub(t *testing.T) {
+	for answer, want := range map[string]bool{
+		"y\n":   true,
+		"Yes\n": true,
+		" y \n": true,
+		"\n":    false, // the default
+		"n\n":   false,
+		"yep\n": false,
+		"":      false, // stdin closed
+	} {
+		var out strings.Builder
+		if got := askGitHub(strings.NewReader(answer), &out); got != want {
+			t.Errorf("answer %q: got %v, want %v", answer, got, want)
+		}
+		if !strings.Contains(out.String(), "Check GitHub? [y/N]") {
+			t.Errorf("answer %q: question not asked, got %q", answer, out.String())
+		}
 	}
 }

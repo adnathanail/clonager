@@ -10,3 +10,4 @@ linters:
         - charm.land/lipgloss/v2.Println
         - charm.land/lipgloss/v2.Printf
         - fmt.Fprintln
+        - fmt.Fprint
