@@ -84,7 +84,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return showLive(v)
 	default:
 		forgeAll(v.statuses, nil)
-		v.foldForgeErrors()
+		v.forgeWarning = foldForgeErrors(v.statuses)
 	}
 	out, code := v.render()
 	lipgloss.Print(out)
@@ -140,11 +140,12 @@ func (v *statusView) render() (string, int) {
 }
 
 // foldForgeErrors moves forge errors that aren't about a particular repo
-// (no connection, gh not logged in) out of the repos and into one warning.
-func (v *statusView) foldForgeErrors() {
+// (no connection, gh not logged in) out of the statuses and into one
+// warning, which it returns ("" if there were none).
+func foldForgeErrors(statuses []*repostatus.Status) string {
 	var reason string
 	n := 0
-	for _, s := range v.statuses {
+	for _, s := range statuses {
 		if s.ForgeErr == nil {
 			continue
 		}
@@ -154,9 +155,10 @@ func (v *statusView) foldForgeErrors() {
 			s.ForgeErr = nil
 		}
 	}
-	if n > 0 {
-		v.forgeWarning = fmt.Sprintf("Couldn't check GitHub for %s: %s.", plural(n, "repo", "repos"), reason)
+	if n == 0 {
+		return ""
 	}
+	return fmt.Sprintf("Couldn't check GitHub for %s: %s.", plural(n, "repo", "repos"), reason)
 }
 
 // forgeUnreachable says why GitHub couldn't be asked at all, if that's what
@@ -238,7 +240,7 @@ func showLive(v *statusView) error {
 		}
 	}
 
-	v.foldForgeErrors()
+	v.forgeWarning = foldForgeErrors(v.statuses)
 	out, code = v.render()
 	if inPlace {
 		lipgloss.Print(clearLine + ansi.CursorUp(rows) + ansi.EraseScreenBelow + out)

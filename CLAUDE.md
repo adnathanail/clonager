@@ -94,7 +94,8 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   (`SIGWINCH`), since rows that scrolled off can't be reached. Otherwise it
   waits and prints once. Failures that aren't about one repo (no
   connection, `gh` missing or not logged in: `forgeUnreachable`) become one
-  warning at the end rather than an error per repo, and still exit 3.
+  warning (`foldForgeErrors`) rather than an error per repo, and still exit
+  3. `prune` and `airlift` do the same.
   `prune` checks GitHub the same way (`--offline`, `alwaysOffline`, and the
   same failures noted once at the end) but just waits, with no redraw;
   it and `airlift` inspect with `Options.Forge`. `airlift` can't skip
