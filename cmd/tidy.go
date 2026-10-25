@@ -324,7 +324,7 @@ func landBranches(statuses []*repostatus.Status) []landing {
 }
 
 func runTidy(cmd *cobra.Command, args []string) error {
-	if err := loadOpenIn(); err != nil {
+	if _, err := loadSettings(); err != nil {
 		return err
 	}
 	cfg, fromSource, err := writableConfig("tidy", tidyFlags.dryRun)

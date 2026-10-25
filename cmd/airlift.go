@@ -107,7 +107,7 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 			lipgloss.Println("  " + styleWarn.Render("●") + " " + u)
 		}
 	}
-	dirs, _, err := settingsDirs()
+	dirs, _, err := settingsDirs(settings)
 	if err != nil {
 		return err
 	}

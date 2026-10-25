@@ -20,17 +20,17 @@ var (
 )
 
 // openIn is the app folderLink's links open folders in (the openIn setting,
-// see config.OpenInApps). Commands that print links set it with loadOpenIn.
+// see config.OpenInApps). Commands that print links set it with loadSettings.
 var openIn = config.DefaultOpenIn
 
-// loadOpenIn sets openIn from the settings.
-func loadOpenIn() error {
+// loadSettings reads the settings, and sets openIn from them.
+func loadSettings() (config.Settings, error) {
 	settings, err := config.ReadSettings()
 	if err != nil {
-		return err
+		return settings, err
 	}
 	openIn = settings.OpenIn
-	return nil
+	return settings, nil
 }
 
 // folderLink makes text a link that opens a local folder in the openIn app

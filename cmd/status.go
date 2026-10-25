@@ -41,11 +41,10 @@ func init() {
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
-	settings, err := config.ReadSettings()
+	settings, err := loadSettings()
 	if err != nil {
 		return err
 	}
-	openIn = settings.OpenIn
 	cfg, err := loadConfig()
 	if err != nil {
 		return err
@@ -63,7 +62,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	v := &statusView{cfg: cfg, statuses: inspectAll(repos, repostatus.Options{})}
 	v.pending, v.note = unapplied(cfg.Path)
 	if len(statusFlags.tags) == 0 {
-		dirs, _, err := settingsDirs()
+		dirs, _, err := settingsDirs(settings)
 		if err != nil {
 			return err
 		}

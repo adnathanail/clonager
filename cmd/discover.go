@@ -40,7 +40,8 @@ func init() {
 }
 
 func runDiscover(cmd *cobra.Command, args []string) error {
-	if err := loadOpenIn(); err != nil {
+	settings, err := loadSettings()
+	if err != nil {
 		return err
 	}
 	cfg, fromSource, err := writableConfig("discover", discoverFlags.dryRun)
@@ -48,7 +49,7 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	dirs, err := discoverDirs(args)
+	dirs, err := discoverDirs(args, settings)
 	if err != nil {
 		return err
 	}
@@ -146,8 +147,8 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 }
 
 // discoverDirs returns the dirs to look in: those given, or else the
-// discoverPaths in the settings that exist.
-func discoverDirs(args []string) ([]string, error) {
+// discoverPaths in settings that exist.
+func discoverDirs(args []string, settings config.Settings) ([]string, error) {
 	var dirs []string
 	if len(args) > 0 {
 		for _, arg := range args {
@@ -160,7 +161,7 @@ func discoverDirs(args []string) ([]string, error) {
 		return dirs, nil
 	}
 
-	dirs, missing, err := settingsDirs()
+	dirs, missing, err := settingsDirs(settings)
 	if err != nil {
 		return nil, err
 	}
@@ -175,13 +176,9 @@ func discoverDirs(args []string) ([]string, error) {
 	return dirs, nil
 }
 
-// settingsDirs returns the discoverPaths in the settings that exist, and
+// settingsDirs returns the discoverPaths in settings that exist, and
 // separately those that don't.
-func settingsDirs() (dirs, missing []string, err error) {
-	settings, err := config.ReadSettings()
-	if err != nil {
-		return nil, nil, err
-	}
+func settingsDirs(settings config.Settings) (dirs, missing []string, err error) {
 	for _, p := range settings.DiscoverPaths {
 		dir, err := absDir(p)
 		if errors.Is(err, fs.ErrNotExist) {
