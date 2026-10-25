@@ -17,7 +17,6 @@ import (
 	"github.com/charmbracelet/x/term"
 	"github.com/spf13/cobra"
 
-	"github.com/adnathanail/clonager/internal/cli"
 	"github.com/adnathanail/clonager/internal/config"
 	"github.com/adnathanail/clonager/internal/discover"
 	"github.com/adnathanail/clonager/internal/repostatus"
@@ -76,9 +75,6 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case offline(cmd, statusFlags.offline, settings):
-	case !cli.Installed("gh"):
-		v.forgeWarning = "Couldn't check GitHub: gh isn't installed."
-		eachStatus(v.statuses, nil, (*repostatus.Status).ReadGitButlerSettings)
 	case liveTerminal(os.Stdout):
 		return showLive(v)
 	default:
