@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"errors"
+	"cmp"
 	"fmt"
 	"os"
 	"os/signal"
@@ -186,7 +186,7 @@ var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "�
 
 // showLive prints the view straight away, then checks GitHub with a spinner
 // below it, and redraws it with what GitHub says: in place if all of it is
-// still on screen, otherwise again below. Ctrl-C stops waiting, leaving the
+// still on screen, otherwise again below a separator. Ctrl-C stops waiting, leaving the
 // view as it was.
 func showLive(v *statusView) error {
 	out, code := v.render()
@@ -245,9 +245,19 @@ func showLive(v *statusView) error {
 	if inPlace {
 		lipgloss.Print(clearLine + ansi.CursorUp(rows) + ansi.EraseScreenBelow + out)
 	} else {
-		lipgloss.Print(clearLine + "\n\n" + out)
+		// The cleared spinner line leaves a blank line above the separator.
+		lipgloss.Print(clearLine + updateSeparator(width) + "\n\n" + out)
 	}
 	return codeFor(code)
+}
+
+// updateSeparator marks where showLive prints the view again, below the
+// first one: a heading in a line of = as wide as the terminal (up to 80).
+func updateSeparator(width int) string {
+	const title = " Updated from GitHub "
+	width = min(cmp.Or(width, 80), 80)
+	side := max(3, (width-len(title))/2)
+	return styleDim.Render(strings.Repeat("=", side) + title + strings.Repeat("=", side))
 }
 
 // outputRows is how many rows out takes up in a terminal width columns wide,

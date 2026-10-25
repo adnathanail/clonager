@@ -70,7 +70,8 @@ deletes merged branches automatically. That takes a few seconds, mostly
 waiting on GitHub for repos with long PR histories, so in a terminal the local
 results are shown straight away, with a spinner below them, and redrawn once
 GitHub answers. If they no longer all fit on screen (or the window was
-resized), the new results are printed again below instead. Ctrl-C stops
+resized), the new results are printed again below instead, after an
+`=== Updated from GitHub ===` line. Ctrl-C stops
 waiting and leaves the local results. When output isn't a terminal, it waits
 and prints once.
 

@@ -2,8 +2,11 @@ package cmd
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/adnathanail/clonager/internal/repostatus"
 )
@@ -111,6 +114,15 @@ func TestForgeUnreachable(t *testing.T) {
 	} {
 		if got := forgeUnreachable(errors.New(msg)); got != want {
 			t.Errorf("forgeUnreachable(%q) = %q, want %q", msg, got, want)
+		}
+	}
+}
+
+func TestUpdateSeparator(t *testing.T) {
+	for width, want := range map[int]int{0: 79, 40: 39, 200: 79, 10: 27} {
+		got := ansi.Strip(updateSeparator(width))
+		if ansi.StringWidth(got) != want || !strings.Contains(got, " Updated from GitHub ") || !strings.HasPrefix(got, "===") {
+			t.Errorf("updateSeparator(%d) = %q (%d wide), want %d wide", width, got, ansi.StringWidth(got), want)
 		}
 	}
 }
