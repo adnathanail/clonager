@@ -1,6 +1,7 @@
 package discover
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -12,6 +13,9 @@ import (
 // temporary directory so GitButler's project registry is a throwaway one.
 func TestGitButlerSettings(t *testing.T) {
 	if !cli.Installed("but") {
+		if os.Getenv("CLONAGER_TEST_BUT") != "" { // CI, where it should be
+			t.Fatal("but is not installed")
+		}
 		t.Skip("but is not installed")
 	}
 	dir := t.TempDir()

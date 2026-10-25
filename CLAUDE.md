@@ -28,7 +28,9 @@ When `go.mod`/`go.sum` change, `vendorHash` in `flake.nix` must be updated
 (set it to `pkgs.lib.fakeHash`, `nix build`, copy the "got:" hash).
 `dependabot-vendor-hash.yml` does this on Dependabot's Go PRs, and
 `update-flake-lock.yml` opens a weekly PR for `flake.lock` (Dependabot doesn't
-do Nix). Both push with the workflow token, which doesn't trigger
+do Nix), and `update-gitbutler.yml` a PR for each new GitButler release,
+bumping the version CI installs (`.github/actions/install-gitbutler`). All
+three push with the workflow token, which doesn't trigger
 `pull_request`, so they start CI with `workflow_dispatch`. Nix copies
 dependencies into `vendor/` inside the source tree when building, so anything
 that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
@@ -202,6 +204,10 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - Git behaviour is tested against real throwaway repos built in `t.TempDir()`
   (see `merged_test.go`), with `GIT_CONFIG_GLOBAL=/dev/null` so the user's git
   config can't affect results. Prefer this over mocking git.
+- Tests that run `but` (`TestGitButlerSettings`) set `HOME` to a temp dir so
+  GitButler's project registry is a throwaway one, and skip without `but`,
+  except where `CLONAGER_TEST_BUT` is set: macOS CI, which installs a pinned
+  GitButler app for them. Linux CI and `nix build` skip them.
 
 ## Docs and examples
 

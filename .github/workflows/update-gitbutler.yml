@@ -1,0 +1,104 @@
+name: Update GitButler
+
+# Checks daily for a new GitButler release and opens a PR pinning it in
+# .github/actions/install-gitbutler/action.yml, with the release notes. Run by
+# hand with Actions > Update GitButler > Run workflow.
+#
+# The latest version comes from the GitButler app's update endpoint, which
+# Homebrew's cask also checks. It isn't a documented API, but unlike the
+# GitHub release tags it includes the build number the download URL needs.
+# The SHA-256 is worked out by downloading the archive.
+#
+# PRs made with the workflow's own token don't trigger other workflows, so CI
+# is started with workflow_dispatch (which is allowed) instead. Opening PRs
+# needs "Allow GitHub Actions to create and approve pull requests" in the
+# repository's Actions settings.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write # push the update branch
+  pull-requests: write # open the PR
+  actions: write # start CI on it
+
+jobs:
+  update:
+    # For shasum and BSD sed, as in the install action.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check for a new version
+        id: check
+        run: |
+          current=$(sed -nE 's/^ *GITBUTLER_VERSION: *([^ ]+)$/\1/p' .github/actions/install-gitbutler/action.yml)
+          curl -fsSL -o "$RUNNER_TEMP/latest.json" \
+            https://app.gitbutler.com/releases/release/darwin-aarch64/0.0.0
+          # "<version>-<build>", from a URL such as
+          # https://releases.gitbutler.com/releases/release/0.22.3-3234/macos/aarch64/GitButler.app.tar.gz
+          latest=$(jq -r '.url' "$RUNNER_TEMP/latest.json" | sed -nE 's#^.*/release/([0-9]+\.[0-9]+\.[0-9]+-[0-9]+)/macos/.*$#\1#p')
+          if [ -z "$latest" ]; then
+            echo "::error::Couldn't find a version in the update endpoint's response"
+            cat "$RUNNER_TEMP/latest.json"
+            exit 1
+          fi
+          echo "Pinned: $current, latest: $latest"
+
+          # Only move forwards: the endpoint could briefly serve an older release.
+          newest=$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n 1)
+          if [ "$latest" = "$current" ] || [ "$newest" != "$latest" ]; then
+            echo "Already up to date"
+            exit 0
+          fi
+
+          branch="update-gitbutler/$latest"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "$branch already exists"
+            exit 0
+          fi
+
+          {
+            echo "current=$current"
+            echo "latest=$latest"
+            echo "branch=$branch"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open the PR
+        if: steps.check.outputs.latest
+        env:
+          CURRENT: ${{ steps.check.outputs.current }}
+          LATEST: ${{ steps.check.outputs.latest }}
+          BRANCH: ${{ steps.check.outputs.branch }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="$RUNNER_TEMP/GitButler.app.tar.gz"
+          curl -fsSL -o "$archive" \
+            "https://releases.gitbutler.com/releases/release/$LATEST/macos/aarch64/GitButler.app.tar.gz"
+          sha256=$(shasum -a 256 "$archive" | cut -d ' ' -f 1)
+          sed -i '' -E \
+            -e "s/^( *GITBUTLER_VERSION: *).*$/\1$LATEST/" \
+            -e "s/^( *GITBUTLER_SHA256: *).*$/\1$sha256/" \
+            .github/actions/install-gitbutler/action.yml
+
+          version=${LATEST%-*}
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add .github/actions/install-gitbutler/action.yml
+          git commit -m "Update GitButler to $version"
+          git push origin "$BRANCH"
+
+          {
+            echo "Updates the pinned GitButler from $CURRENT to $LATEST."
+            echo
+            echo "Before merging, check that the \`but\` JSON clonager reads (\`internal/repostatus/gitbutler.go\`, \`internal/discover/discover.go\`) hasn't changed."
+            echo
+            echo "## Release notes"
+            echo
+            jq -r '.notes' "$RUNNER_TEMP/latest.json"
+          } > "$RUNNER_TEMP/body.md"
+          gh pr create --head "$BRANCH" --title "Update GitButler to $version" --body-file "$RUNNER_TEMP/body.md"
+          gh workflow run ci.yml --ref "$BRANCH"
