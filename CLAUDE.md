@@ -50,7 +50,8 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - `internal/config/` — parsing the YAML tree into a flat `[]Repo` (`config.go`)
   and editing it in place (`edit.go`)
 - `internal/repostatus/` — inspecting one clone: git state (`repostatus.go`),
-  GitButler via `but status --json` (`gitbutler.go`), merged-branch detection
+  GitButler via `but`'s JSON (`gitbutler.go`: `but status`, and the
+  workspace's target and push remote), merged-branch detection
   (`merged.go`), GitHub PRs via `gh` (`forge.go`)
 - `internal/discover/` — walking the filesystem for repos, and reading a repo's
   remotes to build its config entry
@@ -155,7 +156,7 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   differ from `but setup`'s** (`origin/HEAD`'s branch, and `origin`), as
   `gitbutler: {target, push}` (`Repo.GitButlerTarget`/`GitButlerPush`).
   They're read with `but config target --json` and
-  `but config push-remote --json` (`discover.GitButlerSettings`), not from
+  `but config push-remote --json` (`repostatus.GitButlerSettings`), not from
   the `gitbutler.project.*` git config keys GitButler stores them in, as
   that storage has moved before.
   `discover` and `tidy` fill them in; `tidy` never overwrites ones already

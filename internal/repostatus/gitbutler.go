@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/adnathanail/clonager/internal/cli"
-	"github.com/adnathanail/clonager/internal/discover"
 )
 
 // The subset of `but status --json` that clonager uses.
@@ -24,6 +24,41 @@ type butStatus struct {
 	} `json:"stacks"`
 }
 
+// SetupTarget is the target branch `but setup` picks for the repo at path:
+// origin's HEAD (refs/remotes/origin/HEAD, which a fresh clone has), e.g.
+// origin/main. It's "" where that isn't set, as a clone made some other way
+// may not have it. Where it's "", a target is always recorded, as a fresh
+// clone's origin/HEAD can't be known offline.
+func SetupTarget(path string) string {
+	ref, _ := git{path}.run("symbolic-ref", "--short", "-q", "refs/remotes/origin/HEAD")
+	return ref
+}
+
+// GitButlerSettings reads the target branch (e.g. upstream/main) and push
+// remote of the GitButler workspace at path. Each is "" where it's what `but
+// setup` picks: SetupTarget, and origin.
+func GitButlerSettings(path string) (target, push string, err error) {
+	var t struct {
+		Branch string `json:"branch"`
+	}
+	if err := butJSON(path, &t, "config", "target", "--json"); err != nil {
+		return "", "", err
+	}
+	var p struct {
+		PushRemote string `json:"push_remote"`
+	}
+	if err := butJSON(path, &p, "config", "push-remote", "--json"); err != nil {
+		return "", "", err
+	}
+	if t.Branch != SetupTarget(path) {
+		target = t.Branch
+	}
+	if p.PushRemote != "origin" {
+		push = p.PushRemote
+	}
+	return target, push, nil
+}
+
 // readGitButlerSettings reads the target branch and push remote of a repo in
 // a GitButler workspace (GitButler.Target and Push), for
 // Options.GitButlerSettings.
@@ -32,10 +67,10 @@ func (s *Status) readGitButlerSettings() {
 		return
 	}
 	var err error
-	s.GitButler.Target, s.GitButler.Push, err = discover.GitButlerSettings(s.Repo.Path)
+	s.GitButler.Target, s.GitButler.Push, err = GitButlerSettings(s.Repo.Path)
 	s.GitButler.Settings = err == nil
 	if s.GitButler.Settings {
-		s.GitButler.SetupTarget = discover.SetupTarget(s.Repo.Path)
+		s.GitButler.SetupTarget = SetupTarget(s.Repo.Path)
 	}
 }
 
@@ -54,18 +89,9 @@ func (s *Status) readGitButler(gitDir string) {
 		return
 	}
 
-	if !cli.Installed("but") {
-		s.GitButler.Err = errors.New("but is not installed")
-		return
-	}
-	out, err := cli.But(s.Repo.Path, "status", "--json")
-	if err != nil {
-		s.GitButler.Err = err
-		return
-	}
 	var bs butStatus
-	if err := json.Unmarshal(out, &bs); err != nil {
-		s.GitButler.Err = fmt.Errorf("but status: unexpected output: %w", err)
+	if err := butJSON(s.Repo.Path, &bs, "status", "--json"); err != nil {
+		s.GitButler.Err = err
 		return
 	}
 	for _, stack := range bs.Stacks {
@@ -78,4 +104,20 @@ func (s *Status) readGitButler(gitDir string) {
 			}
 		}
 	}
+}
+
+// butJSON runs but in dir and decodes its JSON output into v. args end
+// with --json.
+func butJSON(dir string, v any, args ...string) error {
+	if !cli.Installed("but") {
+		return errors.New("but is not installed")
+	}
+	out, err := cli.But(dir, args...)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(out, v); err != nil {
+		return fmt.Errorf("but %s: unexpected output: %w", strings.Join(args[:len(args)-1], " "), err)
+	}
+	return nil
 }
