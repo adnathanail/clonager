@@ -25,6 +25,21 @@ func TestHelpShowsShortcuts(t *testing.T) {
 	}
 }
 
+func TestHelpIsStyled(t *testing.T) {
+	help := rootCmd.UsageString()
+	for _, want := range []string{
+		styleHeading.Render("Flags:"),
+		styleBranch.Render("(p)rune"),
+		styleBranch.Render("-a, --all") + "             also",
+		styleBranch.Render("-t, --tag") + " " + styleDim.Render("strings") + "     only",
+		styleBranch.Render("-v, --verbose"),
+	} {
+		if !strings.Contains(help, want) {
+			t.Errorf("help doesn't contain %q:\n%s", want, help)
+		}
+	}
+}
+
 func TestConfigHelp(t *testing.T) {
 	var out strings.Builder
 	configCmd.SetOut(&out)
