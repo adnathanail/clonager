@@ -32,6 +32,7 @@ func runClone(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	statuses := inspectAll(cfg.Repos, repostatus.Options{})
+	readGitButlerSettings(statuses)
 	script, n := cloneScript(statuses, emptyDir)
 	lipgloss.Print(script)
 	return codeFor(n.exitCode())
@@ -159,6 +160,18 @@ func repoCloneLines(s *repostatus.Status, isEmpty func(string) bool, n *cloneCou
 		}
 	}
 
+	if d := gitButlerDriftOf(s.Repo, s); d.any() {
+		if d.target != "" {
+			lines = append(lines, comment("but -C "+path+" config target "+shellQuote(d.target)+
+				"  # the target is "+d.gotTarget+"; check which is right"))
+			n.review++
+		}
+		if d.push != "" {
+			lines = append(lines, comment("but -C "+path+" config push-remote "+shellQuote(d.push)+
+				"  # pushes go to "+d.gotPush+"; check which is right"))
+			n.review++
+		}
+	}
 	if s.Repo.GitButler && (fresh || s.GitButler.Mode != repostatus.GitButlerActive) {
 		lines = append(lines, comment("but -C "+path+" setup  # switches to GitButler's workspace branch"))
 		n.review++
@@ -173,6 +186,42 @@ func repoCloneLines(s *repostatus.Status, isEmpty func(string) bool, n *cloneCou
 		}
 	}
 	return lines
+}
+
+// gitButlerDrift is where a GitButler workspace's target branch or push
+// remote differ from the ones recorded in the config: the config's and the
+// workspace's, for each that differs, or "".
+type gitButlerDrift struct {
+	target, gotTarget string
+	push, gotPush     string
+}
+
+func (d gitButlerDrift) any() bool { return d.target != "" || d.push != "" }
+
+// gitButlerDriftOf compares the workspace at s (once its settings are read,
+// see Status.ReadGitButlerSettings) with r's config entry. It's only for
+// entries with a target or push: for the rest, config tidy records the
+// workspace's. Either left out, in the config or the workspace, means what
+// `but setup` picks: origin's default branch, and origin.
+func gitButlerDriftOf(r config.Repo, s *repostatus.Status) gitButlerDrift {
+	var d gitButlerDrift
+	gb := s.GitButler
+	if r.GitButlerTarget == "" && r.GitButlerPush == "" || gb.Mode != repostatus.GitButlerActive || !gb.Settings {
+		return d
+	}
+	or := func(v, def string) string {
+		if v == "" {
+			return def
+		}
+		return v
+	}
+	if want, got := or(r.GitButlerTarget, s.DefaultBranch), or(gb.Target, s.DefaultBranch); want != got && want != "" {
+		d.target, d.gotTarget = want, got
+	}
+	if want, got := or(r.GitButlerPush, "origin"), or(gb.Push, "origin"); want != got {
+		d.push, d.gotPush = want, got
+	}
+	return d
 }
 
 // emptyDir reports whether path is a folder with nothing in it.

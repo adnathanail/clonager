@@ -151,6 +151,7 @@ func TestNeedsTidy(t *testing.T) {
 		{Path: "/w/gb", URL: "git@github.com:me/gb.git"},
 		{Path: "/w/gb-marked", URL: "git@github.com:me/gb-marked.git", GitButler: true},
 		{Path: "/w/gb-fork", URL: "git@github.com:me/gb-fork.git", GitButler: true}, // target not recorded yet
+		{Path: "/w/gb-drift", URL: "git@github.com:me/gb-drift.git", GitButler: true, GitButlerTarget: "upstream/main"},
 	}
 	statuses := map[string]*repostatus.Status{
 		"/w/airlifted": {Repo: config.Repo{Path: "/w/airlifted"}, Branches: []repostatus.Branch{{Name: "main"}, {Name: "feat"}},
@@ -160,9 +161,11 @@ func TestNeedsTidy(t *testing.T) {
 		"/w/gb-marked": {Repo: config.Repo{Path: "/w/gb-marked"}, GitButler: repostatus.GitButler{Mode: repostatus.GitButlerActive}},
 		"/w/gb-fork": {Repo: config.Repo{Path: "/w/gb-fork"},
 			GitButler: repostatus.GitButler{Mode: repostatus.GitButlerActive, Target: "upstream/main"}},
+		"/w/gb-drift": {Repo: config.Repo{Path: "/w/gb-drift"}, DefaultBranch: "origin/main",
+			GitButler: repostatus.GitButler{Mode: repostatus.GitButlerActive, Settings: true}}, // targets origin/main
 	}
 	got := needsTidy(repos, statuses)
-	if want := (tidyNeeds{urls: 2, clones: 1, gitbutler: 2, landed: 1, waiting: 2}); got != want {
+	if want := (tidyNeeds{urls: 2, clones: 1, gitbutler: 2, gbDrift: 1, landed: 1, waiting: 2}); got != want {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
 	if needsTidy(repos[1:3], nil).any() {

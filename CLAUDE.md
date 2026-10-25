@@ -160,7 +160,11 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   in the config. Status reads them (`Status.ReadGitButlerSettings`) only
   with `--forge`, not in `Inspect`: the two `but` calls per GitButler repo
   add ~100ms, which is lost among `gh`'s calls but not otherwise. Without
-  `--forge`, `needsTidy` only counts repos not yet marked.
+  `--forge`, `needsTidy` only counts repos not yet marked. Where a
+  workspace differs from a recorded `target`/`push` (`gitButlerDriftOf`),
+  `clone` prints commented-out `but config` commands and status counts it,
+  as with differing remote URLs; `Status.GitButler.Settings` says whether
+  they were read, so an unread workspace never looks like it has drifted.
 - **Status shows what `config tidy` would do, offline** (`needsTidy`): it
   never runs `ls-remote`, so URLs are only candidates, and airlifted
   branches are checked against the statuses it already has.
