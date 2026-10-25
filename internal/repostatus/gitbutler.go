@@ -67,10 +67,10 @@ func gitButlerSettings(path string) (target, push, setupTarget string, err error
 	return target, push, setupTarget, nil
 }
 
-// readGitButlerSettings reads the target branch and push remote of a repo in
-// a GitButler workspace (GitButler.Target and Push), for
-// Options.GitButlerSettings.
-func (s *Status) readGitButlerSettings() {
+// ReadGitButlerSettings reads the target branch and push remote of a repo in
+// a GitButler workspace (GitButler.Target and Push), as
+// Options.GitButlerSettings does during Inspect, for reading them later.
+func (s *Status) ReadGitButlerSettings() {
 	if s.GitButler.Mode != GitButlerActive {
 		return
 	}
