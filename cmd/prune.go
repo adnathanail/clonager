@@ -2,11 +2,15 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
+	"sync/atomic"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/term"
 	"github.com/spf13/cobra"
 
 	"github.com/adnathanail/clonager/internal/config"
@@ -43,10 +47,52 @@ func runPrune(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	repos := filterByTags(cfg.Repos, pruneFlags.tags)
-	statuses := inspectAll(repos, repostatus.Options{Forge: !offline(cmd, pruneFlags.offline, settings)})
+	forge := !offline(cmd, pruneFlags.offline, settings)
+	var statuses []*repostatus.Status
+	if forge && liveTerminal(os.Stderr) {
+		var interrupted bool
+		if statuses, interrupted = inspectSpinning(repos, cmd.ErrOrStderr()); interrupted {
+			fmt.Fprintln(cmd.ErrOrStderr(), styleWarn.Render("Couldn't check GitHub: interrupted."))
+			return codeFor(exitErrors)
+		}
+	} else {
+		statuses = inspectAll(repos, repostatus.Options{Forge: forge})
+	}
 	script, n := pruneScript(statuses)
 	lipgloss.Print(script)
 	return codeFor(n.exitCode())
+}
+
+// inspectSpinning inspects repos and checks GitHub for them, with a spinner
+// on w meanwhile. That's stderr, so the spinner never gets into the script,
+// and it's cleared before the script is printed. It reports whether Ctrl-C
+// was pressed, in which case the statuses aren't returned.
+func inspectSpinning(repos []config.Repo, w io.Writer) ([]*repostatus.Status, bool) {
+	var statuses []*repostatus.Status
+	var checked atomic.Int32
+	local, finished := make(chan struct{}), make(chan struct{})
+	go func() {
+		statuses = inspectAll(repos, repostatus.Options{})
+		close(local)
+		forgeAll(statuses, &checked)
+		close(finished)
+	}()
+	label := func() string {
+		select {
+		case <-local:
+			return fmt.Sprintf("Checking GitHub… %d/%d", checked.Load(), len(repos))
+		default:
+			return "Checking repos…"
+		}
+	}
+	width, _, err := term.GetSize(os.Stderr.Fd())
+	if err != nil {
+		width = 0
+	}
+	if interrupted, _ := spin(w, width, label, finished); interrupted {
+		return nil, true
+	}
+	return statuses, false
 }
 
 // pruneCounts tallies what the script contains, for its summary line.

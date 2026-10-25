@@ -97,7 +97,10 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   warning (`foldForgeErrors`) rather than an error per repo, and still exit
   3. `prune` and `airlift` do the same.
   `prune` checks GitHub the same way (`--offline`, `alwaysOffline`, and the
-  same failures noted once at the end) but just waits, with no redraw;
+  same failures noted once at the end) but never redraws: its spinner
+  (`spin` in `spinner.go`, shared with status) goes on stderr, and is
+  cleared before any of the script is printed, so `prune | sh` only ever
+  gets the script;
   it and `airlift` inspect with `Options.Forge`. `airlift` can't skip
   GitHub: with `alwaysOffline` it asks first (stderr/stdin; the only
   prompt in clonager), and without a terminal it refuses unless given
