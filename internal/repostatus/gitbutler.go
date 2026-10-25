@@ -36,6 +36,9 @@ func (s *Status) ReadGitButlerSettings() {
 	var err error
 	s.GitButler.Target, s.GitButler.Push, err = discover.GitButlerSettings(s.Repo.Path)
 	s.GitButler.Settings = err == nil
+	if s.GitButler.Settings {
+		s.GitButler.SetupTarget = discover.SetupTarget(s.Repo.Path)
+	}
 }
 
 func (s *Status) readGitButler(gitDir string) {
