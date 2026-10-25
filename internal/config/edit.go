@@ -353,18 +353,27 @@ func (c *Config) encode() ([]byte, error) {
 }
 
 // reparse re-derives Repos from the edited tree, so Add can't leave the
-// config in a state Load would reject.
+// config in a state Load would reject. A rejected edit is undone, so the
+// config can still be edited and saved afterwards.
 func (c *Config) reparse() error {
 	data, err := c.encode()
-	if err != nil {
-		return err
+	if err == nil {
+		var parsed *Config
+		if parsed, err = Parse(c.Path, data); err == nil {
+			c.Repos, c.valid = parsed.Repos, data
+			return nil
+		}
+		err = fmt.Errorf("edit would make the config invalid: %w", err)
 	}
-	parsed, err := Parse(c.Path, data)
-	if err != nil {
-		return fmt.Errorf("edit would make the config invalid: %w", err)
+	var doc yaml.Node
+	if uerr := yaml.Unmarshal(c.valid, &doc); uerr != nil {
+		return errors.Join(err, uerr)
 	}
-	c.Repos = parsed.Repos
-	return nil
+	c.doc = &doc
+	if len(c.valid) == 0 {
+		c.doc = nil // a new config with nothing added yet
+	}
+	return err
 }
 
 // rootMapping returns the document's top-level mapping, creating it for an

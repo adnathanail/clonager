@@ -353,7 +353,9 @@ func runTidy(cmd *cobra.Command, args []string) error {
 			}
 		}
 		if err := cfg.SetGitButler(c.repo.Path, c.target, c.push); err != nil {
-			return err
+			gbFailed.rows = append(gbFailed.rows, row{c.repo.Path, styleError.Render("✗"), styleDim.Render(err.Error())})
+			code = max(code, exitErrors)
+			continue
 		}
 		changed = true
 		gitbutler.rows = append(gitbutler.rows, row{c.repo.Path, styleOK.Render("+"), c.describe()})

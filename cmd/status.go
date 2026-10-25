@@ -228,7 +228,6 @@ func filterByTags(repos []config.Repo, tags []string) []config.Repo {
 	return out
 }
 
-// inspectAll inspects repos in parallel, returning results in config order.
 // readGitButlerSettings runs Status.ReadGitButlerSettings in parallel, for
 // the config tidy note (see needsTidy).
 func readGitButlerSettings(statuses []*repostatus.Status) {
@@ -243,6 +242,7 @@ func readGitButlerSettings(statuses []*repostatus.Status) {
 	wg.Wait()
 }
 
+// inspectAll inspects repos in parallel, returning results in config order.
 func inspectAll(repos []config.Repo, opts repostatus.Options) []*repostatus.Status {
 	out := make([]*repostatus.Status, len(repos))
 	sem := make(chan struct{}, max(4, runtime.NumCPU()))

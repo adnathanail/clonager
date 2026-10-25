@@ -81,6 +81,7 @@ type Config struct {
 	Path  string // the file, or for a config from a Source's commands, a description
 	Repos []Repo
 	doc   *yaml.Node // kept so later commands can edit the file in place
+	valid []byte     // the last encoding of doc that parsed, restored when an edit is rejected
 
 	source *Source // set for a config read with a Source's decrypt command
 	loaded []byte  // its encoding when loaded, to tell whether it changed
@@ -126,7 +127,7 @@ func Parse(path string, data []byte) (*Config, error) {
 	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
-	cfg := &Config{Path: path, doc: &doc}
+	cfg := &Config{Path: path, doc: &doc, valid: data}
 	if len(doc.Content) == 0 {
 		return cfg, nil // empty file
 	}
