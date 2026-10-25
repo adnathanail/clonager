@@ -159,9 +159,10 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   the `gitbutler.project.*` git config keys GitButler stores them in, as
   that storage has moved before.
   `discover` and `tidy` fill them in; `tidy` never overwrites ones already
-  in the config. Status reads them (`Status.ReadGitButlerSettings`) only
-  with `--forge`, not in `Inspect`: the two `but` calls per GitButler repo
-  add ~100ms, which is lost among `gh`'s calls but not otherwise. Without
+  in the config. `Inspect` only reads them with
+  `Options.GitButlerSettings`, which status sets only with `--forge`: the
+  two `but` calls per GitButler repo add ~100ms, which is lost among `gh`'s
+  calls but not otherwise. `clone` always sets it. Without
   `--forge`, `needsTidy` only counts repos not yet marked. Where a
   workspace differs from a recorded `target`/`push` (`gitButlerDriftOf`),
   `clone` prints commented-out `but config` commands and status counts it,

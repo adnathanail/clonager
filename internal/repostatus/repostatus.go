@@ -60,8 +60,8 @@ type GitButler struct {
 	Conflicted int               // commits GitButler marks as conflicted
 	// Target and Push are the workspace's target branch and push remote,
 	// each "" where it's what `but setup` picks, or where it couldn't be read
-	// (see discover.GitButlerSettings). Only set by ReadGitButlerSettings,
-	// which sets Settings once they've been read.
+	// (see discover.GitButlerSettings). Only set with
+	// Options.GitButlerSettings, which sets Settings once they've been read.
 	Target, Push string
 	Settings     bool
 	// SetupTarget is the target `but setup` picks, which an empty Target
@@ -104,6 +104,10 @@ type GitHubRepo struct {
 
 type Options struct {
 	Forge bool // ask the forge (GitHub, via gh) about merged PRs
+	// GitButlerSettings reads a GitButler workspace's target branch and push
+	// remote (GitButler.Target and Push). It's an option as the two `but`
+	// calls add noticeably to a repo's inspection.
+	GitButlerSettings bool
 }
 
 // flagged is true for branches that would need attention if unmerged:
@@ -221,6 +225,9 @@ func (s *Status) inspect(opts Options) error {
 	}
 	s.readLastFetch(g, gitDir)
 	s.readGitButler(gitDir)
+	if opts.GitButlerSettings {
+		s.readGitButlerSettings()
+	}
 	s.checkMerged(g)
 	if opts.Forge {
 		s.checkForge(g)
