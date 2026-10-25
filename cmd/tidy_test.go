@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -189,5 +191,42 @@ func TestSetURLCommands(t *testing.T) {
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestGitButlerChanges(t *testing.T) {
+	repos := []config.Repo{
+		{Path: "/w/plain"},                   // not in a workspace
+		{Path: "/w/new"},                     // in one, setup's defaults
+		{Path: "/w/new-fork"},                // in one, targets upstream
+		{Path: "/w/marked", GitButler: true}, // already true, setup's defaults
+		{Path: "/w/marked-fork", GitButler: true},
+		{Path: "/w/set", GitButler: true, GitButlerTarget: "upstream/main"}, // kept, whatever the workspace has
+		{Path: "/w/broken", GitButler: true},
+		{Path: "/w/broken-new"},
+	}
+	inWorkspace := func(path string) bool { return path != "/w/plain" }
+	read := func(path string) (string, string, error) {
+		switch path {
+		case "/w/new-fork", "/w/marked-fork", "/w/set":
+			return "upstream/trunk", "", nil
+		case "/w/broken", "/w/broken-new":
+			return "", "", errors.New("but config target: boom")
+		}
+		return "", "", nil
+	}
+	var got []string
+	for _, c := range gitButlerChanges(repos, inWorkspace, read) {
+		got = append(got, fmt.Sprintf("%s %q %q %v", c.repo.Path, c.target, c.push, c.err != nil))
+	}
+	want := []string{
+		`/w/new "" "" false`,
+		`/w/new-fork "upstream/trunk" "" false`,
+		`/w/marked-fork "upstream/trunk" "" false`,
+		`/w/broken "" "" true`,
+		`/w/broken-new "" "" true`,
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("got:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 }

@@ -3,7 +3,9 @@
 package discover
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -74,7 +76,8 @@ func depth(root, path string) int {
 var ErrNoOrigin = errors.New("no origin remote, so there's nothing to clone it from")
 
 // Describe builds the config entry for the repo at path: origin as its URL,
-// any other remotes, and whether it's in a GitButler workspace.
+// any other remotes, and whether it's in a GitButler workspace, with its
+// target branch and push remote where they differ from `but setup`'s.
 func Describe(path string) (config.Repo, error) {
 	repo := config.Repo{Path: path}
 
@@ -100,7 +103,53 @@ func Describe(path string) (config.Repo, error) {
 	sort.Slice(repo.Remotes, func(i, j int) bool { return repo.Remotes[i].Name < repo.Remotes[j].Name })
 
 	repo.GitButler = InGitButler(path)
+	if repo.GitButler {
+		// If they can't be read (e.g. but isn't installed), the repo is still
+		// added, and config tidy fills them in later.
+		repo.GitButlerTarget, repo.GitButlerPush, _ = GitButlerSettings(path)
+	}
 	return repo, nil
+}
+
+// GitButlerSettings reads the target branch (e.g. upstream/main) and push
+// remote of the GitButler workspace at path. Each is "" where it's what `but
+// setup` picks: origin's default branch (refs/remotes/origin/HEAD, which a
+// fresh clone has), and origin.
+func GitButlerSettings(path string) (target, push string, err error) {
+	var t struct {
+		Branch string `json:"branch"`
+	}
+	if err := butJSON(path, &t, "config", "target", "--json"); err != nil {
+		return "", "", err
+	}
+	var p struct {
+		PushRemote string `json:"push_remote"`
+	}
+	if err := butJSON(path, &p, "config", "push-remote", "--json"); err != nil {
+		return "", "", err
+	}
+	if def, _ := git(path, "symbolic-ref", "--short", "-q", "refs/remotes/origin/HEAD"); t.Branch != def {
+		target = t.Branch
+	}
+	if p.PushRemote != "origin" {
+		push = p.PushRemote
+	}
+	return target, push, nil
+}
+
+// butJSON runs but in dir and decodes its JSON output into v.
+func butJSON(dir string, v any, args ...string) error {
+	if !cli.Installed("but") {
+		return errors.New("but is not installed")
+	}
+	out, err := cli.But(dir, args...)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(out, v); err != nil {
+		return fmt.Errorf("but %s %s: unexpected output: %w", args[0], args[1], err)
+	}
+	return nil
 }
 
 // InGitButler reports whether the repo at path is in a GitButler workspace:

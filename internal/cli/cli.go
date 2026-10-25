@@ -47,6 +47,9 @@ var allowed = map[string]map[string]check{
 	},
 	"but": {
 		"status": nil,
+		// Both set the value when given one, so only --json is allowed.
+		"config target":      exactly("--json"),
+		"config push-remote": exactly("--json"),
 	},
 }
 

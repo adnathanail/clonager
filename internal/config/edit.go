@@ -158,17 +158,17 @@ func (c *Config) SetNoSSH(path string) error {
 	return c.reparse()
 }
 
-// SetGitButler sets gitbutler: true on the repo at path, after its url and
-// remotes. A repo given as just its URL becomes a mapping to hold it. The
-// file isn't written until Save.
-func (c *Config) SetGitButler(path string) error {
+// SetGitButler sets gitbutler on the repo at path, after its url and
+// remotes: true, or a mapping of the target branch and push remote where
+// either is set (see Repo.GitButlerTarget). A repo given as just its URL
+// becomes a mapping to hold it. The file isn't written until Save.
+func (c *Config) SetGitButler(path, target, push string) error {
 	parent, i := c.findRepo(path)
 	if parent == nil {
 		return fmt.Errorf("%s isn't in the config", TildePath(path))
 	}
 	n := asMapping(parent, i)
-	val := str("true")
-	val.Tag = "!!bool"
+	val := gitButlerNode(target, push)
 	if old := mappingGet(n, "gitbutler"); old != nil {
 		*old = *val
 		return c.reparse()
@@ -390,7 +390,7 @@ func repoNode(r Repo) *yaml.Node {
 		n.Content = append(n.Content, str("remotes"), remotes)
 	}
 	if r.GitButler {
-		n.Content = append(n.Content, str("gitbutler"), &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"})
+		n.Content = append(n.Content, str("gitbutler"), gitButlerNode(r.GitButlerTarget, r.GitButlerPush))
 	}
 	if r.NotMine {
 		n.Content = append(n.Content, str("mine"), &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "false"})
@@ -401,6 +401,22 @@ func repoNode(r Repo) *yaml.Node {
 			tags.Content = append(tags.Content, str(t))
 		}
 		n.Content = append(n.Content, str("tags"), tags)
+	}
+	return n
+}
+
+// gitButlerNode is the value of gitbutler: true, or a mapping of whichever
+// of target and push are set.
+func gitButlerNode(target, push string) *yaml.Node {
+	if target == "" && push == "" {
+		return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"}
+	}
+	n := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	if target != "" {
+		n.Content = append(n.Content, str("target"), str(target))
+	}
+	if push != "" {
+		n.Content = append(n.Content, str("push"), str(push))
 	}
 	return n
 }

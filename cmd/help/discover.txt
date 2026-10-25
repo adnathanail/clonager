@@ -1,7 +1,8 @@
 Find git repos under each `<dir>` that aren't in the config, and add them.
 
 Each repo is added with `origin` as its `url`, any other remotes, and
-`gitbutler: true` if it's in a GitButler workspace. Repos without an
+`gitbutler: true` if it's in a GitButler workspace, or its target branch and
+push remote where they differ from what `but setup` picks. Repos without an
 `origin` are skipped, as there'd be nothing to clone them from.
 
 A repo goes under the most specific top-level key that contains it. If none

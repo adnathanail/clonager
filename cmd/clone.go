@@ -162,6 +162,15 @@ func repoCloneLines(s *repostatus.Status, isEmpty func(string) bool, n *cloneCou
 	if s.Repo.GitButler && (fresh || s.GitButler.Mode != repostatus.GitButlerActive) {
 		lines = append(lines, comment("but -C "+path+" setup  # switches to GitButler's workspace branch"))
 		n.review++
+		// After the remotes, so a target on one of them exists by now.
+		switch r := s.Repo; {
+		case r.GitButlerTarget != "" && r.GitButlerPush != "":
+			lines = append(lines, comment("but -C "+path+" config target "+shellQuote(r.GitButlerTarget)+" --push-remote "+shellQuote(r.GitButlerPush)))
+		case r.GitButlerTarget != "":
+			lines = append(lines, comment("but -C "+path+" config target "+shellQuote(r.GitButlerTarget)))
+		case r.GitButlerPush != "":
+			lines = append(lines, comment("but -C "+path+" config push-remote "+shellQuote(r.GitButlerPush)))
+		}
 	}
 	return lines
 }

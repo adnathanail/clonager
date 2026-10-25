@@ -24,6 +24,8 @@ func TestCheck(t *testing.T) {
 		{"gh", "api", "--paginate", "repos/o/r/branches", "--jq", ".[].name"},
 		{"gh", "api", "-X", "GET", "repos/o/r"},
 		{"but", "status", "--json"},
+		{"but", "config", "target", "--json"},
+		{"but", "config", "push-remote", "--json"},
 	}
 	for _, c := range ok {
 		if err := Check(c[0], c[1:]); err != nil {
@@ -60,6 +62,10 @@ func TestCheck(t *testing.T) {
 		{"gh", "api", "repos/o/r", "--input", "body.json"},
 		{"but", "commit", "-m", "x"},
 		{"but", "push"},
+		{"but", "config", "target", "upstream/main"},
+		{"but", "config", "target", "--json", "upstream/main"},
+		{"but", "config", "push-remote", "origin"},
+		{"but", "config", "user", "set", "name", "x"},
 	}
 	for _, c := range refused {
 		if err := Check(c[0], c[1:]); !errors.Is(err, ErrNotAllowed) {

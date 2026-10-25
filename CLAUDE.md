@@ -106,7 +106,9 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   (case-insensitive) among siblings; new top-level keys are appended.
 - **Config format:** top-level keys are absolute or `~` paths; a string value is
   a repo URL; a mapping with `url` is a repo with options (`remotes`,
-  `gitbutler`, `tags`, `mine`, `branches`, `ssh`); any other mapping is a folder. Those option
+  `gitbutler`, `tags`, `mine`, `branches`, `ssh`); any other mapping is a folder.
+  `gitbutler` is `true`, or a mapping of `target`/`push` (which implies
+  `true`). Those option
   names are reserved and can't be folder names. Child keys can't contain `/`.
   Folders can set `mine` (listed in `folderKeys`) for the repos inside them;
   it's read before the folder's children, whatever the key order. In Go it's
@@ -147,6 +149,16 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - **`config tidy` only ever adds `gitbutler: true`**, for repos in a
   GitButler workspace. A repo marked but not in one is a request to set it up
   (`clone` prints `but setup`), so it's never removed.
+- **GitButler's target branch and push remote are only recorded where they
+  differ from `but setup`'s** (`origin/HEAD`'s branch, and `origin`), as
+  `gitbutler: {target, push}` (`Repo.GitButlerTarget`/`GitButlerPush`).
+  They're read with `but config target --json` and
+  `but config push-remote --json` (`discover.GitButlerSettings`), not from
+  the `gitbutler.project.*` git config keys GitButler stores them in, as
+  that storage has moved before.
+  `discover` and `tidy` fill them in; `tidy` never overwrites ones already
+  in the config. Status doesn't check them (`needsTidy` only counts
+  unmarked repos), as that would mean two `but` calls per GitButler repo.
 - **Status shows what `config tidy` would do, offline** (`needsTidy`): it
   never runs `ls-remote`, so URLs are only candidates, and airlifted
   branches are checked against the statuses it already has.

@@ -310,14 +310,22 @@ func TestSetGitButler(t *testing.T) {
   off:
     url: https://github.com/me/off
     gitbutler: false
+  retargeted:
+    url: https://github.com/me/retargeted
+    remotes:
+      upstream: https://github.com/acmeltd/retargeted
+    gitbutler: true
 `))
 	if err != nil {
 		t.Fatal(err)
 	}
 	x := filepath.Join(home, "x")
-	for _, name := range []string{"plain", "forked", "airlifted", "off"} {
-		if err := cfg.SetGitButler(filepath.Join(x, name)); err != nil {
-			t.Fatalf("SetGitButler(%s): %v", name, err)
+	for _, c := range []struct{ name, target, push string }{
+		{"plain", "", ""}, {"forked", "upstream/main", ""}, {"airlifted", "", ""}, {"off", "", ""},
+		{"retargeted", "upstream/trunk", "origin"},
+	} {
+		if err := cfg.SetGitButler(filepath.Join(x, c.name), c.target, c.push); err != nil {
+			t.Fatalf("SetGitButler(%s): %v", c.name, err)
 		}
 	}
 
@@ -333,7 +341,8 @@ func TestSetGitButler(t *testing.T) {
     url: https://github.com/me/forked
     remotes:
       upstream: https://github.com/acmeltd/forked
-    gitbutler: true
+    gitbutler:
+      target: upstream/main
     tags: [work]
   airlifted:
     url: https://github.com/me/airlifted
@@ -342,6 +351,13 @@ func TestSetGitButler(t *testing.T) {
   off:
     url: https://github.com/me/off
     gitbutler: true
+  retargeted:
+    url: https://github.com/me/retargeted
+    remotes:
+      upstream: https://github.com/acmeltd/retargeted
+    gitbutler:
+      target: upstream/trunk
+      push: origin
 `
 	if string(got) != want {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
@@ -350,6 +366,9 @@ func TestSetGitButler(t *testing.T) {
 		if !r.GitButler {
 			t.Errorf("%s: GitButler not set after reparse", r.Path)
 		}
+	}
+	if err := cfg.SetGitButler(filepath.Join(x, "plain"), "", "fork"); err == nil {
+		t.Error("SetGitButler with an unknown push remote: no error")
 	}
 }
 

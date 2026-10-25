@@ -57,8 +57,13 @@ type Repo struct {
 	URL       string // clone URL for origin
 	Remotes   []Remote
 	GitButler bool
-	Tags      []string
-	Branches  []Branch // recorded by airlift, until tidy finds them here
+	// GitButlerTarget and GitButlerPush (gitbutler: {target, push}) are the
+	// repo's GitButler target branch and push remote, set only where they
+	// differ from what `but setup` picks: origin's default branch, and origin.
+	GitButlerTarget string // e.g. upstream/main
+	GitButlerPush   string // e.g. me
+	Tags            []string
+	Branches        []Branch // recorded by airlift, until tidy finds them here
 	// NotMine is set (by mine: false, on the repo or a folder above it) for
 	// repos whose remote isn't the user's to change, so clonager never
 	// suggests deleting branches there or changing its settings.
@@ -218,7 +223,7 @@ func (p *parser) repo(path string, n *yaml.Node, in inherited) {
 		case "url":
 			err = val.Decode(&r.URL)
 		case "gitbutler":
-			err = val.Decode(&r.GitButler)
+			err = decodeGitButler(val, &r)
 		case "tags":
 			err = val.Decode(&r.Tags)
 		case "remotes":
@@ -244,6 +249,12 @@ func (p *parser) repo(path string, n *yaml.Node, in inherited) {
 	if r.URL == "" {
 		p.errorf(n, "%s: missing url", TildePath(path))
 	}
+	if t := r.GitButlerTarget; t != "" && !r.HasRemote(remoteOf(t)) {
+		p.errorf(n, "%s: gitbutler: target %s isn't on one of the repo's remotes", TildePath(path), t)
+	}
+	if push := r.GitButlerPush; push != "" && !r.HasRemote(push) {
+		p.errorf(n, "%s: gitbutler: push %s isn't one of the repo's remotes", TildePath(path), push)
+	}
 	for _, b := range r.Branches {
 		if !r.HasRemote(b.Remote()) {
 			p.errorf(n, "%s: branches: %s is from %s, which isn't one of the repo's remotes", TildePath(path), b.Name, b.From)
@@ -266,9 +277,40 @@ func (r Repo) HasRemote(name string) bool {
 }
 
 // Remote is the remote From is on, e.g. origin.
-func (b Branch) Remote() string {
-	remote, _, _ := strings.Cut(b.From, "/")
+func (b Branch) Remote() string { return remoteOf(b.From) }
+
+// remoteOf is the remote a remote-tracking ref like origin/main is on.
+func remoteOf(ref string) string {
+	remote, _, _ := strings.Cut(ref, "/")
 	return remote
+}
+
+// decodeGitButler reads gitbutler: true or false, or a mapping of the
+// target branch and push remote, which implies true.
+func decodeGitButler(n *yaml.Node, r *Repo) error {
+	if n.Kind != yaml.MappingNode {
+		return n.Decode(&r.GitButler)
+	}
+	r.GitButler = true
+	for i := 0; i < len(n.Content); i += 2 {
+		key, val := n.Content[i], n.Content[i+1]
+		var err error
+		switch key.Value {
+		case "target":
+			err = val.Decode(&r.GitButlerTarget)
+			if remote, branch, _ := strings.Cut(r.GitButlerTarget, "/"); err == nil && (remote == "" || branch == "") {
+				err = fmt.Errorf("expected remote/branch, e.g. upstream/main, not %q", r.GitButlerTarget)
+			}
+		case "push":
+			err = val.Decode(&r.GitButlerPush)
+		default:
+			return fmt.Errorf("unknown option %q (expected target or push)", key.Value)
+		}
+		if err != nil {
+			return fmt.Errorf("%s: %w", key.Value, err)
+		}
+	}
+	return nil
 }
 
 // decodeBranches reads a list of branches: each a name, for the same-named

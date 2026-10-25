@@ -30,7 +30,16 @@ It's a YAML tree that mirrors your folders:
   - `remotes` — other remotes by name (`origin` comes from `url`)
   - `gitbutler: true` — the repo should be in a GitButler workspace. Set by
     [`discover`](./commands.md#clonager-config-discover-dir) and
-    [`tidy`](./commands.md#clonager-config-tidy) for repos that are in one
+    [`tidy`](./commands.md#clonager-config-tidy) for repos that are in one.
+    Where the workspace's target branch or push remote differ from what
+    `but setup` picks (origin's default branch, and `origin`), they're
+    recorded in a mapping instead, which also means `true`:
+    ```yaml
+    gitbutler:
+      target: upstream/main # remote/branch, on one of the repo's remotes
+      push: origin          # the remote GitButler pushes branches to
+    ```
+    Either can be left out.
   - `tags` — labels for filtering, e.g. `clonager -t work`
   - `mine: false` — the remote isn't yours to change, so clonager won't
     suggest deleting branches there or changing its settings (see [`prune`](./commands.md#clonager-prune))
