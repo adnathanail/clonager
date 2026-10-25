@@ -11,6 +11,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 
+	"github.com/adnathanail/clonager/internal/cli"
 	"github.com/adnathanail/clonager/internal/config"
 	"github.com/adnathanail/clonager/internal/discover"
 	"github.com/adnathanail/clonager/internal/repostatus"
@@ -52,6 +53,13 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Without but, workspaces are still added as gitbutler: true (that only
+	// needs git), but their target and push remote can't be read. That's one
+	// note rather than a warning for each repo, as installing but is the
+	// only fix.
+	butInstalled := cli.Installed("but")
+	butMissing := false
+
 	type row struct{ path, detail, notes string }
 	var added, skipped []row
 	known := 0
@@ -70,7 +78,11 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 			if err == nil && repo.GitButler {
 				// Without them the repo is still added, as gitbutler: true, and
 				// config tidy fills them in later.
-				repo.GitButlerTarget, repo.GitButlerPush, gbErr = repostatus.GitButlerSettings(path)
+				if butInstalled {
+					repo.GitButlerTarget, repo.GitButlerPush, gbErr = repostatus.GitButlerSettings(path)
+				} else {
+					butMissing = true
+				}
 			}
 			if err == nil {
 				err = cfg.Add(repo, dir)
@@ -117,6 +129,9 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 	printRows(verb+config.TildePath(cfg.Path), styleOK.Render("+"), added)
 	printRows("Skipped", styleWarn.Render("!"), skipped)
 	lipgloss.Println(styleDim.Render(fmt.Sprintf("%d new · %d already configured · %d skipped", len(added), known, len(skipped))))
+	if butMissing {
+		lipgloss.Println(styleDim.Render("GitButler's CLI (but) isn't on your PATH, so target branches and push remotes weren't read, for clonager config tidy to fill in."))
+	}
 
 	if discoverFlags.dryRun || len(added) == 0 {
 		return nil

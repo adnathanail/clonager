@@ -169,11 +169,12 @@ func printTidy(cfg, pending *config.Config, statuses []*repostatus.Status) bool 
 	}
 	line(n.urls, "HTTPS URL", "HTTPS URLs", " to try switching to SSH")
 	line(n.clones, "clone remote", "clone remotes", " to switch to SSH, as in the config")
-	line(n.gitbutler, "repo", "repos", " in a GitButler workspace, to set gitbutler for")
+	line(n.gitbutler, "repo", "repos", " in a GitButler workspace, to mark gitbutler: true")
+	line(n.gbSettings, "GitButler workspace", "GitButler workspaces", " with a target branch or push remote to record in the config")
 	line(n.gbDrift, "GitButler workspace", "GitButler workspaces", " with a target branch or push remote other than the config's "+styleDim.Render("(see clonager clone)"))
 	line(n.landed, "airlifted branch", "airlifted branches", " now here, to remove from the config")
 	line(n.waiting, "airlifted branch", "airlifted branches", " to create here "+styleDim.Render("(see clonager clone)"))
-	if n.urls+n.clones+n.gitbutler+n.landed > 0 {
+	if n.urls+n.clones+n.gitbutler+n.gbSettings+n.landed > 0 {
 		hint := "Run clonager config tidy."
 		if n.landed > 0 {
 			hint += " If this is the laptop the branches were airlifted from, delete its clones first."

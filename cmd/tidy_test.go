@@ -165,7 +165,7 @@ func TestNeedsTidy(t *testing.T) {
 			GitButler: repostatus.GitButler{Mode: repostatus.GitButlerActive, Settings: true, SetupTarget: "origin/main"}}, // targets origin/main
 	}
 	got := needsTidy(repos, statuses)
-	if want := (tidyNeeds{urls: 2, clones: 1, gitbutler: 2, gbDrift: 1, landed: 1, waiting: 2}); got != want {
+	if want := (tidyNeeds{urls: 2, clones: 1, gitbutler: 1, gbSettings: 1, gbDrift: 1, landed: 1, waiting: 2}); got != want {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
 	if needsTidy(repos[1:3], nil).any() {
