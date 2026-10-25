@@ -3,6 +3,7 @@ package cmd
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -142,22 +143,50 @@ func forgeWarningLine(warning string) string {
 // (no connection, gh not logged in) out of the statuses and into one
 // warning, which it returns ("" if there were none).
 func foldForgeErrors(statuses []*repostatus.Status) string {
-	var reason string
-	n := 0
+	var u unreachable
 	for _, s := range statuses {
-		if s.ForgeErr == nil {
-			continue
-		}
-		if r := forgeUnreachable(s.ForgeErr); r != "" {
-			reason = r
-			n++
+		if s.ForgeErr != nil && u.add(s.ForgeErr) {
 			s.ForgeErr = nil
 		}
 	}
-	if n == 0 {
+	return u.String()
+}
+
+// unreachable counts repos GitHub couldn't be asked about at all, by why
+// (see forgeUnreachable).
+type unreachable map[string]int
+
+// add counts err if it's one of those, and reports whether it was.
+func (u *unreachable) add(err error) bool {
+	why := forgeUnreachable(err)
+	if why == "" {
+		return false
+	}
+	if *u == nil {
+		*u = unreachable{}
+	}
+	(*u)[why]++
+	return true
+}
+
+// String is the warning for them, counting each reason if there's more than
+// one, most common first ("" if there are none).
+func (u unreachable) String() string {
+	if len(u) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("Couldn't check GitHub for %s: %s.", plural(n, "repo", "repos"), reason)
+	reasons := slices.Collect(maps.Keys(u))
+	slices.SortFunc(reasons, func(a, b string) int {
+		return cmp.Or(cmp.Compare(u[b], u[a]), cmp.Compare(a, b))
+	})
+	total := 0
+	for i, why := range reasons {
+		total += u[why]
+		if len(reasons) > 1 {
+			reasons[i] = fmt.Sprintf("%d %s", u[why], why)
+		}
+	}
+	return fmt.Sprintf("Couldn't check GitHub for %s: %s.", plural(total, "repo", "repos"), strings.Join(reasons, ", "))
 }
 
 // forgeUnreachable says why GitHub couldn't be asked at all, if that's what
