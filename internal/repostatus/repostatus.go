@@ -64,10 +64,11 @@ type GitButler struct {
 	// Options.GitButlerSettings, which sets Settings once they've been read.
 	Target, Push string
 	Settings     bool
-	// SetupTarget is the target `but setup` picks, which an empty Target
-	// means (SetupTarget). It isn't always DefaultBranch, which
-	// falls back to guesses where origin/HEAD isn't set; `but setup`
-	// doesn't. Set along with Target.
+	// SetupTarget is the target branch `but setup` would pick: origin's HEAD
+	// (e.g. origin/main), or "" where origin/HEAD isn't set. An empty Target
+	// means the workspace uses this one. It can differ from DefaultBranch,
+	// which falls back to guesses where origin/HEAD isn't set. Set along
+	// with Target.
 	SetupTarget string
 	Err         error // `but status` failed; the rest is unknown
 }
