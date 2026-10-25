@@ -64,7 +64,12 @@ type GitButler struct {
 	// which sets Settings once they've been read.
 	Target, Push string
 	Settings     bool
-	Err          error // `but status` failed; the rest is unknown
+	// SetupTarget is the target `but setup` picks, which an empty Target
+	// means (discover.SetupTarget). It isn't always DefaultBranch, which
+	// falls back to guesses where origin/HEAD isn't set; `but setup`
+	// doesn't. Set along with Target.
+	SetupTarget string
+	Err         error // `but status` failed; the rest is unknown
 }
 
 type Status struct {

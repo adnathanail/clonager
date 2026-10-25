@@ -106,10 +106,19 @@ func Describe(path string) (config.Repo, error) {
 	return repo, nil
 }
 
+// SetupTarget is the target branch `but setup` picks for the repo at path:
+// origin's HEAD (refs/remotes/origin/HEAD, which a fresh clone has), e.g.
+// origin/main. It's "" where that isn't set, as a clone made some other way
+// may not have it. Where it's "", a target is always recorded, as a fresh
+// clone's origin/HEAD can't be known offline.
+func SetupTarget(path string) string {
+	ref, _ := git(path, "symbolic-ref", "--short", "-q", "refs/remotes/origin/HEAD")
+	return ref
+}
+
 // GitButlerSettings reads the target branch (e.g. upstream/main) and push
 // remote of the GitButler workspace at path. Each is "" where it's what `but
-// setup` picks: origin's default branch (refs/remotes/origin/HEAD, which a
-// fresh clone has), and origin.
+// setup` picks: SetupTarget, and origin.
 func GitButlerSettings(path string) (target, push string, err error) {
 	var t struct {
 		Branch string `json:"branch"`
@@ -123,7 +132,7 @@ func GitButlerSettings(path string) (target, push string, err error) {
 	if err := butJSON(path, &p, "config", "push-remote", "--json"); err != nil {
 		return "", "", err
 	}
-	if def, _ := git(path, "symbolic-ref", "--short", "-q", "refs/remotes/origin/HEAD"); t.Branch != def {
+	if t.Branch != SetupTarget(path) {
 		target = t.Branch
 	}
 	if p.PushRemote != "origin" {

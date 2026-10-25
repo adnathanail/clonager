@@ -161,8 +161,8 @@ func TestNeedsTidy(t *testing.T) {
 		"/w/gb-marked": {Repo: config.Repo{Path: "/w/gb-marked"}, GitButler: repostatus.GitButler{Mode: repostatus.GitButlerActive}},
 		"/w/gb-fork": {Repo: config.Repo{Path: "/w/gb-fork"},
 			GitButler: repostatus.GitButler{Mode: repostatus.GitButlerActive, Target: "upstream/main"}},
-		"/w/gb-drift": {Repo: config.Repo{Path: "/w/gb-drift"}, DefaultBranch: "origin/main",
-			GitButler: repostatus.GitButler{Mode: repostatus.GitButlerActive, Settings: true}}, // targets origin/main
+		"/w/gb-drift": {Repo: config.Repo{Path: "/w/gb-drift"},
+			GitButler: repostatus.GitButler{Mode: repostatus.GitButlerActive, Settings: true, SetupTarget: "origin/main"}}, // targets origin/main
 	}
 	got := needsTidy(repos, statuses)
 	if want := (tidyNeeds{urls: 2, clones: 1, gitbutler: 2, gbDrift: 1, landed: 1, waiting: 2}); got != want {

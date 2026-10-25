@@ -47,6 +47,8 @@ func TestCloneOutput(t *testing.T) {
 	gbDrift.GitButlerTarget = "upstream/main"
 	gbUnread := gbDrift
 	gbUnread.Path = "/work/gb-unread"
+	gbNoHead := withGitButler(withRemotes(repo("gb-no-head")))
+	gbNoHead.GitButlerPush = "upstream"
 	active := func(r config.Repo, gb repostatus.GitButler) *repostatus.Status {
 		gb.Mode = repostatus.GitButlerActive
 		return &repostatus.Status{Repo: r, OriginURL: r.URL, DefaultBranch: "origin/main", GitButler: gb,
@@ -54,8 +56,11 @@ func TestCloneOutput(t *testing.T) {
 	}
 	statuses := []*repostatus.Status{
 		{Repo: gbFork, Missing: true},
-		active(gbDrift, repostatus.GitButler{Settings: true, Push: "upstream"}), // targets origin/main, pushes to upstream
-		active(gbUnread, repostatus.GitButler{}),                                // settings unknown, so nothing to say
+		active(gbDrift, repostatus.GitButler{Settings: true, Push: "upstream", SetupTarget: "origin/main"}), // targets origin/main, pushes to upstream
+		// No origin/HEAD, so the target `but setup` would pick isn't known
+		// and only the push remote can be compared.
+		active(gbNoHead, repostatus.GitButler{Settings: true, Target: "origin/develop", Push: "upstream"}),
+		active(gbUnread, repostatus.GitButler{}), // settings unknown, so nothing to say
 		{Repo: gbPush, Missing: true},
 		{Repo: config.Repo{Path: "/work/my repo", URL: "https://example.com/me/x.git"}, Missing: true},
 		{Repo: repo("empty"), Err: errors.New("not a git repo")},
@@ -134,7 +139,7 @@ func TestCloneOutput(t *testing.T) {
 			}
 		}
 	}
-	for _, repo := range []string{"/work/tidy", "/work/gb-done", "/work/gb-unread"} {
+	for _, repo := range []string{"/work/tidy", "/work/gb-done", "/work/gb-unread", "/work/gb-no-head"} {
 		if b, ok := blocks[repo]; ok {
 			t.Errorf("%s: should have nothing to do, got:\n%s", repo, b)
 		}

@@ -202,7 +202,9 @@ func (d gitButlerDrift) any() bool { return d.target != "" || d.push != "" }
 // see Status.ReadGitButlerSettings) with r's config entry. It's only for
 // entries with a target or push: for the rest, config tidy records the
 // workspace's. Either left out, in the config or the workspace, means what
-// `but setup` picks: origin's default branch, and origin.
+// `but setup` picks: origin's HEAD (GitButler.SetupTarget), and origin.
+// Where origin's HEAD isn't set, a config entry with no target can't be
+// compared, so only the push remote is.
 func gitButlerDriftOf(r config.Repo, s *repostatus.Status) gitButlerDrift {
 	var d gitButlerDrift
 	gb := s.GitButler
@@ -215,7 +217,7 @@ func gitButlerDriftOf(r config.Repo, s *repostatus.Status) gitButlerDrift {
 		}
 		return v
 	}
-	if want, got := or(r.GitButlerTarget, s.DefaultBranch), or(gb.Target, s.DefaultBranch); want != got && want != "" {
+	if want, got := or(r.GitButlerTarget, gb.SetupTarget), or(gb.Target, gb.SetupTarget); want != got && want != "" && got != "" {
 		d.target, d.gotTarget = want, got
 	}
 	if want, got := or(r.GitButlerPush, "origin"), or(gb.Push, "origin"); want != got {
