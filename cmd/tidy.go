@@ -252,6 +252,19 @@ func gitButlerChanges(repos []config.Repo, inWorkspace func(path string) bool,
 	return out, unread
 }
 
+// unknownRemotes lists the remotes the change's target and push remote are
+// on that the repo's config entry doesn't have, which it would need to
+// record them.
+func (c gitButlerChange) unknownRemotes() []string {
+	var out []string
+	for _, name := range []string{c.push, strings.SplitN(c.target, "/", 2)[0]} {
+		if name != "" && !c.repo.HasRemote(name) && !slices.Contains(out, name) {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
 // describe is how the change shows in tidy's output.
 func (c gitButlerChange) describe() string {
 	var parts []string
@@ -326,7 +339,7 @@ func runTidy(cmd *cobra.Command, args []string) error {
 		heading string
 		rows    []row
 	}
-	var switched, marked, unchecked, gitbutler, gbFailed, landed, waiting, failed section
+	var switched, marked, unchecked, gitbutler, gbFailed, gbUnrecorded, landed, waiting, failed section
 	code := exitOK
 	changed := false
 	for _, c := range changes {
@@ -368,6 +381,17 @@ func runTidy(cmd *cobra.Command, args []string) error {
 				continue
 			}
 		}
+		if missing := c.unknownRemotes(); len(missing) > 0 {
+			// The config can only record them once it has the remotes, but
+			// the repo can still be marked.
+			gbUnrecorded.rows = append(gbUnrecorded.rows, row{c.repo.Path, styleWarn.Render("●"),
+				c.describe() + "  " + styleDim.Render("(add "+strings.Join(missing, ", ")+" to its remotes)")})
+			code = max(code, exitAttention)
+			if c.repo.GitButler {
+				continue
+			}
+			c.target, c.push = "", ""
+		}
 		if err := cfg.SetGitButler(c.repo.Path, c.target, c.push); err != nil {
 			gbFailed.rows = append(gbFailed.rows, row{c.repo.Path, styleError.Render("✗"), styleDim.Render(err.Error())})
 			code = max(code, exitErrors)
@@ -407,6 +431,7 @@ func runTidy(cmd *cobra.Command, args []string) error {
 	unchecked.heading = "Couldn't check over SSH:"
 	gitbutler.heading = "Set gitbutler, as they're in a GitButler workspace:"
 	gbFailed.heading = "Couldn't read GitButler's target branch and push remote:"
+	gbUnrecorded.heading = "GitButler target branches and push remotes on remotes the config doesn't have:"
 	landed.heading = "Removed from the config, as they exist here:"
 	waiting.heading = "Airlifted branches not created here yet (clonager clone prints the commands):"
 	failed.heading = "Couldn't check airlifted branches:"
@@ -417,7 +442,7 @@ func runTidy(cmd *cobra.Command, args []string) error {
 		landed.heading = "Would remove from the config, as they exist here:"
 	}
 
-	sections := []section{switched, marked, unchecked, gitbutler, gbFailed, landed, waiting, failed}
+	sections := []section{switched, marked, unchecked, gitbutler, gbFailed, gbUnrecorded, landed, waiting, failed}
 	pathW := 0
 	for _, s := range sections {
 		for _, r := range s.rows {
