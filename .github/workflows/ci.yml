@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
-  # Started by dependabot-vendor-hash.yml and update-flake-lock.yml, whose
-  # pushes don't trigger pull_request.
+  # Started by dependabot-vendor-hash.yml, update-flake-lock.yml and
+  # update-gitbutler.yml, whose pushes don't trigger pull_request.
   workflow_dispatch:
 
 permissions:
