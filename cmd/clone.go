@@ -17,23 +17,9 @@ var cloneCmd = &cobra.Command{
 	Use:     "clone",
 	Aliases: []string{"c"},
 	Short:   "Print git commands to clone repos, add remotes and create branches from the config",
-	Long: `Print the git commands to set up the repos in the config: git clone for
-repos that aren't cloned yet, git remote add -f for remotes that are missing
-(on new clones and existing ones), and git branch for branches recorded by
-clonager config airlift that don't exist yet. Nothing is run: review the
-output and run the commands yourself (or pipe them to sh).
-
-Commented out, to check first:
-  - git remote set-url for remotes whose URL differs from the config, as the
-    config may be the one that's out of date
-  - but setup for repos marked gitbutler: true that aren't in a GitButler
-    workspace, as it switches the repo to GitButler's workspace branch
-
-Paths that exist but aren't a git repo (other than empty folders, which git
-can clone into) are listed with the reason, and clone only says "Nothing to
-clone" once there's nothing left to do and every check succeeded.`,
-	Args: cobra.NoArgs,
-	RunE: runClone,
+	Long:    helpText("clone"),
+	Args:    cobra.NoArgs,
+	RunE:    runClone,
 }
 
 func init() {

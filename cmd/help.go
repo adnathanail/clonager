@@ -1,11 +1,35 @@
 package cmd
 
 import (
+	"embed"
 	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
 )
+
+// helpFiles are the commands' long help, in help/<command>.txt (status.txt
+// is the root command's, for a bare clonager). Code is marked with
+// backticks, as in Markdown.
+//
+//go:embed help/*.txt
+var helpFiles embed.FS
+
+// codeSpan matches text in backticks, on one line.
+var codeSpan = regexp.MustCompile("`([^`\n]+)`")
+
+// helpText returns help/<name>.txt with its code spans styled dim and the
+// backticks removed.
+func helpText(name string) string {
+	b, err := helpFiles.ReadFile("help/" + name + ".txt")
+	if err != nil {
+		panic(err) // a missing file is a bug, which any test of the cmd package catches
+	}
+	text := strings.TrimRight(string(b), "\n")
+	return codeSpan.ReplaceAllStringFunc(text, func(span string) string {
+		return styleDim.Render(span[1 : len(span)-1])
+	})
+}
 
 // usageTemplate is Cobra's default usage template (without command groups,
 // which clonager doesn't use), with headings, commands and flags styled.

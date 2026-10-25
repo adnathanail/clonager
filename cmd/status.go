@@ -26,30 +26,6 @@ var statusFlags struct {
 	tags    []string
 }
 
-// statusHelp describes what clonager shows when run without a command.
-const statusHelp = `Run without a command, clonager shows the configured repos that need
-attention: uncommitted changes, stashes, branches that aren't on a remote,
-branches with unpushed commits, and GitButler workspace state. --all also
-shows the ones that are fine.
-
-Branches already merged into the default branch (as a merge, fast-forward,
-rebase or squash) are listed separately and don't need attention, as are
-origin's merged branches.
-
-Repos in the discoverPaths (see clonager config discover) that aren't in the config
-are listed at the end, including ones with no origin, followed by what
-clonager config tidy has to do, as far as can be told offline: HTTPS URLs to
-try switching to SSH, and airlifted branches. Neither with --tag.
-
-With --forge, GitHub is also asked (via gh):
-  - about merged PRs, which catches merges git alone can't see
-  - which of origin's branches still exist, to spot stale remote refs
-  - whether the repo deletes merged branches automatically
-
-Remote state is as of each repo's last fetch; clonager never fetches. The
-column before each repo shows how long ago that was (e.g. 23m, 7h, 5d),
-in yellow if over a month.`
-
 func init() {
 	// Local, not persistent: they don't apply to discover or prune. Taking -v
 	// leaves the version as just --version.

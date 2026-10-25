@@ -27,23 +27,8 @@ var discoverFlags struct {
 var discoverCmd = &cobra.Command{
 	Use:   "discover [<dir>...]",
 	Short: "Find repos that aren't in the config and add them",
-	Long: `Find git repos under each <dir> that aren't in the config, and add them.
-
-Each repo is added with origin as its url, any other remotes, and
-gitbutler: true if it's in a GitButler workspace. Repos without an origin are
-skipped, as there'd be nothing to clone them from.
-
-A repo goes under the most specific top-level key that contains it. If none
-does, <dir> becomes a new top-level key. <dir> can also be a repo itself,
-e.g. clonager config discover ~/.config/nix-darwin.
-
-With no <dir>, discover looks in the discoverPaths listed in
-~/.config/clonager/settings.json (which the Home Manager module writes from
-programs.clonager.discoverPaths), skipping any that don't exist.
-
-Repos are added with the URLs their remotes have; clonager config tidy
-switches them to SSH.`,
-	RunE: runDiscover,
+	Long:  helpText("discover"),
+	RunE:  runDiscover,
 }
 
 func init() {

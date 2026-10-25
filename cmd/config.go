@@ -12,13 +12,8 @@ import (
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Commands that change the config: discover, airlift and tidy",
-	Long: `Commands that change the config: the one file clonager ever changes.
-
-If the config is installed by the Home Manager module with configSource set,
-they edit that source (e.g. a file in your nix-darwin repo, or one kept
-encrypted there, through its decrypt and encrypt commands) instead of the
-read-only installed copy. Review the diff there, then rebuild to apply it.`,
-	Args: cobra.NoArgs,
+	Long:  helpText("config"),
+	Args:  cobra.NoArgs,
 }
 
 func init() {

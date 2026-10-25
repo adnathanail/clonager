@@ -1,0 +1,27 @@
+Print the git commands to delete local branches that are already merged
+into their repo's default branch. Nothing is deleted: review the output and
+run the commands yourself (or pipe them to `sh`).
+
+Commands use `git branch -D`, since rebase- and squash-merged branches
+aren't in the default branch's history and `git branch -d` would refuse
+them.
+
+Branches whose merged PR doesn't contain the local tip (found with
+`--forge`) are printed commented out, as they may hold work that never made
+it in. The checked-out branch and branches applied in a GitButler workspace
+are skipped.
+
+With `--forge`, it also prints:
+  - `git remote prune` for refs to branches already deleted on GitHub
+  - `git push origin --delete` for merged branches still on GitHub,
+    commented out as it changes the repo for everyone (never for protected
+    branches)
+  - `gh repo edit --delete-branch-on-merge`, commented out, for repos you
+    admin that don't delete merged branches automatically
+
+The last two are only for repos that are yours: ones you can push to, and
+not marked `mine: false` in the config.
+
+Repos that couldn't be checked (not cloned, not a git repo, GitButler or
+GitHub errors) are listed with the reason, and prune only says "Nothing to
+prune" once there's nothing left to do and every check succeeded.

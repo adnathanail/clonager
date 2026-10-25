@@ -20,6 +20,6 @@ func banner() string {
 }
 
 func init() {
-	rootCmd.Long = banner() + "\n\n" + rootCmd.Short + "\n\n" + statusHelp
+	rootCmd.Long = banner() + "\n\n" + rootCmd.Short + "\n\n" + helpText("status")
 	rootCmd.SetVersionTemplate(banner() + "\n")
 }
