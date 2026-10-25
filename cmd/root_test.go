@@ -40,6 +40,23 @@ func TestHelpIsStyled(t *testing.T) {
 	}
 }
 
+func TestHelpTexts(t *testing.T) {
+	files, err := helpFiles.ReadDir("help")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		name := strings.TrimSuffix(f.Name(), ".txt")
+		text := helpText(name)
+		if strings.Contains(text, "`") {
+			t.Errorf("%s: unmatched backtick, or a code span across lines:\n%s", f.Name(), text)
+		}
+	}
+	if want := styleDim.Render("<dir>"); !strings.Contains(helpText("discover"), want) {
+		t.Errorf("discover help doesn't style <dir> as code")
+	}
+}
+
 func TestConfigHelp(t *testing.T) {
 	var out strings.Builder
 	configCmd.SetOut(&out)

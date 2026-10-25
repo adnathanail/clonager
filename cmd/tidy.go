@@ -24,29 +24,9 @@ var tidyFlags struct {
 var tidyCmd = &cobra.Command{
 	Use:   "tidy",
 	Short: "Switch the config's URLs to SSH, mark GitButler repos, and remove airlifted branches that exist here",
-	Long: `Tidy up the config:
-
-  - HTTPS URLs on GitHub, GitLab, Bitbucket and Codeberg are switched to SSH,
-    once git ls-remote shows the repo can be read over SSH. Repos where it
-    can't (e.g. not found, or permission denied) get ssh: false, so they
-    aren't tried again; remove it to retry. Network failures (no
-    connection, timeouts) are only reported. Last, it prints the git remote
-    set-url commands to switch existing clones whose remote still has the
-    old URL, for you to run.
-  - Repos in a GitButler workspace get gitbutler: true. It's never removed
-    from repos that aren't: clonager clone prints the but setup command for
-    those.
-  - Branches recorded by clonager config airlift that now exist on this
-    laptop are removed from the config (a repo with nothing else set goes
-    back to just its URL). The rest stay listed until they're created, which
-    clonager clone prints the commands for.
-
-Don't run it on the laptop branches were airlifted from until its clones are
-deleted: the branches still exist there, so it would remove them.
-
-It checks over the network, and never changes a clone itself.`,
-	Args: cobra.NoArgs,
-	RunE: runTidy,
+	Long:  helpText("tidy"),
+	Args:  cobra.NoArgs,
+	RunE:  runTidy,
 }
 
 func init() {

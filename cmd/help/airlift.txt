@@ -1,0 +1,18 @@
+Record each repo's local branches in the config, so `clonager clone` can
+recreate them on another laptop.
+
+Only a tidy laptop can be airlifted: first it checks `prune --forge` has
+nothing to do, and that status (with `--forge`) has nothing needing
+attention, so every branch is on a remote and nothing is left uncommitted or
+unpushed. If either finds something, it's shown and the config isn't changed.
+
+Each repo's `branches` list is replaced with its current local branches,
+other than the default branch, which clone checks out anyway. Repos with
+none have their list removed.
+
+On the other laptop, `clonager clone` prints a `git branch` command for each
+listed branch that doesn't exist there yet. Once they're created,
+`clonager config tidy` removes them from the config.
+
+Don't run `config tidy` here until the clones are deleted: the branches
+still exist here, so it would remove them from the config.
