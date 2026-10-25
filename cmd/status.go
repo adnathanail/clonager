@@ -4,14 +4,12 @@ import (
 	"cmp"
 	"fmt"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"charm.land/lipgloss/v2"
@@ -80,7 +78,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	case offline(cmd, statusFlags.offline, settings):
 	case !cli.Installed("gh"):
 		v.forgeWarning = "Couldn't check GitHub: gh isn't installed."
-	case liveTerminal():
+	case liveTerminal(os.Stdout):
 		return showLive(v)
 	default:
 		forgeAll(v.statuses, nil)
@@ -181,14 +179,6 @@ func forgeUnreachable(err error) string {
 	return ""
 }
 
-// liveTerminal reports whether stdout is a terminal that status can draw
-// a spinner in, and redraw.
-func liveTerminal() bool {
-	return term.IsTerminal(os.Stdout.Fd()) && os.Getenv("TERM") != "dumb"
-}
-
-var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-
 // showLive prints the view straight away, then checks GitHub with a spinner
 // below it, and redraws it with what GitHub says: in place if all of it is
 // still on screen, otherwise again below a separator. Ctrl-C stops waiting,
@@ -206,52 +196,28 @@ func showLive(v *statusView) error {
 	}
 	inPlace := width > 0 && rows+1 <= height // +1 for the spinner
 
-	// A resize can rewrap what's on screen, so the rows no longer add up.
-	resized := make(chan os.Signal, 1)
-	signal.Notify(resized, syscall.SIGWINCH)
-	interrupted := make(chan os.Signal, 1)
-	signal.Notify(interrupted, os.Interrupt)
-	defer signal.Stop(resized)
-	defer signal.Stop(interrupted)
-
 	var checked atomic.Int32
 	finished := make(chan struct{})
 	go func() {
 		forgeAll(v.statuses, &checked)
 		close(finished)
 	}()
-
-	lipgloss.Print(ansi.HideCursor)
-	defer lipgloss.Print(ansi.ShowCursor)
-	tick := time.NewTicker(80 * time.Millisecond)
-	defer tick.Stop()
-	clearLine := "\r" + ansi.EraseEntireLine
-	for frame, waiting := 0, true; waiting; frame++ {
-		spinner := styleDim.Render(fmt.Sprintf("%s Checking GitHub… %d/%d",
-			spinnerFrames[frame%len(spinnerFrames)], checked.Load(), len(v.statuses)))
-		if width > 0 {
-			spinner = ansi.Truncate(spinner, width-1, "")
-		}
-		lipgloss.Print(clearLine + spinner)
-		select {
-		case <-tick.C:
-		case <-resized:
-			inPlace = false
-		case <-interrupted:
-			lipgloss.Println(clearLine + forgeWarningLine("Couldn't check GitHub: interrupted."))
-			return codeFor(max(code, exitErrors))
-		case <-finished:
-			waiting = false
-		}
+	label := func() string { return fmt.Sprintf("Checking GitHub… %d/%d", checked.Load(), len(v.statuses)) }
+	interrupted, resized := spin(lipgloss.Writer, width, label, finished)
+	if interrupted {
+		lipgloss.Println(forgeWarningLine("Couldn't check GitHub: interrupted."))
+		return codeFor(max(code, exitErrors))
 	}
+	// A resize can rewrap what's on screen, so the rows no longer add up.
+	inPlace = inPlace && !resized
 
 	v.forgeWarning = foldForgeErrors(v.statuses)
 	out, code = v.render()
 	if inPlace {
-		lipgloss.Print(clearLine + ansi.CursorUp(rows) + ansi.EraseScreenBelow + out)
+		lipgloss.Print(ansi.CursorUp(rows) + ansi.EraseScreenBelow + out)
 	} else {
 		// The cleared spinner line leaves a blank line above the separator.
-		lipgloss.Print(clearLine + updateSeparator(width) + "\n\n" + out)
+		lipgloss.Print(updateSeparator(width) + "\n\n" + out)
 	}
 	return codeFor(code)
 }

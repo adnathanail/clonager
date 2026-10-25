@@ -135,7 +135,9 @@ clonager can't tell which branches are applied there. `prune` only prints
 `# Nothing to prune` once there's nothing left to do and every check
 succeeded.
 
-To run everything that isn't commented out: `clonager prune | sh`.
+To run everything that isn't commented out: `clonager prune | sh`. While it
+checks, a spinner shows on stderr (when that's a terminal), so it never gets
+into the script, and it's cleared before the script is printed.
 
 | Flag | |
 |---|---|
