@@ -72,7 +72,8 @@ results are shown straight away, with a spinner below them, and redrawn once
 GitHub answers. If they no longer all fit on screen (or the window was
 resized), the new results are printed again below instead, after an
 `=== Updated from GitHub ===` line. Ctrl-C stops
-waiting and leaves the local results. When output isn't a terminal, it waits
+waiting and leaves the local results, with a warning that GitHub wasn't
+checked (so it exits 3, as below). When output isn't a terminal, it waits
 and prints once.
 
 If GitHub can't be asked (no connection, `gh` not installed or not logged
