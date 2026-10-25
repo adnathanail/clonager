@@ -102,6 +102,15 @@ func TestFoldForgeErrors(t *testing.T) {
 	if got := foldForgeErrors([]*repostatus.Status{{ForgeErr: missing}}); got != "" {
 		t.Errorf("warning = %q, want none", got)
 	}
+
+	// Each reason is given, most common first, whatever the repo order.
+	loggedOut := errors.New("gh api: HTTP 401: Bad credentials (https://api.github.com/graphql)")
+	notInstalled := errors.New("gh is not installed")
+	mixed := []*repostatus.Status{{ForgeErr: loggedOut}, {ForgeErr: offline}, {ForgeErr: notInstalled}, {ForgeErr: offline}}
+	want := "Couldn't check GitHub for 4 repos: 2 no connection, 1 gh isn't installed, 1 gh isn't logged in (run gh auth login)."
+	if got := foldForgeErrors(mixed); got != want {
+		t.Errorf("warning = %q, want %q", got, want)
+	}
 }
 
 func TestForgeUnreachable(t *testing.T) {

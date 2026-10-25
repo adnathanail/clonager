@@ -102,10 +102,9 @@ type pruneCounts struct {
 	onGitHub  int // commented-out changes on GitHub
 	unchecked int // repos (or their GitHub side) that couldn't be checked
 
-	// Repos GitHub couldn't be asked about at all (see forgeUnreachable),
-	// noted once at the end rather than in each repo's lines, and why.
-	unreachable    int
-	unreachableWhy string
+	// Repos GitHub couldn't be asked about at all, noted once at the end
+	// rather than in each repo's lines.
+	unreachable unreachable
 }
 
 // exitCode is exitErrors if a check failed, exitAttention if there's anything
@@ -143,9 +142,8 @@ func pruneScript(statuses []*repostatus.Status) (string, pruneCounts) {
 	if !first {
 		w.WriteString("\n")
 	}
-	if n.unreachable > 0 {
-		w.WriteString(pruneComment(styleWarn.Render(fmt.Sprintf("Couldn't check GitHub for %s: %s.",
-			plural(n.unreachable, "repo", "repos"), n.unreachableWhy))) + "\n")
+	if warning := n.unreachable.String(); warning != "" {
+		w.WriteString(pruneComment(styleWarn.Render(warning)) + "\n")
 	}
 	var summary []string
 	if n.deletes > 0 {
@@ -260,10 +258,7 @@ func repoPruneLines(s *repostatus.Status, n *pruneCounts) []string {
 	// The local results still stand, but anything only GitHub could tell us
 	// is missing.
 	if s.ForgeErr != nil {
-		if why := forgeUnreachable(s.ForgeErr); why != "" {
-			n.unreachable++
-			n.unreachableWhy = why
-		} else {
+		if !n.unreachable.add(s.ForgeErr) {
 			lines = append(lines, comment(styleWarn.Render("couldn't check GitHub: "+s.ForgeErr.Error())))
 		}
 		n.unchecked++
