@@ -370,6 +370,13 @@ func TestSetGitButler(t *testing.T) {
 	if err := cfg.SetGitButler(filepath.Join(x, "plain"), "", "fork"); err == nil {
 		t.Error("SetGitButler with an unknown push remote: no error")
 	}
+	// The rejected edit is undone, so later edits and Save still work.
+	if got, _ := cfg.encode(); string(got) != want {
+		t.Errorf("after a rejected edit, got:\n%s\nwant:\n%s", got, want)
+	}
+	if err := cfg.SetNoSSH(filepath.Join(x, "plain")); err != nil {
+		t.Errorf("SetNoSSH after a rejected edit: %v", err)
+	}
 }
 
 func TestSetNoSSH(t *testing.T) {
