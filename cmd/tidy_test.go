@@ -250,3 +250,24 @@ func TestGitButlerChanges(t *testing.T) {
 		t.Errorf("without but, got (unread %v):\n%s\nwant (unread):\n%s", unread, strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 }
+
+func TestGitButlerUnknownRemotes(t *testing.T) {
+	repo := config.Repo{Path: "/w/r", Remotes: []config.Remote{{Name: "upstream", URL: "u"}}}
+	cases := []struct {
+		target, push string
+		want         []string
+	}{
+		{"", "", nil},
+		{"upstream/main", "origin", nil},
+		{"fork/main", "", []string{"fork"}},
+		{"", "fork", []string{"fork"}},
+		{"fork/main", "fork", []string{"fork"}},
+		{"fork/main", "me", []string{"me", "fork"}},
+	}
+	for _, c := range cases {
+		got := gitButlerChange{repo: repo, target: c.target, push: c.push}.unknownRemotes()
+		if !slices.Equal(got, c.want) {
+			t.Errorf("target %q push %q: got %q, want %q", c.target, c.push, got, c.want)
+		}
+	}
+}

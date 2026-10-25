@@ -261,6 +261,9 @@ Tidies up the config:
   already marked `true`. A `target` or `push` already in the config is
   left as it is. Reading them needs GitButler's CLI (`but`); without it,
   repos are still marked `true` and tidy notes that the rest was skipped.
+  They can only be recorded once the config has the remotes they're on:
+  until then, repos are still marked `true`, and tidy lists the remotes to
+  add under `remotes`.
   `gitbutler` is never removed from repos that aren't in a
   workspace: [`clone`](#clonager-clone) prints the `but setup` command for
   those instead.
