@@ -166,7 +166,7 @@ func isNetworkError(err error) bool {
 type tidyNeeds struct {
 	urls      int // HTTPS URLs that may switch to SSH
 	clones    int // clone remotes to switch to the SSH URLs in the config
-	gitbutler int // repos in a GitButler workspace without gitbutler: true
+	gitbutler int // repos in a GitButler workspace whose gitbutler tidy sets
 	landed    int // airlifted branches that exist here
 	waiting   int // airlifted branches that don't yet
 }
@@ -183,9 +183,11 @@ func needsTidy(repos []config.Repo, statuses map[string]*repostatus.Status) tidy
 		}
 		return ""
 	}))
-	n.gitbutler = len(gitButlerRepos(repos, func(path string) bool {
+	n.gitbutler = len(gitButlerChanges(repos, func(path string) bool {
 		s := statuses[path]
 		return s != nil && s.GitButler.Mode == repostatus.GitButlerActive
+	}, func(path string) (string, string, error) {
+		return statuses[path].GitButler.Target, statuses[path].GitButler.Push, nil
 	}))
 	var airlifted []*repostatus.Status
 	for _, r := range repos {
@@ -204,18 +206,6 @@ func needsTidy(repos []config.Repo, statuses map[string]*repostatus.Status) tidy
 		n.waiting += len(l.waiting)
 	}
 	return n
-}
-
-// gitButlerRepos lists the repos without gitbutler: true that are in a
-// GitButler workspace, by inWorkspace.
-func gitButlerRepos(repos []config.Repo, inWorkspace func(path string) bool) []config.Repo {
-	var out []config.Repo
-	for _, r := range repos {
-		if !r.GitButler && inWorkspace(r.Path) {
-			out = append(out, r)
-		}
-	}
-	return out
 }
 
 // gitButlerChange is what tidy sets gitbutler to for a repo in a GitButler

@@ -45,7 +45,8 @@ It reports:
   do, as far as can be told offline: HTTPS URLs to try switching to SSH
   (other than in repos marked `ssh: false`), clone remotes to switch to the
   SSH URLs in the config, repos in a GitButler workspace to mark
-  `gitbutler: true`, and airlifted branches, whether they're created
+  `gitbutler: true` (or, with `--forge`, whose target branch or push
+  remote to record), and airlifted branches, whether they're created
   here yet or not. Not shown with `--tag`.
 
 | Flag | |

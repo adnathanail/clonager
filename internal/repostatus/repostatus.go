@@ -58,7 +58,11 @@ type GitButler struct {
 	Mode       GitButlerMode
 	Branches   []GitButlerBranch // applied branches, across all stacks
 	Conflicted int               // commits GitButler marks as conflicted
-	Err        error             // `but status` failed; the rest is unknown
+	// Target and Push are the workspace's target branch and push remote,
+	// each "" where it's what `but setup` picks, or where it couldn't be read
+	// (see discover.GitButlerSettings). Only set by ReadGitButlerSettings.
+	Target, Push string
+	Err          error // `but status` failed; the rest is unknown
 }
 
 type Status struct {
