@@ -66,6 +66,10 @@ func TestParseErrors(t *testing.T) {
 		"duplicate":                  {"~/x:\n  a: u\n~/x/a: v\n", "is also listed on line"},
 		"nested repo":                {"~/x: u\n~/x/a: v\n", "is inside the repo"},
 		"not a mapping":              {"- a\n", "top level must be a mapping"},
+		"gitbutler option":           {"~/x:\n  a:\n    url: u\n    gitbutler: {base: x}\n", `unknown option "base"`},
+		"gitbutler target no branch": {"~/x:\n  a:\n    url: u\n    gitbutler: {target: main}\n", "expected remote/branch"},
+		"gitbutler unknown target":   {"~/x:\n  a:\n    url: u\n    gitbutler: {target: upstream/main}\n", "isn't on one of the repo's remotes"},
+		"gitbutler unknown push":     {"~/x:\n  a:\n    url: u\n    gitbutler: {push: fork}\n", "push fork isn't one of the repo's remotes"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -74,6 +78,36 @@ func TestParseErrors(t *testing.T) {
 				t.Errorf("got error %v, want one containing %q", err, c.want)
 			}
 		})
+	}
+}
+
+func TestGitButlerSettings(t *testing.T) {
+	cfg, err := Parse("test.yaml", []byte(`
+~/x:
+  plain:
+    url: git@github.com:me/plain.git
+    gitbutler: true
+  forked:
+    url: git@github.com:me/forked.git
+    remotes:
+      upstream: git@github.com:acmeltd/forked.git
+    gitbutler:
+      target: upstream/main
+      push: origin
+  pushed:
+    url: git@github.com:acmeltd/pushed.git
+    gitbutler: {push: me}
+    remotes:
+      me: git@github.com:me/pushed.git
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string][2]string{"plain": {}, "forked": {"upstream/main", "origin"}, "pushed": {"", "me"}}
+	for _, r := range cfg.Repos {
+		if !r.GitButler || [2]string{r.GitButlerTarget, r.GitButlerPush} != want[r.Name()] {
+			t.Errorf("%s: got %v, %q, %q; want true, %q", r.Name(), r.GitButler, r.GitButlerTarget, r.GitButlerPush, want[r.Name()])
+		}
 	}
 }
 

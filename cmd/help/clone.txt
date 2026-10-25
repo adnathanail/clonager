@@ -9,7 +9,8 @@ Commented out, to check first:
     the config may be the one that's out of date
   - `but setup` for repos marked `gitbutler: true` that aren't in a
     GitButler workspace, as it switches the repo to GitButler's workspace
-    branch
+    branch, then `but config target` for repos with a target branch or push
+    remote in the config
 
 Paths that exist but aren't a git repo (other than empty folders, which git
 can clone into) are listed with the reason, and clone only says "Nothing to

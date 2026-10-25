@@ -38,8 +38,14 @@ func TestCloneOutput(t *testing.T) {
 	airlifted.Branches = []config.Branch{{Name: "feat", From: "origin/feat"}, {Name: "it's", From: "upstream/its"}, {Name: "here", From: "origin/here"}}
 	newAirlifted := repo("new-airlifted")
 	newAirlifted.Branches = []config.Branch{{Name: "feat", From: "origin/feat"}}
+	gbFork := withGitButler(fork)
+	gbFork.GitButlerTarget = "upstream/main"
+	gbPush := withGitButler(repo("gb-push"))
+	gbPush.GitButlerPush = "upstream"
+	gbPush.Remotes = upstream
 	statuses := []*repostatus.Status{
-		{Repo: withGitButler(fork), Missing: true},
+		{Repo: gbFork, Missing: true},
+		{Repo: gbPush, Missing: true},
 		{Repo: config.Repo{Path: "/work/my repo", URL: "https://example.com/me/x.git"}, Missing: true},
 		{Repo: repo("empty"), Err: errors.New("not a git repo")},
 		{Repo: repo("broken"), Err: errors.New("not a git repo")},
@@ -87,8 +93,9 @@ func TestCloneOutput(t *testing.T) {
 		"/work/fork": {
 			"git clone git@github.com:me/fork.git /work/fork",
 			"git -C /work/fork remote add -f upstream git@github.com:acmeltd/fork.git",
-			"# but -C /work/fork setup  # switches to GitButler's workspace branch",
+			"# but -C /work/fork setup  # switches to GitButler's workspace branch\n# but -C /work/fork config target upstream/main",
 		},
+		"/work/gb-push":   {"setup  # switches to GitButler's workspace branch\n# but -C /work/gb-push config push-remote upstream"},
 		"/work/my repo":   {"git clone https://example.com/me/x.git '/work/my repo'"},
 		"/work/empty":     {"git clone git@github.com:me/empty.git /work/empty"},
 		"/work/broken":    {"# couldn't check: not a git repo"},
@@ -124,7 +131,7 @@ func TestCloneOutput(t *testing.T) {
 		t.Errorf("/work/fork: git clone already adds origin:\n%s", blocks["/work/fork"])
 	}
 
-	want := "# 4 repos to clone, 3 remotes to add, 3 branches to create, 4 commented out to review, 1 check failed"
+	want := "# 5 repos to clone, 4 remotes to add, 3 branches to create, 5 commented out to review, 1 check failed"
 	if got := lastLine(out); got != want {
 		t.Errorf("summary %q, want %q", got, want)
 	}

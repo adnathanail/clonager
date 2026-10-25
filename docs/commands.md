@@ -130,8 +130,10 @@ git clone git@github.com:acmeltd/vip-proj.git ~/Documents/ACME/vip-proj
 
 # ~/Documents/Uni/uni-work
 git -C ~/Documents/Uni/uni-work remote add -f upstream git@github.com:my-uni/uni-work.git
+# but -C ~/Documents/Uni/uni-work setup  # switches to GitButler's workspace branch
+# but -C ~/Documents/Uni/uni-work config target upstream/main
 
-# 1 repo to clone, 1 remote to add, 1 commented out to review
+# 1 repo to clone, 1 remote to add, 2 commented out to review
 ```
 
 - `git clone` for repos that aren't cloned yet, or whose folder is empty.
@@ -144,7 +146,9 @@ git -C ~/Documents/Uni/uni-work remote add -f upstream git@github.com:my-uni/uni
   config: the config may be the one that's out of date.
 - `but setup`, commented out, for repos marked `gitbutler: true` that aren't
   in a GitButler workspace, as it switches the repo to GitButler's
-  `gitbutler/workspace` branch.
+  `gitbutler/workspace` branch. It's followed by `but config target` (or
+  `but config push-remote`) for repos with a `target` or `push` in the
+  config (see [the config format](./config.md)).
 
 Paths that exist but aren't a git repo are listed with the reason. `clone`
 only prints `# Nothing to clone` once there's nothing left to do and every
@@ -162,7 +166,9 @@ copy (see the [Nix flake docs](./installation/nix-flake.md)).
 
 Finds git repos under each `<dir>` that aren't in the config and adds them,
 with `origin` as the `url`, any other remotes, and `gitbutler: true` if the repo
-is in a GitButler workspace. Repos without an `origin` are skipped, since
+is in a GitButler workspace: or, where the workspace's target branch or push
+remote differ from what `but setup` picks, a mapping of them (see
+[the config format](./config.md)). Repos without an `origin` are skipped, since
 there'd be nothing to clone them from.
 
 Each repo goes under the most specific top-level key containing it; if none
@@ -239,9 +245,13 @@ Tidies up the config:
   it). It doesn't run them. Clones with some other URL are left for
   [`clone`](#clonager-clone) to point out.
 - **GitButler** — repos in a GitButler workspace get `gitbutler: true`, e.g.
-  ones you've run `but setup` in since adding them. It's never removed from
-  repos that aren't in one: [`clone`](#clonager-clone) prints the `but setup`
-  command for those instead.
+  ones you've run `but setup` in since adding them. Where the workspace's
+  target branch or push remote differ from what `but setup` picks, they're
+  recorded too (`gitbutler: {target: upstream/main}`), including for repos
+  already marked `true`. A `target` or `push` already in the config is
+  left as it is. `gitbutler` is never removed from repos that aren't in a
+  workspace: [`clone`](#clonager-clone) prints the `but setup` command for
+  those instead.
 - **Airlifted branches** — branches recorded by
   [`airlift`](#clonager-config-airlift) that now exist on this laptop are
   removed from the config (a repo with nothing else set goes back to just its

@@ -218,6 +218,51 @@ func gitButlerRepos(repos []config.Repo, inWorkspace func(path string) bool) []c
 	return out
 }
 
+// gitButlerChange is what tidy sets gitbutler to for a repo in a GitButler
+// workspace: true, or its target branch and push remote.
+type gitButlerChange struct {
+	repo         config.Repo
+	target, push string // "" where they're what `but setup` picks
+	err          error  // why they couldn't be read
+}
+
+// gitButlerChanges lists the repos in a GitButler workspace (by inWorkspace)
+// whose gitbutler setting tidy fills in, with their target and push remote
+// (by read): those without gitbutler: true, and those with it but neither
+// set, where the workspace's differ from `but setup`'s. Settings already in
+// the config are kept, even where the workspace has others.
+func gitButlerChanges(repos []config.Repo, inWorkspace func(path string) bool,
+	read func(path string) (target, push string, err error)) []gitButlerChange {
+	var out []gitButlerChange
+	for _, r := range repos {
+		if r.GitButlerTarget != "" || r.GitButlerPush != "" || !inWorkspace(r.Path) {
+			continue
+		}
+		c := gitButlerChange{repo: r}
+		c.target, c.push, c.err = read(r.Path)
+		if r.GitButler && c.err == nil && c.target == "" && c.push == "" {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+// describe is how the change shows in tidy's output.
+func (c gitButlerChange) describe() string {
+	var parts []string
+	if c.target != "" {
+		parts = append(parts, "target "+styleBranch.Render(c.target))
+	}
+	if c.push != "" {
+		parts = append(parts, "push "+styleBranch.Render(c.push))
+	}
+	if len(parts) == 0 {
+		return styleGB.Render("gitbutler")
+	}
+	return styleGB.Render("gitbutler") + "  " + strings.Join(parts, ", ")
+}
+
 // landing is what tidy does with a repo's airlifted branches.
 type landing struct {
 	repo    config.Repo
@@ -277,7 +322,7 @@ func runTidy(cmd *cobra.Command, args []string) error {
 		heading string
 		rows    []row
 	}
-	var switched, marked, unchecked, gitbutler, landed, waiting, failed section
+	var switched, marked, unchecked, gitbutler, gbFailed, landed, waiting, failed section
 	code := exitOK
 	changed := false
 	for _, c := range changes {
@@ -303,12 +348,19 @@ func runTidy(cmd *cobra.Command, args []string) error {
 		switched.rows = append(switched.rows, row{c.repo.Path, styleOK.Render("→"),
 			styleBranch.Render(c.remote) + "  " + c.to})
 	}
-	for _, r := range gitButlerRepos(cfg.Repos, discover.InGitButler) {
-		if err := cfg.SetGitButler(r.Path); err != nil {
+	for _, c := range gitButlerChanges(cfg.Repos, discover.InGitButler, discover.GitButlerSettings) {
+		if c.err != nil {
+			gbFailed.rows = append(gbFailed.rows, row{c.repo.Path, styleError.Render("✗"), styleDim.Render(c.err.Error())})
+			code = max(code, exitErrors)
+			if c.repo.GitButler {
+				continue
+			}
+		}
+		if err := cfg.SetGitButler(c.repo.Path, c.target, c.push); err != nil {
 			return err
 		}
 		changed = true
-		gitbutler.rows = append(gitbutler.rows, row{r.Path, styleOK.Render("+"), styleGB.Render("gitbutler")})
+		gitbutler.rows = append(gitbutler.rows, row{c.repo.Path, styleOK.Render("+"), c.describe()})
 	}
 	names := func(branches []config.Branch) string {
 		out := make([]string, len(branches))
@@ -339,18 +391,19 @@ func runTidy(cmd *cobra.Command, args []string) error {
 	switched.heading = "Switched to SSH:"
 	marked.heading = "Can't be read over SSH, so marked ssh: false:"
 	unchecked.heading = "Couldn't check over SSH:"
-	gitbutler.heading = "Marked gitbutler: true, as they're in a GitButler workspace:"
+	gitbutler.heading = "Set gitbutler, as they're in a GitButler workspace:"
+	gbFailed.heading = "Couldn't read GitButler's target branch and push remote:"
 	landed.heading = "Removed from the config, as they exist here:"
 	waiting.heading = "Airlifted branches not created here yet (clonager clone prints the commands):"
 	failed.heading = "Couldn't check airlifted branches:"
 	if tidyFlags.dryRun {
 		switched.heading = "Would switch to SSH:"
 		marked.heading = "Can't be read over SSH, so would mark ssh: false:"
-		gitbutler.heading = "Would mark gitbutler: true, as they're in a GitButler workspace:"
+		gitbutler.heading = "Would set gitbutler, as they're in a GitButler workspace:"
 		landed.heading = "Would remove from the config, as they exist here:"
 	}
 
-	sections := []section{switched, marked, unchecked, gitbutler, landed, waiting, failed}
+	sections := []section{switched, marked, unchecked, gitbutler, gbFailed, landed, waiting, failed}
 	pathW := 0
 	for _, s := range sections {
 		for _, r := range s.rows {

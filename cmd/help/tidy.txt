@@ -7,8 +7,10 @@ Tidy up the config:
     connection, timeouts) are only reported. Last, it prints the
     `git remote set-url` commands to switch existing clones whose remote
     still has the old URL, for you to run.
-  - Repos in a GitButler workspace get `gitbutler: true`. It's never
-    removed from repos that aren't: `clonager clone` prints the `but setup`
+  - Repos in a GitButler workspace get `gitbutler: true`, or its target
+    branch and push remote where they differ from what `but setup` picks
+    (those already in the config are kept). It's never removed from repos
+    that aren't in a workspace: `clonager clone` prints the `but setup`
     command for those.
   - Branches recorded by `clonager config airlift` that now exist on this
     laptop are removed from the config (a repo with nothing else set goes
