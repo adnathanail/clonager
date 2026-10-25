@@ -95,7 +95,9 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   waits and prints once. Failures that aren't about one repo (no
   connection, `gh` missing or not logged in: `forgeUnreachable`) become one
   warning at the end rather than an error per repo, and still exit 3.
-  `prune --forge` and `airlift` still inspect with `Options.Forge`.
+  `prune` checks GitHub the same way (`--offline`, `alwaysOffline`, and the
+  same failures noted once at the end) but just waits, with no redraw;
+  it and `airlift` inspect with `Options.Forge`.
 - **Where the config lives:** `status`/`prune` read the installed config
   (`config.DefaultPath`). With the Home Manager module (`homeModules.default`
   in `flake.nix`), that's read-only (a copy in the Nix store, or a secret
@@ -136,8 +138,8 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   compare against `git cherry` per branch.
 - **Nothing that changes a shared remote is ever a runnable line in `prune`**
   (`git push --delete`, `gh repo edit`): always commented out. Only suggest
-  deleting branches on GitHub with `--forge`, which knows they exist, aren't
-  protected, and that the user can push. Never suggest remote changes for
+  deleting branches on GitHub when it was checked, so it's known they exist,
+  aren't protected, and that the user can push. Never suggest remote changes for
   repos that aren't the user's (`ownsRemote`: `mine: false`, or no push
   access), and don't print "skipped" notes for them either: `prune` should say
   "Nothing to prune" once everything actionable is done — and never while a
@@ -199,7 +201,7 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   branches: one orphan would silently disable checks for all of them.
 - **Remote-tracking refs go stale.** A branch deleted on GitHub stays in
   `refs/remotes/origin/` until `git fetch --prune`/`git remote prune`, and
-  most clones don't prune automatically. Only `--forge` can tell stale from
+  most clones don't prune automatically. Only checking GitHub can tell stale from
   live.
 - **GitHub squash merges** give the commit a new date and append ` (#123)` to
   the subject; bots (renovate, pre-commit-ci) reuse a branch name for new PRs

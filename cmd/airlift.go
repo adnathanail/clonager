@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 
+	"github.com/adnathanail/clonager/internal/cli"
 	"github.com/adnathanail/clonager/internal/config"
 	"github.com/adnathanail/clonager/internal/repostatus"
 )
@@ -28,8 +30,9 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := checkForgeAvailable(true); err != nil {
-		return err
+	// It has to know branches are merged on GitHub, so it can't do without.
+	if !cli.Installed("gh") {
+		return errors.New("airlift needs the GitHub CLI (gh) on your PATH")
 	}
 
 	statuses := inspectAll(cfg.Repos, repostatus.Options{Forge: true})
@@ -42,8 +45,8 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 		lipgloss.Println(styleHeading.Render(heading))
 	}
 
-	if script, n := pruneScript(statuses, true); n.exitCode() != exitOK {
-		blocked(n.exitCode(), "clonager prune --forge has things to do:")
+	if script, n := pruneScript(statuses); n.exitCode() != exitOK {
+		blocked(n.exitCode(), "clonager prune has things to do:")
 		lipgloss.Print(script)
 	}
 	reports := make([]report, len(statuses))

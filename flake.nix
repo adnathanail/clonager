@@ -151,8 +151,8 @@
               type = lib.types.bool;
               default = false;
               description = ''
-                Whether `clonager` skips checking GitHub, as with `--offline`.
-                `--offline=false` checks it anyway.
+                Whether `clonager` and `clonager prune` skip checking GitHub,
+                as with `--offline`. `--offline=false` checks it anyway.
               '';
             };
           };

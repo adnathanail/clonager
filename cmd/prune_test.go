@@ -104,10 +104,16 @@ func TestPruneOutput(t *testing.T) {
 			Branches:      []repostatus.Branch{{Name: "local-merged", Merged: repostatus.MergedAncestor}},
 			ForgeErr:      errors.New("gh api: rate limited"),
 		},
+		{ // GitHub unreachable: noted once at the end
+			Repo:          repo("offline"),
+			DefaultBranch: "origin/main",
+			Branches:      []repostatus.Branch{{Name: "local-merged", Merged: repostatus.MergedAncestor}},
+			ForgeErr:      errors.New("gh api: error connecting to api.github.com"),
+		},
 	}
 
 	// As printed when piped, which strips styles.
-	script, n := pruneScript(statuses, true)
+	script, n := pruneScript(statuses)
 	out := ansi.Strip(script)
 
 	// Only local-only commands run; everything else is a comment.
@@ -139,6 +145,7 @@ func TestPruneOutput(t *testing.T) {
 		"/work/broken":    {"# couldn't check: not a git repo"},
 		"/work/gb-broken": {"# couldn't check: couldn't read GitButler's state"},
 		"/work/gh-broken": {"git -C /work/gh-broken branch -D local-merged", "# couldn't check GitHub: gh api: rate limited"},
+		"/work/offline":   {"git -C /work/offline branch -D local-merged"},
 	}
 	for repo, wants := range mustContain {
 		for _, want := range wants {
@@ -152,6 +159,7 @@ func TestPruneOutput(t *testing.T) {
 		"/work/theirs":    {"push origin", "gh repo edit"},
 		"/work/readonly":  {"push origin", "gh repo edit", "skipped"},
 		"/work/gb-broken": {"branch -D"},
+		"/work/offline":   {"couldn't check GitHub"},
 	}
 	for repo, unwanted := range mustNotContain {
 		for _, u := range unwanted {
@@ -161,9 +169,12 @@ func TestPruneOutput(t *testing.T) {
 		}
 	}
 
+	if want := "# Couldn't check GitHub for 1 repo: no connection."; !strings.Contains(out, want) {
+		t.Errorf("missing %q in:\n%s", want, out)
+	}
 	summary := lastLine(out)
-	if !strings.Contains(summary, "4 checks failed") || strings.Contains(summary, "Nothing to prune") {
-		t.Errorf("summary %q should report 4 failed checks", summary)
+	if !strings.Contains(summary, "5 checks failed") || strings.Contains(summary, "Nothing to prune") {
+		t.Errorf("summary %q should report 5 failed checks", summary)
 	}
 	if got := n.exitCode(); got != exitErrors {
 		t.Errorf("exit code %d, want %d", got, exitErrors)
@@ -189,7 +200,7 @@ func TestPruneExitCode(t *testing.T) {
 			s := tc.status
 			s.Repo = config.Repo{Path: "/work/repo"}
 			s.DefaultBranch = "origin/main"
-			if _, n := pruneScript([]*repostatus.Status{&s}, true); n.exitCode() != tc.want {
+			if _, n := pruneScript([]*repostatus.Status{&s}); n.exitCode() != tc.want {
 				t.Errorf("exit code %d, want %d", n.exitCode(), tc.want)
 			}
 		})
@@ -202,7 +213,7 @@ func TestPruneNothing(t *testing.T) {
 		DefaultBranch: "origin/main",
 		Branches:      []repostatus.Branch{{Name: "main"}, {Name: "open"}},
 		GitHub:        &repostatus.GitHubRepo{Name: "me/tidy", CanPush: true, Admin: true},
-	}}, true)
+	}})
 	if n.exitCode() != exitOK {
 		t.Errorf("exit code %d, want %d", n.exitCode(), exitOK)
 	}

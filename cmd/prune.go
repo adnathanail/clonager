@@ -14,8 +14,8 @@ import (
 )
 
 var pruneFlags struct {
-	forge bool
-	tags  []string
+	offline bool
+	tags    []string
 }
 
 var pruneCmd = &cobra.Command{
@@ -28,13 +28,14 @@ var pruneCmd = &cobra.Command{
 }
 
 func init() {
-	pruneCmd.Flags().BoolVarP(&pruneFlags.forge, "forge", "f", false, "also check GitHub (via gh): merged PRs, stale refs, and merged branches there")
+	pruneCmd.Flags().BoolVarP(&pruneFlags.offline, "offline", "o", false, "don't check GitHub (default from alwaysOffline in settings.json)")
 	pruneCmd.Flags().StringSliceVarP(&pruneFlags.tags, "tag", "t", nil, "only repos with this tag (repeatable)")
 	rootCmd.AddCommand(pruneCmd)
 }
 
 func runPrune(cmd *cobra.Command, args []string) error {
-	if err := checkForgeAvailable(pruneFlags.forge); err != nil {
+	settings, err := config.ReadSettings()
+	if err != nil {
 		return err
 	}
 	cfg, err := loadConfig()
@@ -42,8 +43,8 @@ func runPrune(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	repos := filterByTags(cfg.Repos, pruneFlags.tags)
-	statuses := inspectAll(repos, repostatus.Options{Forge: pruneFlags.forge})
-	script, n := pruneScript(statuses, pruneFlags.forge)
+	statuses := inspectAll(repos, repostatus.Options{Forge: !offline(cmd, pruneFlags.offline, settings)})
+	script, n := pruneScript(statuses)
 	lipgloss.Print(script)
 	return codeFor(n.exitCode())
 }
@@ -55,6 +56,11 @@ type pruneCounts struct {
 	stale     int // stale remote-tracking refs
 	onGitHub  int // commented-out changes on GitHub
 	unchecked int // repos (or their GitHub side) that couldn't be checked
+
+	// Repos GitHub couldn't be asked about at all (see forgeUnreachable),
+	// noted once at the end rather than in each repo's lines, and why.
+	unreachable    int
+	unreachableWhy string
 }
 
 // exitCode is exitErrors if a check failed, exitAttention if there's anything
@@ -72,7 +78,7 @@ func (n pruneCounts) exitCode() int {
 // pruneScript returns the prune script for the inspected repos, and what it
 // contains. Every line is either a command that only touches the local clone
 // or a # comment, so it's safe to pipe to sh.
-func pruneScript(statuses []*repostatus.Status, forge bool) (string, pruneCounts) {
+func pruneScript(statuses []*repostatus.Status) (string, pruneCounts) {
 	var w strings.Builder
 	var n pruneCounts
 	first := true
@@ -91,6 +97,10 @@ func pruneScript(statuses []*repostatus.Status, forge bool) (string, pruneCounts
 
 	if !first {
 		w.WriteString("\n")
+	}
+	if n.unreachable > 0 {
+		w.WriteString(pruneComment(styleWarn.Render(fmt.Sprintf("Couldn't check GitHub for %s: %s.",
+			plural(n.unreachable, "repo", "repos"), n.unreachableWhy))) + "\n")
 	}
 	var summary []string
 	if n.deletes > 0 {
@@ -111,11 +121,7 @@ func pruneScript(statuses []*repostatus.Status, forge bool) (string, pruneCounts
 	if len(summary) == 0 {
 		summary = append(summary, "Nothing to prune")
 	}
-	line := strings.Join(summary, ", ")
-	if !forge {
-		line += " (--forge also checks GitHub for merged PRs, stale refs and merged branches there)"
-	}
-	w.WriteString(pruneComment(line) + "\n")
+	w.WriteString(pruneComment(strings.Join(summary, ", ")) + "\n")
 	return w.String(), n
 }
 
@@ -191,7 +197,7 @@ func repoPruneLines(s *repostatus.Status, n *pruneCounts) []string {
 		n.stale += len(bs)
 	}
 
-	// Merged branches still on GitHub. Only with --forge, which knows they're
+	// Merged branches still on GitHub. Only when GitHub was checked, so it's known they're
 	// really there, aren't protected, and that you can push. Always commented
 	// out: deleting them affects everyone.
 	if gh := s.GitHub; gh != nil && ownsRemote(s) {
@@ -209,7 +215,12 @@ func repoPruneLines(s *repostatus.Status, n *pruneCounts) []string {
 	// The local results still stand, but anything only GitHub could tell us
 	// is missing.
 	if s.ForgeErr != nil {
-		lines = append(lines, comment(styleWarn.Render("couldn't check GitHub: "+s.ForgeErr.Error())))
+		if why := forgeUnreachable(s.ForgeErr); why != "" {
+			n.unreachable++
+			n.unreachableWhy = why
+		} else {
+			lines = append(lines, comment(styleWarn.Render("couldn't check GitHub: "+s.ForgeErr.Error())))
+		}
 		n.unchecked++
 	}
 	return lines

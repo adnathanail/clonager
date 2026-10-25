@@ -41,7 +41,7 @@ func styleCode(text string) string {
 }
 
 // isClonagerCode reports whether code is a clonager command ("clonager
-// config tidy", or just "config tidy") or flag ("--forge").
+// config tidy", or just "config tidy") or flag ("--offline").
 func isClonagerCode(code string) bool {
 	first, _, _ := strings.Cut(code, " ")
 	if first == "clonager" || strings.HasPrefix(first, "-") {

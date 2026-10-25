@@ -20,7 +20,7 @@ rebases, or touching the same files for squashes. So a merge is missed if the
 default branch later changed the same lines, if the commit messages were
 reworded, or if it's more than 10,000 commits back.
 
-When GitHub is checked (by `clonager` unless `--offline`, and `prune --forge`), branches still unexplained are checked against merged GitHub
+Unless `--offline` is given, branches still unexplained are checked against merged GitHub
 PRs using `gh pr list`. A branch counts as merged if a merged PR's head is its
 local tip or contains it. If a PR for a local-only, deleted-on-remote or
 unpushed branch was merged but doesn't contain the local tip, it's flagged as

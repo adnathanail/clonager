@@ -91,7 +91,7 @@ Prints the commands to tidy up merged branches (see
 review the output, then run it.
 
 ```
-$ clonager prune -f
+$ clonager prune
 # ~/Documents/Work/work-stuff
 git -C ~/Documents/Work/work-stuff branch -D fix-login  # rebased into origin/main
 git -C ~/Documents/Work/work-stuff branch -D new-reports  # merged in PR #42
@@ -105,13 +105,13 @@ git -C ~/Documents/Work/work-stuff remote prune origin  # 3 refs deleted on GitH
 
 - Commands use `git branch -D`, since rebase- and squash-merged branches aren't
   in the default branch's history and `git branch -d` would refuse them.
-- Branches whose merged PR doesn't contain the local tip (only found with
-  `--forge`) are commented out: the local copy may just be stale, or may hold
+- Branches whose merged PR on GitHub doesn't contain the local tip are
+  commented out: the local copy may just be stale, or may hold
   work that never made it in.
 - The checked-out branch, and branches applied in a GitButler workspace, are
   skipped with a note.
 
-With `--forge` it also covers GitHub:
+It also checks GitHub, via `gh`, and covers branches there:
 
 - `git remote prune origin` for refs to branches already deleted on GitHub.
   This only tidies your clone.
@@ -127,16 +127,17 @@ marked `mine: false`.
 
 Repos that couldn't be checked are listed with the reason, e.g. `# couldn't
 check: not cloned`, or `# couldn't check GitHub: …` alongside the local
-results. A repo whose GitButler state can't be read is skipped entirely, since
+results. If GitHub can't be asked at all (no connection, `gh` not installed or
+not logged in), that's noted once at the end instead. A repo whose GitButler state can't be read is skipped entirely, since
 clonager can't tell which branches are applied there. `prune` only prints
 `# Nothing to prune` once there's nothing left to do and every check
 succeeded.
 
-To run everything that isn't commented out: `clonager prune -f | sh`.
+To run everything that isn't commented out: `clonager prune | sh`.
 
 | Flag | |
 |---|---|
-| `-f`, `--forge` | also check GitHub, and cover branches there |
+| `-o`, `--offline` | don't check GitHub (see [`alwaysOffline`](#clonager)) |
 | `-t`, `--tag <tag>` | only repos with this tag (repeatable) |
 
 ## `clonager clone`
@@ -226,7 +227,7 @@ similar. Repos are added with the URLs their remotes have;
 Records this laptop's local branches in the config, so they can be recreated
 on another one: run `airlift` on the old laptop, then `clone` on the new one.
 
-It only airlifts a tidy laptop. First it checks that `prune --forge` has
+It only airlifts a tidy laptop. First it checks that `prune` has
 nothing to do, and that nothing needs attention in status (checking GitHub): no
 uncommitted changes, stashes, unpushed or local-only branches, and no repos in
 the `discoverPaths` missing from the config. Otherwise it shows what it found
