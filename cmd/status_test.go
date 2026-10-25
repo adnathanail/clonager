@@ -86,10 +86,8 @@ func TestFoldForgeErrors(t *testing.T) {
 		{},
 		{ForgeErr: offline},
 	}
-	v := &statusView{statuses: statuses}
-	v.foldForgeErrors()
-	if want := "Couldn't check GitHub for 2 repos: no connection."; v.forgeWarning != want {
-		t.Errorf("warning = %q, want %q", v.forgeWarning, want)
+	if got, want := foldForgeErrors(statuses), "Couldn't check GitHub for 2 repos: no connection."; got != want {
+		t.Errorf("warning = %q, want %q", got, want)
 	}
 	if statuses[0].ForgeErr != nil || statuses[3].ForgeErr != nil {
 		t.Error("connection errors were left on their repos")
@@ -98,10 +96,8 @@ func TestFoldForgeErrors(t *testing.T) {
 		t.Error("an error about one repo was folded into the warning")
 	}
 
-	v = &statusView{statuses: []*repostatus.Status{{ForgeErr: missing}}}
-	v.foldForgeErrors()
-	if v.forgeWarning != "" {
-		t.Errorf("warning = %q, want none", v.forgeWarning)
+	if got := foldForgeErrors([]*repostatus.Status{{ForgeErr: missing}}); got != "" {
+		t.Errorf("warning = %q, want none", got)
 	}
 }
 

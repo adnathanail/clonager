@@ -73,6 +73,11 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 		lipgloss.Println(styleHeading.Render(heading))
 	}
 
+	// Taken out before prune and status see them, so they're shown once.
+	if warning := foldForgeErrors(statuses); warning != "" {
+		blocked(exitErrors, styleWarn.Render(warning))
+	}
+
 	if script, n := pruneScript(statuses); n.exitCode() != exitOK {
 		blocked(n.exitCode(), "clonager prune has things to do:")
 		lipgloss.Print(script)
