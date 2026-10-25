@@ -2,7 +2,7 @@ Record each repo's local branches in the config, so `clonager clone` can
 recreate them on another laptop.
 
 Only a tidy laptop can be airlifted: first it checks `prune --forge` has
-nothing to do, and that status (with `--forge`) has nothing needing
+nothing to do, and that status (checking GitHub) has nothing needing
 attention, so every branch is on a remote and nothing is left uncommitted or
 unpushed. If either finds something, it's shown and the config isn't changed.
 

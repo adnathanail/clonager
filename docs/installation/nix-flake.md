@@ -14,6 +14,7 @@ fish and zsh completions for each. Its Home Manager module
 | `configSource` | where `clonager config` commands read and write the config: an absolute path to it in your checkout (a string, not a path, so it isn't copied into the store), or `decrypt`/`encrypt` commands (see [below](#keeping-the-config-encrypted)) |
 | `discoverPaths` | where `clonager config discover` looks when given no dirs |
 | `openIn` | what cmd-clicking a repo's name opens it in: `vscode`, `cursor`, `zed`, `files` (the file manager, the default) or `none` |
+| `alwaysOffline` | make `clonager` skip checking GitHub, as with `--offline` (default `false`) |
 
 ## Applying config changes
 

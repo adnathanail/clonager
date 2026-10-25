@@ -85,6 +85,17 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - **Status (bare `clonager`) is read-only and never fetches.** Remote state
   is as of the last fetch. Don't add commands to it that write refs or objects (e.g. `git
   merge-tree --write-tree`, `git fetch`).
+- **Status checks GitHub unless told not to** (`--offline`, or
+  `alwaysOffline` in settings.json). Whether it's checked never depends on
+  whether output is a terminal: only how it's shown does. In a terminal
+  (`liveTerminal`), `showLive` prints the local view, spins while
+  `forgeAll` runs, then redraws in place, or below after two blank lines
+  if the view no longer all fits on screen or the window was resized
+  (`SIGWINCH`), since rows that scrolled off can't be reached. Otherwise it
+  waits and prints once. Failures that aren't about one repo (no
+  connection, `gh` missing or not logged in: `forgeUnreachable`) become one
+  warning at the end rather than an error per repo, and still exit 3.
+  `prune --forge` and `airlift` still inspect with `Options.Forge`.
 - **Where the config lives:** `status`/`prune` read the installed config
   (`config.DefaultPath`). With the Home Manager module (`homeModules.default`
   in `flake.nix`), that's read-only (a copy in the Nix store, or a secret
@@ -100,7 +111,7 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - **clonager's own options** (as opposed to repos) go in
   `~/.config/clonager/settings.json` (`config.ReadSettings`), which the Home
   Manager module writes from its options (`configSource`, `discoverPaths`,
-  `openIn`), not in the YAML config. One file for all of them: don't add others.
+  `openIn`, `alwaysOffline`), not in the YAML config. One file for all of them: don't add others.
 - **`cli.ConfigHook` is the one exception to the allowlist:** it runs the
   user's decrypt/encrypt commands with `sh -c`. Use it only for those.
 - **The config is edited as a `yaml.Node` tree** so comments and ordering

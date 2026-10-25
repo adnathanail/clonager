@@ -236,6 +236,16 @@ func (s *Status) inspect(opts Options) error {
 	return nil
 }
 
+// CheckForge adds what GitHub says (see checkForge) to a status Inspect
+// returned without Options.Forge. It does nothing for a repo that's missing
+// or couldn't be inspected.
+func (s *Status) CheckForge() {
+	if s.Missing || s.Err != nil {
+		return
+	}
+	s.checkForge(git{dir: s.Repo.Path})
+}
+
 func (s *Status) readWorkingTree(g git) error {
 	out, err := g.run("status", "--porcelain=v2", "--branch")
 	if err != nil {

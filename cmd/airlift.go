@@ -52,7 +52,9 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 	}
 	if c := statusCode(reports); c != exitOK {
 		blocked(c, "Repos need attention:")
-		printReports(reports)
+		var w strings.Builder
+		writeReports(&w, reports)
+		lipgloss.Print(w.String())
 	}
 	var unknown []string
 	for _, s := range statuses {

@@ -143,9 +143,10 @@ func cloneRemoteURL(path, remote string) string {
 	return url
 }
 
-// networkErrors are signs that git ls-remote failed for want of a
-// connection, rather than because the repo can't be read over SSH.
+// networkErrors are signs that git ls-remote or gh failed for want of a
+// connection, rather than because of the repo.
 var networkErrors = []string{
+	"error connecting to", // gh
 	"could not resolve hostname",
 	"timed out",
 	"network is unreachable",

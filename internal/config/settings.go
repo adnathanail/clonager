@@ -22,6 +22,8 @@ type Settings struct {
 	// OpenIn is what repo names link to (see OpenInApps); empty means
 	// DefaultOpenIn.
 	OpenIn string `json:"openIn,omitempty"`
+	// AlwaysOffline makes status skip GitHub, as if run with --offline.
+	AlwaysOffline bool `json:"alwaysOffline,omitempty"`
 }
 
 // OpenInApps are the values OpenIn can take: apps that open a folder from a

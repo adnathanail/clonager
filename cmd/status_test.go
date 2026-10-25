@@ -1,8 +1,11 @@
 package cmd
 
 import (
+	"errors"
 	"testing"
 	"time"
+
+	"github.com/adnathanail/clonager/internal/repostatus"
 )
 
 func TestFetchAge(t *testing.T) {
@@ -50,6 +53,67 @@ func TestStatusCode(t *testing.T) {
 	} {
 		if got := statusCode(tt.reports); got != tt.want {
 			t.Errorf("%s: statusCode = %d, want %d", tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestOutputRows(t *testing.T) {
+	for _, tt := range []struct {
+		out   string
+		width int
+		want  int
+	}{
+		{"one\n", 10, 1},
+		{"one\n\ntwo\n", 10, 3},
+		{"0123456789\n", 10, 1}, // exactly the width doesn't wrap
+		{"0123456789a\n", 10, 2},
+		{styleWarn.Render("0123456789") + "\n", 10, 1}, // escape codes take no room
+		{"✓ ● ✗ ⧓\n", 4, 2},
+		{"no newline at the end", 100, 1},
+	} {
+		if got := outputRows(tt.out, tt.width); got != tt.want {
+			t.Errorf("outputRows(%q, %d) = %d, want %d", tt.out, tt.width, got, tt.want)
+		}
+	}
+}
+
+func TestFoldForgeErrors(t *testing.T) {
+	offline := errors.New("gh api: error connecting to api.github.com")
+	missing := errors.New("gh api: HTTP 404: Not Found (https://api.github.com/repos/me/gone)")
+	statuses := []*repostatus.Status{
+		{ForgeErr: offline},
+		{ForgeErr: missing},
+		{},
+		{ForgeErr: offline},
+	}
+	v := &statusView{statuses: statuses}
+	v.foldForgeErrors()
+	if want := "Couldn't check GitHub for 2 repos: no connection."; v.forgeWarning != want {
+		t.Errorf("warning = %q, want %q", v.forgeWarning, want)
+	}
+	if statuses[0].ForgeErr != nil || statuses[3].ForgeErr != nil {
+		t.Error("connection errors were left on their repos")
+	}
+	if statuses[1].ForgeErr != missing {
+		t.Error("an error about one repo was folded into the warning")
+	}
+
+	v = &statusView{statuses: []*repostatus.Status{{ForgeErr: missing}}}
+	v.foldForgeErrors()
+	if v.forgeWarning != "" {
+		t.Errorf("warning = %q, want none", v.forgeWarning)
+	}
+}
+
+func TestForgeUnreachable(t *testing.T) {
+	for msg, want := range map[string]string{
+		"gh api: To get started with GitHub CLI, please run:  gh auth login": "gh isn't logged in (run gh auth login)",
+		"gh api: HTTP 401: Bad credentials (https://api.github.com/graphql)": "gh isn't logged in (run gh auth login)",
+		"gh api: error connecting to api.github.com":                         "no connection",
+		"gh pr list: HTTP 404: Not Found":                                    "",
+	} {
+		if got := forgeUnreachable(errors.New(msg)); got != want {
+			t.Errorf("forgeUnreachable(%q) = %q, want %q", msg, got, want)
 		}
 	}
 }
