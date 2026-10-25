@@ -59,6 +59,11 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	statuses := inspectAll(repos, repostatus.Options{Forge: statusFlags.forge})
+	if statusFlags.forge {
+		// Only with --forge, which is slow anyway: the two `but` calls per
+		// GitButler repo would add noticeably to status otherwise.
+		readGitButlerSettings(statuses)
+	}
 	reports := make([]report, len(statuses))
 	for i, s := range statuses {
 		reports[i] = buildReport(s)
@@ -167,7 +172,7 @@ func printTidy(cfg, pending *config.Config, statuses []*repostatus.Status) bool 
 	}
 	line(n.urls, "HTTPS URL", "HTTPS URLs", " to try switching to SSH")
 	line(n.clones, "clone remote", "clone remotes", " to switch to SSH, as in the config")
-	line(n.gitbutler, "repo", "repos", " in a GitButler workspace, to mark gitbutler: true")
+	line(n.gitbutler, "repo", "repos", " in a GitButler workspace, to set gitbutler for")
 	line(n.landed, "airlifted branch", "airlifted branches", " now here, to remove from the config")
 	line(n.waiting, "airlifted branch", "airlifted branches", " to create here "+styleDim.Render("(see clonager clone)"))
 	if n.urls+n.clones+n.gitbutler+n.landed > 0 {
@@ -224,6 +229,20 @@ func filterByTags(repos []config.Repo, tags []string) []config.Repo {
 }
 
 // inspectAll inspects repos in parallel, returning results in config order.
+// readGitButlerSettings runs Status.ReadGitButlerSettings in parallel, for
+// the config tidy note (see needsTidy).
+func readGitButlerSettings(statuses []*repostatus.Status) {
+	var wg sync.WaitGroup
+	for _, s := range statuses {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.ReadGitButlerSettings()
+		}()
+	}
+	wg.Wait()
+}
+
 func inspectAll(repos []config.Repo, opts repostatus.Options) []*repostatus.Status {
 	out := make([]*repostatus.Status, len(repos))
 	sem := make(chan struct{}, max(4, runtime.NumCPU()))
