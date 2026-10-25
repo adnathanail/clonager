@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -46,14 +47,26 @@ func TestHelpTexts(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range files {
-		name := strings.TrimSuffix(f.Name(), ".txt")
-		text := helpText(name)
+		text := styleCode(helpText(strings.TrimSuffix(f.Name(), ".txt")))
 		if strings.Contains(text, "`") {
 			t.Errorf("%s: unmatched backtick, or a code span across lines:\n%s", f.Name(), text)
 		}
 	}
-	if want := styleDim.Render("<dir>"); !strings.Contains(helpText("discover"), want) {
-		t.Errorf("discover help doesn't style <dir> as code")
+}
+
+func TestStyleCode(t *testing.T) {
+	for code, style := range map[string]lipgloss.Style{
+		"clonager config tidy": styleBranch,
+		"config tidy":          styleBranch,
+		"prune --forge":        styleBranch,
+		"--forge":              styleBranch,
+		"git branch -D":        styleDim,
+		"<dir>":                styleDim,
+		"gitbutler: true":      styleDim,
+	} {
+		if got, want := styleCode("see `"+code+"`."), "see "+style.Render(code)+"."; got != want {
+			t.Errorf("%s: got %q, want %q", code, got, want)
+		}
 	}
 }
 
