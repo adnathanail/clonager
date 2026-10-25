@@ -76,8 +76,8 @@ func depth(root, path string) int {
 var ErrNoOrigin = errors.New("no origin remote, so there's nothing to clone it from")
 
 // Describe builds the config entry for the repo at path: origin as its URL,
-// any other remotes, and whether it's in a GitButler workspace, with its
-// target branch and push remote where they differ from `but setup`'s.
+// any other remotes, and whether it's in a GitButler workspace. Its target
+// branch and push remote there are left for GitButlerSettings.
 func Describe(path string) (config.Repo, error) {
 	repo := config.Repo{Path: path}
 
@@ -103,11 +103,6 @@ func Describe(path string) (config.Repo, error) {
 	sort.Slice(repo.Remotes, func(i, j int) bool { return repo.Remotes[i].Name < repo.Remotes[j].Name })
 
 	repo.GitButler = InGitButler(path)
-	if repo.GitButler {
-		// If they can't be read (e.g. but isn't installed), the repo is still
-		// added, and config tidy fills them in later.
-		repo.GitButlerTarget, repo.GitButlerPush, _ = GitButlerSettings(path)
-	}
 	return repo, nil
 }
 
@@ -153,8 +148,7 @@ func butJSON(dir string, v any, args ...string) error {
 }
 
 // HasOrigin reports whether the repo at path has an origin remote, which
-// Describe needs. It's cheaper than Describe, which also asks GitButler
-// about repos in a workspace.
+// Describe needs, without reading the rest.
 func HasOrigin(path string) bool {
 	url, _ := git(path, "config", "--get", "remote.origin.url")
 	return url != ""

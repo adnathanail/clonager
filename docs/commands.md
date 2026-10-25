@@ -169,7 +169,9 @@ Finds git repos under each `<dir>` that aren't in the config and adds them,
 with `origin` as the `url`, any other remotes, and `gitbutler: true` if the repo
 is in a GitButler workspace: or, where the workspace's target branch or push
 remote differ from what `but setup` picks, a mapping of them (see
-[the config format](./config.md)). Repos without an `origin` are skipped, since
+[the config format](./config.md)). If those can't be read (e.g. `but` isn't
+installed), it adds `gitbutler: true` with a note, and
+[`tidy`](#clonager-config-tidy) fills them in later. Repos without an `origin` are skipped, since
 there'd be nothing to clone them from.
 
 Each repo goes under the most specific top-level key containing it; if none
