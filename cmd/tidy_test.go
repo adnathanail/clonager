@@ -222,9 +222,15 @@ func TestGitButlerChanges(t *testing.T) {
 		return "", "", nil
 	}
 	var got []string
-	for _, c := range gitButlerChanges(repos, inWorkspace, read) {
-		got = append(got, fmt.Sprintf("%s %q %q %v", c.repo.Path, c.target, c.push, c.err != nil))
+	list := func(read func(string) (string, string, error)) ([]string, bool) {
+		var got []string
+		changes, unread := gitButlerChanges(repos, inWorkspace, read)
+		for _, c := range changes {
+			got = append(got, fmt.Sprintf("%s %q %q %v", c.repo.Path, c.target, c.push, c.err != nil))
+		}
+		return got, unread
 	}
+	got, unread := list(read)
 	want := []string{
 		`/w/new "" "" false`,
 		`/w/new-fork "upstream/trunk" "" false`,
@@ -232,7 +238,15 @@ func TestGitButlerChanges(t *testing.T) {
 		`/w/broken "" "" true`,
 		`/w/broken-new "" "" true`,
 	}
-	if !slices.Equal(got, want) {
-		t.Errorf("got:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	if !slices.Equal(got, want) || unread {
+		t.Errorf("got (unread %v):\n%s\nwant:\n%s", unread, strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+
+	// Without but, repos not yet marked are still marked, and the rest
+	// reported as unread rather than failed.
+	got, unread = list(nil)
+	want = []string{`/w/new "" "" false`, `/w/new-fork "" "" false`, `/w/broken-new "" "" false`}
+	if !slices.Equal(got, want) || !unread {
+		t.Errorf("without but, got (unread %v):\n%s\nwant (unread):\n%s", unread, strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 }

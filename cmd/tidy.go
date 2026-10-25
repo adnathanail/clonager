@@ -184,12 +184,13 @@ func needsTidy(repos []config.Repo, statuses map[string]*repostatus.Status) tidy
 		}
 		return ""
 	}))
-	n.gitbutler = len(gitButlerChanges(repos, func(path string) bool {
+	gbChanges, _ := gitButlerChanges(repos, func(path string) bool {
 		s := statuses[path]
 		return s != nil && s.GitButler.Mode == repostatus.GitButlerActive
 	}, func(path string) (string, string, error) {
 		return statuses[path].GitButler.Target, statuses[path].GitButler.Push, nil
-	}))
+	})
+	n.gitbutler = len(gbChanges)
 	for _, r := range repos {
 		if s := statuses[r.Path]; s != nil && gitButlerDriftOf(r, s).any() {
 			n.gbDrift++
@@ -227,21 +228,28 @@ type gitButlerChange struct {
 // (by read): those without gitbutler: true, and those with it but neither
 // set, where the workspace's differ from `but setup`'s. Settings already in
 // the config are kept, even where the workspace has others.
+//
+// read is nil where they can't be read (without but): repos not yet marked
+// are still listed, without them, and unread reports whether any repo's
+// were skipped.
 func gitButlerChanges(repos []config.Repo, inWorkspace func(path string) bool,
-	read func(path string) (target, push string, err error)) []gitButlerChange {
-	var out []gitButlerChange
+	read func(path string) (target, push string, err error)) (out []gitButlerChange, unread bool) {
 	for _, r := range repos {
 		if r.GitButlerTarget != "" || r.GitButlerPush != "" || !inWorkspace(r.Path) {
 			continue
 		}
 		c := gitButlerChange{repo: r}
-		c.target, c.push, c.err = read(r.Path)
+		if read == nil {
+			unread = true
+		} else {
+			c.target, c.push, c.err = read(r.Path)
+		}
 		if r.GitButler && c.err == nil && c.target == "" && c.push == "" {
 			continue
 		}
 		out = append(out, c)
 	}
-	return out
+	return out, unread
 }
 
 // describe is how the change shows in tidy's output.
@@ -347,14 +355,12 @@ func runTidy(cmd *cobra.Command, args []string) error {
 	// Without but, workspaces can still be marked (that only needs git), but
 	// their target and push remote can't be read. That's a note rather than
 	// a failure for each repo, as installing but is the only fix.
-	readGitButler, butMissing := discover.GitButlerSettings, false
+	readGitButler := discover.GitButlerSettings
 	if !cli.Installed("but") {
-		readGitButler = func(string) (string, string, error) {
-			butMissing = true
-			return "", "", nil
-		}
+		readGitButler = nil
 	}
-	for _, c := range gitButlerChanges(cfg.Repos, discover.InGitButler, readGitButler) {
+	gbChanges, butMissing := gitButlerChanges(cfg.Repos, discover.InGitButler, readGitButler)
+	for _, c := range gbChanges {
 		if c.err != nil {
 			gbFailed.rows = append(gbFailed.rows, row{c.repo.Path, styleError.Render("✗"), styleDim.Render(c.err.Error())})
 			code = max(code, exitErrors)
