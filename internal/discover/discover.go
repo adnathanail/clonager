@@ -152,6 +152,14 @@ func butJSON(dir string, v any, args ...string) error {
 	return nil
 }
 
+// HasOrigin reports whether the repo at path has an origin remote, which
+// Describe needs. It's cheaper than Describe, which also asks GitButler
+// about repos in a workspace.
+func HasOrigin(path string) bool {
+	url, _ := git(path, "config", "--get", "remote.origin.url")
+	return url != ""
+}
+
 // InGitButler reports whether the repo at path is in a GitButler workspace:
 // HEAD is gitbutler/workspace, or the older gitbutler/integration. It's
 // false when path isn't a repo.
