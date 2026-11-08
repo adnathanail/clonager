@@ -34,10 +34,24 @@ jobs:
       - uses: ./.github/actions/install-gitbutler
         if: runner.os == 'macOS'
 
+      # For the tests that run `clonager shell-init`'s output in each shell
+      # it supports (bash is on both runners already, and zsh on macOS).
+      # They skip a shell that isn't installed, except where
+      # CLONAGER_TEST_SHELLS is set.
+      - name: Install fish and zsh
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            brew install fish
+          else
+            sudo apt-get update
+            sudo apt-get install -y fish zsh
+          fi
+
       # The tests build throwaway git repos, so they need git (on both runners).
       - name: Test
         env:
           CLONAGER_TEST_BUT: ${{ runner.os == 'macOS' && '1' || '' }}
+          CLONAGER_TEST_SHELLS: '1'
         run: go test -race ./...
 
       - name: Build static binary
