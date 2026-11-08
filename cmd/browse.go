@@ -272,7 +272,7 @@ func (m *browseModel) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.cd()
 	case "e":
 		return m.open(false)
-	case "g":
+	case "b":
 		return m.open(true)
 	}
 	return nil
@@ -708,7 +708,7 @@ func (m *browseModel) footer() (message, keys string) {
 			hints = append(hints, "e "+openInName())
 		}
 		if r.gitButler {
-			hints = append(hints, "g GitButler")
+			hints = append(hints, "b GitButler")
 		}
 	}
 	hints = append(hints, "/ filter", "s sort")
