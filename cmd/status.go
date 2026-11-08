@@ -498,7 +498,7 @@ func buildReport(s *repostatus.Status) report {
 
 	switch {
 	case s.GitButler.Mode == repostatus.GitButlerActive:
-		r.head = gitButlerHead(s.GitButler, s.Repo.Path)
+		r.head = gitButlerHead(s.GitButler, s.Head, s.Repo.Path)
 	case s.Head == "":
 		r.head = styleWarn.Render("detached")
 		add(sevWarn, "detached HEAD")
@@ -627,13 +627,17 @@ func buildReport(s *repostatus.Status) report {
 // gitButlerLogo stands in for GitButler's bowtie-shaped logo.
 const gitButlerLogo = "⧓"
 
-// gitButlerHead is the branch column for a repo in a GitButler workspace: the
-// logo and its applied branches, or just the logo if there are none (or
-// they're unknown). The logo links to the project in the GitButler app.
-func gitButlerHead(gb repostatus.GitButler, path string) string {
+// gitButlerHead is the branch column for a repo in use with GitButler: the
+// logo and its applied branches. Where there are none (or they're unknown),
+// it's the logo and HEAD's branch, unless that's GitButler's workspace
+// branch. The logo links to the project in the GitButler app.
+func gitButlerHead(gb repostatus.GitButler, head, path string) string {
 	logo := gitButlerLink(path, gitButlerLogo)
 	if gb.Err != nil || len(gb.Branches) == 0 {
-		return logo
+		if head == "" || strings.HasPrefix(head, "gitbutler/") {
+			return logo
+		}
+		return logo + " " + styleBranch.Render(head)
 	}
 	names := make([]string, len(gb.Branches))
 	for i, b := range gb.Branches {

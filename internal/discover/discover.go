@@ -111,12 +111,17 @@ func HasOrigin(path string) bool {
 	return url != ""
 }
 
-// InGitButler reports whether the repo at path is in a GitButler workspace:
-// HEAD is gitbutler/workspace, or the older gitbutler/integration. It's
-// false when path isn't a repo.
+// InGitButler reports whether the repo at path is in use with GitButler:
+// HEAD is gitbutler/workspace (or the older gitbutler/integration), or it
+// has a gitbutler/target branch, as repostatus decides. It's false when
+// path isn't a repo.
 func InGitButler(path string) bool {
 	head, _ := git(path, "symbolic-ref", "--short", "-q", "HEAD")
-	return head == "gitbutler/workspace" || head == "gitbutler/integration"
+	if head == "gitbutler/workspace" || head == "gitbutler/integration" {
+		return true
+	}
+	_, err := git(path, "rev-parse", "--verify", "-q", "refs/heads/gitbutler/target")
+	return err == nil
 }
 
 func git(dir string, args ...string) (string, error) {

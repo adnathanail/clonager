@@ -44,9 +44,9 @@ type RemoteBranch struct {
 type GitButlerMode int
 
 const (
-	GitButlerNone     GitButlerMode = iota // never set up
-	GitButlerActive                        // HEAD is the gitbutler/workspace branch
-	GitButlerInactive                      // has GitButler data but isn't in the workspace
+	GitButlerNone     GitButlerMode = iota // never used
+	GitButlerActive                        // in use: see readGitButler
+	GitButlerInactive                      // has GitButler data but isn't in use
 )
 
 type GitButlerBranch struct {
@@ -59,12 +59,12 @@ type GitButler struct {
 	Branches   []GitButlerBranch // applied branches, across all stacks
 	Conflicted int               // commits GitButler marks as conflicted
 	// Target and Push are the workspace's target branch and push remote,
-	// each "" where it's what `but setup` picks, or where it couldn't be read
+	// each "" where it's GitButler's default, or where it couldn't be read
 	// (see GitButlerSettings). Only set with
 	// Options.GitButlerSettings, which sets Settings once they've been read.
 	Target, Push string
 	Settings     bool
-	// SetupTarget is the target branch `but setup` would pick: origin's HEAD
+	// SetupTarget is the target branch GitButler defaults to: origin's HEAD
 	// (e.g. origin/main), or "" where origin/HEAD isn't set. An empty Target
 	// means the workspace uses this one. It can differ from DefaultBranch,
 	// which falls back to guesses where origin/HEAD isn't set. Set along
@@ -93,6 +93,10 @@ type Status struct {
 	DefaultBranch string      // e.g. origin/main; what merged checks compare against
 	GitHub        *GitHubRepo // origin on GitHub, when checked with the forge
 	ForgeErr      error       // the forge check was requested but failed
+
+	// hasGitButlerTarget is whether the gitbutler/target branch exists,
+	// which GitButler creates when a branch is first made with it.
+	hasGitButlerTarget bool
 }
 
 // GitHubRepo is what the forge check learns about origin on GitHub.
@@ -303,6 +307,9 @@ func (s *Status) readBranches(g git) error {
 		}
 		b := Branch{Name: f[0], Tip: f[1]}
 		if strings.HasPrefix(b.Name, "gitbutler/") {
+			if b.Name == "gitbutler/target" {
+				s.hasGitButlerTarget = true
+			}
 			continue // GitButler's own bookkeeping branches
 		}
 		upstream, track := f[2], f[3]
