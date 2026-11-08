@@ -160,8 +160,8 @@ eval "$(clonager shell-init bash)"   # ~/.bashrc
 clonager shell-init fish | source    # ~/.config/fish/config.fish
 ```
 
-It defines shell functions named `clonager` and `cg` that run clonager as
-usual, with `CLONAGER_CD_FILE` set to a temporary file. When you pick a repo
+It defines shell functions named `clonager` and, if a `cg` program is
+installed (as the Nix package does), `cg`, that run clonager as usual, with `CLONAGER_CD_FILE` set to a temporary file. When you pick a repo
 in `browse`, its folder is written there, and the function cds to it once
 browse exits. Every other command works as it does without the functions.
 
