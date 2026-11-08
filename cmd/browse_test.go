@@ -306,3 +306,16 @@ func TestBrowseHideFolders(t *testing.T) {
 		t.Errorf("no folder before the name once shown again:\n%s", l)
 	}
 }
+
+func TestBrowseGitButlerKey(t *testing.T) {
+	m, _ := browseWith(t, 100, 30, map[string]*repostatus.Status{
+		"/Users/me/Documents/vip-proj": {Head: "main"}, // not in a GitButler workspace
+	})
+	if _, cmd := m.Update(key("g")); cmd != nil || m.message != "" {
+		t.Errorf("g did something: %q", m.message)
+	}
+	m.Update(key("b"))
+	if !strings.Contains(m.message, "isn't in a GitButler workspace") {
+		t.Errorf("b: got message %q, want it to say the repo isn't in GitButler", m.message)
+	}
+}

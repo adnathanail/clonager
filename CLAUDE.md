@@ -134,7 +134,7 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   `openIn`, `alwaysOffline`, `browseSort`, `browseHideFolders`), not in the YAML config. One file for all of them: don't add others.
 - **`cli.ConfigHook` is the one exception to the allowlist:** it runs the
   user's decrypt/encrypt commands with `sh -c`. Use it only for those.
-  `cli.Open` (`open`/`xdg-open`, for `browse`'s `e` and `g`) isn't a
+  `cli.Open` (`open`/`xdg-open`, for `browse`'s `e` and `b`) isn't a
   subcommand allowlist either: it only takes URLs with the schemes in
   `openSchemes` (the ones `folderURL` and `gitButlerURL` make), so it does
   what clicking one of status's links would.

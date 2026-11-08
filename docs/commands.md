@@ -108,7 +108,7 @@ clonager · 4 repos
   ✓ uni-work  main       │ • 3 uncommitted changes
   ✗ thesis               │ • 1 stash
 
-enter cd · e VS Code · g GitButler · / filter · q quit
+enter cd · e VS Code · b GitButler · / filter · s sort · q quit
 ```
 
 | Key | |
@@ -119,7 +119,7 @@ enter cd · e VS Code · g GitButler · / filter · q quit
 | `f` | when sorted by most recent change, hide or show the folder before each name |
 | enter (or `c`) | cd to the repo, and exit |
 | `e` | open the repo in the `openIn` app (the file manager by default; see [`clonager`](#clonager)) |
-| `g` | open the repo in the GitButler app (for repos in a GitButler workspace) |
+| `b` | open the repo in the GitButler app (for repos in a GitButler workspace) |
 | `q`, esc | exit |
 
 Clicking a repo selects it, and double-clicking cds to it.

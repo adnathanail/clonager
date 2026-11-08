@@ -14,7 +14,7 @@ Keys:
   - enter (or `c`) to cd to the repo and exit
   - `e` to open it in the `openIn` app from settings.json (the file
     manager by default)
-  - `g` to open it in the GitButler app, for repos in a GitButler workspace
+  - `b` to open it in the GitButler app, for repos in a GitButler workspace
   - `q` or esc to exit
 Clicking a repo selects it, and double-clicking cds to it.
 
