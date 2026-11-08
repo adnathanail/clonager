@@ -25,7 +25,12 @@ commits made by `.github/workflows/release.yml`, which are reachable from
 their tag but not from main. Never add `VERSION` to main.
 
 When `go.mod`/`go.sum` change, `vendorHash` in `flake.nix` must be updated
-(set it to `pkgs.lib.fakeHash`, `nix build`, copy the "got:" hash).
+(set it to `pkgs.lib.fakeHash`, `nix build`, copy the "got:" hash). It
+also changes when code starts importing a package from a dependency that
+wasn't imported before, as only imported packages are vendored. A plain
+`nix build` of the checkout leaves out untracked files, so with new files
+not yet committed, build with `nix build "path:$PWD"` instead, or the
+hash (and the tests it runs) won't include them.
 `dependabot-vendor-hash.yml` does this on Dependabot's Go PRs, and
 `update-flake-lock.yml` opens a weekly PR for `flake.lock` (Dependabot doesn't
 do Nix), and `update-gitbutler.yml` a PR for each new GitButler release,
@@ -141,6 +146,12 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   draws on stderr, so stdout only ever carries the folder. The Home Manager
   module adds the functions (`enableShellIntegration`). `TestShellInit`
   runs them in bash, zsh and fish (where installed).
+- **A repo's last change (`Status.LastChange`, for `browse --sort recent`)
+  costs no extra git calls**: it's the newest committer date among local
+  branches (an extra field in `readBranches`' `for-each-ref`, skipping
+  `gitbutler/*`) and the mtimes of the files `git status` lists
+  (`noteEdits`). Not `.git/index`'s mtime (editors and prompts running
+  `git status` touch it), nor HEAD's reflog (misses uncommitted work).
 - **`browse` reads a status only from Bubble Tea's `Update`**: inspection
   and the GitHub check run as commands in the background, and a row's
   `report` is rebuilt when each finishes. While `CheckForge` is running for

@@ -6,12 +6,18 @@ then GitHub is checked for each (as status does, unless `--offline` or
 Keys:
   - up/down (or `k`/`j`), pgup/pgdown, home/end to move
   - `/` to filter by name, folder or tag (enter keeps it, esc clears it)
+  - `s` to switch between grouping by folder and listing the most recently
+    changed first (`--sort recent` starts that way)
   - enter (or `c`) to cd to the repo and exit
   - `e` to open it in the `openIn` app from settings.json (the file
     manager by default)
   - `g` to open it in the GitButler app, for repos in a GitButler workspace
   - `q` or esc to exit
 Clicking a repo selects it, and double-clicking cds to it.
+
+A repo's last change is its newest commit on any local branch (by commit
+date, so rebasing counts), or the last edit to a file with uncommitted
+changes, whichever is later.
 
 A program can't change the directory of the shell that ran it, so cding
 needs the shell integration (see `clonager shell-init`), which the Home
