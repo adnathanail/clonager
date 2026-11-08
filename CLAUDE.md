@@ -200,9 +200,13 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - **GitButler doesn't set upstream tracking** on branches it pushes. A branch
   with no upstream is compared against a same-named remote branch (origin
   first) before being called local-only. GitButler's own `gitbutler/*`
-  branches are ignored. A repo is "in GitButler" when HEAD is
-  `gitbutler/workspace` (or the older `gitbutler/integration`); a
-  `.git/gitbutler` directory alone means it was set up and later left.
+  branches are ignored. A repo is "in GitButler" (`GitButlerActive`) when
+  HEAD is `gitbutler/workspace` (or the older `gitbutler/integration`),
+  which GitButler only switches to with two or more branches applied, or
+  when it has a `gitbutler/target` branch, which GitButler creates once a
+  branch is made with it: with one branch applied, HEAD is that branch. A
+  `.git/gitbutler` directory alone isn't enough: any `but` command creates
+  it (even `but config target --json`), and teardown leaves it.
 - **`git log A --not B C`** excludes commits reachable from *any* of B, C, which
   gives the intersection of the ranges, not the union.
 - **`git merge-base --octopus` fails if any branch has unrelated history**

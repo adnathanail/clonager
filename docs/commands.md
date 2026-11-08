@@ -9,7 +9,10 @@ With no command, clonager shows the configured repos that need attention
 (●) or have an error (✗), grouped by folder; `--all` also shows the ones that
 are fine (✓). After the name is the checked-out branch or, for a repo in a
 GitButler workspace, ⧓ (a stand-in for GitButler's logo) and its applied
-branches (just ⧓ if none are applied). In terminals that support links
+branches (or the checked-out branch, if none are applied). A repo is in a
+GitButler workspace once a branch has been made in it with GitButler: with
+one branch applied, that branch is checked out, and with more, GitButler's
+`gitbutler/workspace` branch. In terminals that support links
 (iTerm2, Ghostty, WezTerm, Kitty, VS Code…), cmd-clicking a repo's name opens
 its folder in the file manager, and cmd-clicking ⧓ opens it in the GitButler
 app. To open folders in an editor instead, set `openIn`

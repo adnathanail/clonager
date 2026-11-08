@@ -85,13 +85,21 @@ func (s *Status) ReadGitButlerSettings() {
 	s.GitButler.Settings = err == nil
 }
 
+// readGitButler reads the state of a repo that's in use with GitButler: one
+// whose HEAD is the gitbutler/workspace branch (or the older
+// gitbutler/integration), which GitButler switches to with more than one
+// branch applied, or that has a gitbutler/target branch, which GitButler
+// creates when a branch is first made with it. With just one branch
+// applied, HEAD is that branch. GitButler's data folder alone isn't enough:
+// any `but` command creates it, and it's left behind when GitButler is
+// torn down.
 func (s *Status) readGitButler(gitDir string) {
 	onWorkspace := s.Head == "gitbutler/workspace" || s.Head == "gitbutler/integration"
 	_, err := os.Stat(filepath.Join(gitDir, "gitbutler"))
 	hasData := err == nil
 
 	switch {
-	case onWorkspace:
+	case onWorkspace || s.hasGitButlerTarget:
 		s.GitButler.Mode = GitButlerActive
 	case hasData:
 		s.GitButler.Mode = GitButlerInactive
