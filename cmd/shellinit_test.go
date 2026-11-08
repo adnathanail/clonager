@@ -23,12 +23,25 @@ func needShell(t *testing.T, shell string) {
 	}
 }
 
-// stubPrograms makes a folder of stand-ins for each of names that write
-// $TARGET to CLONAGER_CD_FILE when given "browse", print what they were
-// run with, and exit 3.
+// stubPrograms makes a folder to be a shell's whole PATH: stand-ins for
+// each of names that write $TARGET to CLONAGER_CD_FILE when given "browse",
+// print what they were run with, and exit 3, and links to the programs the
+// shell integration runs. Linking them, rather than adding the folders
+// they're in to the PATH, works wherever they are (in the Nix build's
+// sandbox, not in /usr/bin), and keeps out anything else in those folders,
+// such as a real cg.
 func stubPrograms(t *testing.T, names ...string) string {
 	t.Helper()
 	bin := t.TempDir()
+	for _, tool := range []string{"mktemp", "cat", "rm"} {
+		path, err := exec.LookPath(tool)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(path, filepath.Join(bin, tool)); err != nil {
+			t.Fatal(err)
+		}
+	}
 	stub := `#!/bin/sh
 case " $* " in *" browse "*) printf %s "$TARGET" > "$CLONAGER_CD_FILE";; esac
 echo "ran $*"
@@ -77,7 +90,7 @@ pwd -P
 			if shell == "bash" {
 				cmd.Args = []string{"bash", "-O", "expand_aliases", "-c", test}
 			}
-			cmd.Env = append(os.Environ(), "PATH="+bin+":/usr/bin:/bin", "TARGET="+target)
+			cmd.Env = append(os.Environ(), "PATH="+bin, "TARGET="+target)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				t.Fatalf("%v\n%s", err, out)
@@ -107,7 +120,7 @@ func TestShellInitWithoutCg(t *testing.T) {
 				t.Fatal(err)
 			}
 			cmd := exec.Command(shell, "-c", script+check[shell])
-			cmd.Env = append(os.Environ(), "PATH="+bin+":/usr/bin:/bin")
+			cmd.Env = append(os.Environ(), "PATH="+bin)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				t.Fatalf("%v\n%s", err, out)
