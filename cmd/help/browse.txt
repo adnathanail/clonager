@@ -10,6 +10,7 @@ Keys:
     changed first, each after the end of its folder (`--sort recent`, or
     `browseSort` in settings.json, starts that way)
   - `f`, when sorted by recent change, to hide or show those folders
+    (`browseHideFolders` in settings.json starts with them hidden)
   - enter (or `c`) to cd to the repo and exit
   - `e` to open it in the `openIn` app from settings.json (the file
     manager by default)

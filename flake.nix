@@ -169,6 +169,16 @@
               '';
             };
 
+            browseHideFolders = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = ''
+                Whether `clonager browse`, when sorted by most recent change,
+                starts with the folder before each repo's name hidden. `f`
+                shows or hides them while browsing.
+              '';
+            };
+
             enableShellIntegration = lib.mkOption {
               type = lib.types.bool;
               default = true;
@@ -222,7 +232,8 @@
                   // lib.optionalAttrs (cfg.discoverPaths != [ ]) { inherit (cfg) discoverPaths; }
                   // lib.optionalAttrs (cfg.openIn != null) { inherit (cfg) openIn; }
                   // lib.optionalAttrs cfg.alwaysOffline { inherit (cfg) alwaysOffline; }
-                  // lib.optionalAttrs (cfg.browseSort != null) { inherit (cfg) browseSort; };
+                  // lib.optionalAttrs (cfg.browseSort != null) { inherit (cfg) browseSort; }
+                  // lib.optionalAttrs cfg.browseHideFolders { inherit (cfg) browseHideFolders; };
               in
               lib.mkIf (settings != { }) { text = builtins.toJSON settings; };
           };

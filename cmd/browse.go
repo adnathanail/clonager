@@ -76,6 +76,7 @@ func runBrowse(cmd *cobra.Command, args []string) error {
 
 	m := newBrowseModel(repos, !offline(cmd, browseFlags.offline, settings))
 	m.recent = sort == "recent"
+	m.noFolders = settings.BrowseHideFolders
 	m.applyFilter()
 	if _, err := tea.NewProgram(m, tea.WithOutput(os.Stderr)).Run(); err != nil {
 		return err

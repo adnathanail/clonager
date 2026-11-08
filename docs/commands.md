@@ -138,6 +138,13 @@ Home Manager module):
 { "browseSort": "recent" }
 ```
 
+To start with the folders before names hidden, set `browseHideFolders`
+(`programs.clonager.browseHideFolders`):
+
+```json
+{ "browseSort": "recent", "browseHideFolders": true }
+```
+
 Sorted by most recent change, the list has no folder headings: instead
 each repo's name follows the end of its folder (`ACME/vip-proj`, or more
 of it where two folders end the same way), and how long ago it changed

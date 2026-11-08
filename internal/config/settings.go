@@ -28,6 +28,9 @@ type Settings struct {
 	// BrowseSort is the order browse starts in (see BrowseSorts); empty
 	// means DefaultBrowseSort.
 	BrowseSort string `json:"browseSort,omitempty"`
+	// BrowseHideFolders makes browse start with the folders before names
+	// hidden, when sorted by most recent change.
+	BrowseHideFolders bool `json:"browseHideFolders,omitempty"`
 }
 
 // BrowseSorts are the orders browse can list repos in: grouped by folder, or
