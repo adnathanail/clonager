@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -225,5 +227,52 @@ func TestBrowseSortRecentStartsAtTop(t *testing.T) {
 	m.Update(inspectedMsg{1, &repostatus.Status{Repo: rs[1], LastChange: time.Now()}})
 	if r := m.selected(); r == nil || r.repo.Path != rs[1].Path {
 		t.Errorf("selection isn't on b, the most recently changed")
+	}
+}
+
+func TestFolderLabels(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	repos := func(paths ...string) []config.Repo {
+		var rs []config.Repo
+		for _, p := range paths {
+			rs = append(rs, config.Repo{Path: filepath.Join(home, p)})
+		}
+		return rs
+	}
+	cases := []struct {
+		repos []config.Repo
+		want  map[string]string // folder (under home) to label
+	}{
+		{repos("Documents/ACME/vip-proj", "Documents/ACME/site", "Projects/notes"),
+			map[string]string{"Documents/ACME": "ACME/", "Projects": "Projects/"}},
+		{repos("Work/Projects/vip-proj", "Projects/vip-proj"),
+			map[string]string{"Work/Projects": "Work/Projects/", "Projects": "~/Projects/"}},
+		{repos("notes"), map[string]string{"": "~/"}},
+	}
+	for _, c := range cases {
+		got := folderLabels(c.repos)
+		for dir, want := range c.want {
+			if g := got[filepath.Join(home, dir)]; g != want {
+				t.Errorf("%s: got %q, want %q", dir, g, want)
+			}
+		}
+	}
+}
+
+func TestBrowseRecentShowsFolders(t *testing.T) {
+	m, _ := browseWith(t, 120, 30, map[string]*repostatus.Status{
+		"/Users/me/Documents/vip-proj": {Head: "main", LastChange: time.Now()},
+		"/Users/me/Projects/notes":     {Head: "main", LastChange: time.Now().Add(-time.Hour)},
+	})
+	m.Update(key("s"))
+	view := ansi.Strip(m.View().Content)
+	for _, want := range []string{"Documents/vip-proj", "Projects/notes"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("no %q in:\n%s", want, view)
+		}
+	}
+	m.Update(key("s"))
+	if view := ansi.Strip(m.View().Content); strings.Contains(view, "Projects/notes") {
+		t.Errorf("folder before the name when grouped by folder:\n%s", view)
 	}
 }

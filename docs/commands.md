@@ -137,8 +137,10 @@ Home Manager module):
 { "browseSort": "recent" }
 ```
 
-Sorted by most recent change, the list shows how long ago each repo changed
-(`23m`, `7h`, `5d`). That's its newest commit on any local branch, by commit
+Sorted by most recent change, the list has no folder headings: instead
+each repo's name follows the end of its folder (`ACME/vip-proj`, or more
+of it where two folders end the same way), and how long ago it changed
+(`23m`, `7h`, `5d`) comes first. That's its newest commit on any local branch, by commit
 date (so rebasing or amending counts), or the last edit to a file with
 uncommitted changes, whichever is later. GitButler's own `gitbutler/*`
 branches don't count. An untracked folder only counts as changed when files
