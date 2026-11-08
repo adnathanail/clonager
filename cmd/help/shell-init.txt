@@ -8,7 +8,7 @@ file:
 
 The Home Manager module does this for you (`programs.clonager.enableShellIntegration`).
 
-It defines shell functions named `clonager` and `cg` that run the program
-as usual, with `CLONAGER_CD_FILE` set to a temporary file. When you pick a
+It defines shell functions named `clonager` and (if a `cg` program is
+installed, as the Nix package does) `cg` that run the program as usual, with `CLONAGER_CD_FILE` set to a temporary file. When you pick a
 repo to cd to, browse writes its folder there, and the function cds to it
 once browse exits. Every other command works just as it does without them.

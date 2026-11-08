@@ -27,9 +27,15 @@ func init() {
 }
 
 // shellInit is the shell integration for shell: functions named clonager
-// and cg that run the program with CLONAGER_CD_FILE (cdFileEnv) set to a temporary file, and cd
-// to the folder browse writes there, if any. Every other command runs as
-// it would without them.
+// and cg that run the program with CLONAGER_CD_FILE (cdFileEnv) set to a
+// temporary file, and cd to the folder browse writes there, if any. Every
+// other command runs as it would without them.
+//
+// cg is only defined where a cg program is on the PATH (the Nix package
+// installs one), so that without one, cg still isn't found. That checks for
+// a program rather than using `command -v`, which an alias (say
+// cg=clonager, which reaches the clonager function anyway) also satisfies;
+// in fish, an alias is a function, which defining cg would replace.
 //
 // `function name` is used rather than `name()`, as bash and zsh expand an
 // alias in `name()` (e.g. alias cg=clonager), breaking the definition.
@@ -37,6 +43,10 @@ func shellInit(shell string) (string, error) {
 	var script string
 	switch shell {
 	case "zsh", "bash":
+		hasCg := `type -P cg >/dev/null` // bash
+		if shell == "zsh" {
+			hasCg = `(( $+commands[cg] ))`
+		}
 		script = `__clonager_cd() {
   local file code dir
   file="$(mktemp "${TMPDIR:-/tmp}/clonager.XXXXXX")" || { command "$@"; return; }
@@ -50,7 +60,9 @@ func shellInit(shell string) (string, error) {
   return "$code"
 }
 function clonager { __clonager_cd clonager "$@"; }
-function cg { __clonager_cd cg "$@"; }
+if ` + hasCg + `; then
+  function cg { __clonager_cd cg "$@"; }
+fi
 `
 	case "fish":
 		script = `function __clonager_cd
@@ -71,8 +83,10 @@ end
 function clonager --wraps clonager
     __clonager_cd clonager $argv
 end
-function cg --wraps cg
-    __clonager_cd cg $argv
+if command -q cg
+    function cg --wraps cg
+        __clonager_cd cg $argv
+    end
 end
 `
 	default:
