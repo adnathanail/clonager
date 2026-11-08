@@ -156,14 +156,13 @@ Like `prune`, it never runs anything itself.
 $ clonager clone
 # ~/Documents/ACME/vip-proj
 git clone git@github.com:acmeltd/vip-proj.git ~/Documents/ACME/vip-proj
-# but -C ~/Documents/ACME/vip-proj setup  # switches to GitButler's workspace branch
 
 # ~/Documents/Uni/uni-work
 git -C ~/Documents/Uni/uni-work remote add -f upstream git@github.com:my-uni/uni-work.git
-# but -C ~/Documents/Uni/uni-work setup  # switches to GitButler's workspace branch
-# but -C ~/Documents/Uni/uni-work config target upstream/main
+# git -C ~/Documents/Uni/uni-work branch --set-upstream-to=upstream/main main
+# but -C ~/Documents/Uni/uni-work config target main --push-remote origin
 
-# 1 repo to clone, 1 remote to add, 2 commented out to review
+# 1 repo to clone, 1 remote to add, 1 commented out to review
 ```
 
 - `git clone` for repos that aren't cloned yet, or whose folder is empty.
@@ -174,15 +173,18 @@ git -C ~/Documents/Uni/uni-work remote add -f upstream git@github.com:my-uni/uni
   branch fetched: a new clone has it, an older one may need `git fetch`.
 - `git remote set-url`, commented out, for remotes whose URL differs from the
   config: the config may be the one that's out of date.
-- `but setup`, commented out, for repos marked `gitbutler: true` that aren't
-  in a GitButler workspace, as it switches the repo to GitButler's
-  `gitbutler/workspace` branch. It's followed by `but config target` (or
-  `but config push-remote`) for repos with a `target` or `push` in the
-  config (see [the config format](./config.md)).
-- `but config target` and `but config push-remote`, commented out, for
-  GitButler workspaces whose target branch or push remote differ from a
-  `target` or `push` in the config: as with remote URLs, the config may be
-  the one that's out of date.
+- `but config target`, commented out, for repos marked `gitbutler: true`
+  with a `target` or `push` in the config (see
+  [the config format](./config.md)) that aren't in a GitButler workspace yet.
+  GitButler needs no other setup. Its target is a local branch, so a target
+  on another remote (`upstream/main`) is preceded by a `git branch
+  --set-upstream-to` making the local branch of that name track it. As
+  GitButler pushes to the target's remote unless told otherwise, these also
+  give `--push-remote origin` where the config has no `push`.
+- The same, and `but config push-remote`, commented out, for GitButler
+  workspaces whose target branch or push remote differ from a `target` or
+  `push` in the config: as with remote URLs, the config may be the one
+  that's out of date.
 
 Paths that exist but aren't a git repo are listed with the reason. `clone`
 only prints `# Nothing to clone` once there's nothing left to do and every
@@ -201,7 +203,7 @@ copy (see the [Nix flake docs](./installation/nix-flake.md)).
 Finds git repos under each `<dir>` that aren't in the config and adds them,
 with `origin` as the `url`, any other remotes, and `gitbutler: true` if the repo
 is in a GitButler workspace: or, where the workspace's target branch or push
-remote differ from what `but setup` picks, a mapping of them (see
+remote differ from GitButler's defaults, a mapping of them (see
 [the config format](./config.md)). If those can't be read (e.g. `but` isn't
 installed), it adds `gitbutler: true` with a note, and
 [`tidy`](#clonager-config-tidy) fills them in later. Repos without an `origin` are skipped, since
@@ -285,8 +287,9 @@ Tidies up the config:
   it). It doesn't run them. Clones with some other URL are left for
   [`clone`](#clonager-clone) to point out.
 - **GitButler** — repos in a GitButler workspace get `gitbutler: true`, e.g.
-  ones you've run `but setup` in since adding them. Where the workspace's
-  target branch or push remote differ from what `but setup` picks, they're
+  ones you've made a GitButler branch in since adding them. Where the
+  workspace's target branch or push remote differ from GitButler's defaults
+  (origin's default branch, and `origin`), they're
   recorded too (`gitbutler: {target: upstream/main}`), including for repos
   already marked `true`. A `target` or `push` already in the config is
   left as it is. Reading them needs GitButler's CLI (`but`); without it,
@@ -295,8 +298,7 @@ Tidies up the config:
   until then, repos are still marked `true`, and tidy lists the remotes to
   add under `remotes`.
   `gitbutler` is never removed from repos that aren't in a
-  workspace: [`clone`](#clonager-clone) prints the `but setup` command for
-  those instead.
+  workspace (e.g. a fresh clone).
 - **Airlifted branches** — branches recorded by
   [`airlift`](#clonager-config-airlift) that now exist on this laptop are
   removed from the config (a repo with nothing else set goes back to just its

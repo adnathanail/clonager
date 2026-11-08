@@ -59,7 +59,7 @@ type Repo struct {
 	GitButler bool
 	// GitButlerTarget and GitButlerPush (gitbutler: {target, push}) are the
 	// repo's GitButler target branch and push remote, set only where they
-	// differ from what `but setup` picks: origin's default branch, and origin.
+	// differ from GitButler's defaults: origin's default branch, and origin.
 	GitButlerTarget string // e.g. upstream/main
 	GitButlerPush   string // e.g. me
 	Tags            []string

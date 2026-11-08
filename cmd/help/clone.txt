@@ -7,10 +7,10 @@ review the output and run the commands yourself (or pipe them to `sh`).
 Commented out, to check first:
   - `git remote set-url` for remotes whose URL differs from the config, as
     the config may be the one that's out of date
-  - `but setup` for repos marked `gitbutler: true` that aren't in a
-    GitButler workspace, as it switches the repo to GitButler's workspace
-    branch, then `but config target` for repos with a target branch or push
-    remote in the config
+  - `but config target` for repos marked `gitbutler: true` with a target
+    branch or push remote in the config that aren't in a GitButler
+    workspace yet, preceded by `git branch --set-upstream-to` for a target
+    on another remote, as GitButler's target is a local branch tracking it
   - `but config target` and `but config push-remote` for GitButler
     workspaces whose target branch or push remote differ from the config
 
