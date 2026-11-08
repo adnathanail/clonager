@@ -119,6 +119,7 @@ type browseModel struct {
 	filter    string
 	filtering bool  // typing the filter
 	recent    bool  // most recently changed first, rather than by folder
+	noFolders bool  // hide the folders before names when sorted by recent change
 	visible   []int // the rows that match it, in the order shown
 	cursor    int   // index into visible
 	moved     bool  // whether the user has moved the cursor (or filtered)
@@ -262,6 +263,10 @@ func (m *browseModel) key(msg tea.KeyPressMsg) tea.Cmd {
 		m.recent = !m.recent
 		m.moved = true
 		m.applyFilter()
+	case "f":
+		if m.recent {
+			m.noFolders = !m.noFolders
+		}
 	case "enter", "c":
 		return m.cd()
 	case "e":
@@ -484,7 +489,7 @@ func (m *browseModel) listLines() (lines []string, lineRows []int) {
 		switch {
 		case v == m.cursor:
 			name = lipgloss.NewStyle().Reverse(true).Render(fit(m.rowName(r)))
-		case m.recent:
+		case m.recent && !m.noFolders:
 			name = fit(styleDim.Render(r.folder) + r.repo.Name())
 		default:
 			name = fit(r.repo.Name())
@@ -510,9 +515,10 @@ func (m *browseModel) listLines() (lines []string, lineRows []int) {
 const minHeadWidth = 4
 
 // rowName is the repo's name as the list shows it: after its folder when
-// sorted by most recent change, as there are no folder headings then.
+// sorted by most recent change, as there are no folder headings then
+// (unless folders are hidden).
 func (m *browseModel) rowName(r browseRow) string {
-	if m.recent {
+	if m.recent && !m.noFolders {
 		return r.folder + r.repo.Name()
 	}
 	return r.repo.Name()
@@ -704,11 +710,11 @@ func (m *browseModel) footer() (message, keys string) {
 			hints = append(hints, "g GitButler")
 		}
 	}
-	sort := "s recent first"
+	hints = append(hints, "/ filter", "s sort")
 	if m.recent {
-		sort = "s by folder"
+		hints = append(hints, "f folders")
 	}
-	hints = append(hints, "/ filter", sort, "q quit")
+	hints = append(hints, "q quit")
 	return message, styleDim.Render(strings.Join(hints, " · "))
 }
 

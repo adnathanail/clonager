@@ -116,6 +116,7 @@ enter cd · e VS Code · g GitButler · / filter · q quit
 | ↑/↓ (or `k`/`j`), pgup/pgdown, home/end | move |
 | `/` | filter by name, folder or tag: enter keeps the filter, esc clears it |
 | `s` | switch between grouping by folder and listing the most recently changed first |
+| `f` | when sorted by most recent change, hide or show the folder before each name |
 | enter (or `c`) | cd to the repo, and exit |
 | `e` | open the repo in the `openIn` app (the file manager by default; see [`clonager`](#clonager)) |
 | `g` | open the repo in the GitButler app (for repos in a GitButler workspace) |

@@ -276,3 +276,33 @@ func TestBrowseRecentShowsFolders(t *testing.T) {
 		t.Errorf("folder before the name when grouped by folder:\n%s", view)
 	}
 }
+
+// TestBrowseHideFolders checks f hides and shows the folders before names
+// when sorted by recent change, and leaves the folder headings alone.
+func TestBrowseHideFolders(t *testing.T) {
+	m, _ := browseWith(t, 120, 30, map[string]*repostatus.Status{
+		"/Users/me/Documents/vip-proj": {Head: "main", LastChange: time.Now()},
+		"/Users/me/Projects/notes":     {Head: "main", LastChange: time.Now().Add(-time.Hour)},
+	})
+	// The list alone: the details pane has the selected repo's full path.
+	list := func() string {
+		lines, _ := m.listLines()
+		return ansi.Strip(strings.Join(lines, "\n"))
+	}
+	m.Update(key("f"))
+	if l := list(); !strings.Contains(l, "/Users/me/Projects") {
+		t.Errorf("f hid the folder headings:\n%s", l)
+	}
+	m.Update(key("s"))
+	if l := list(); !strings.Contains(l, "Projects/notes") {
+		t.Fatalf("no folder before the name to start with:\n%s", l)
+	}
+	m.Update(key("f"))
+	if l := list(); strings.Contains(l, "Projects/notes") || !strings.Contains(l, "notes") {
+		t.Errorf("folder before the name once hidden:\n%s", l)
+	}
+	m.Update(key("f"))
+	if l := list(); !strings.Contains(l, "Projects/notes") {
+		t.Errorf("no folder before the name once shown again:\n%s", l)
+	}
+}
