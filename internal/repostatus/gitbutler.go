@@ -1,6 +1,7 @@
 package repostatus
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,8 +36,10 @@ func SetupTarget(path string) string {
 }
 
 // GitButlerSettings reads the target branch (e.g. upstream/main) and push
-// remote of the GitButler workspace at path. Each is "" where it's what `but
-// setup` picks: SetupTarget, and origin.
+// remote of the GitButler workspace at path. Each is "" where it's
+// GitButler's default: SetupTarget, and origin. GitButler only records a
+// target once it needs one, and there's no push remote without one, so
+// before that both are "".
 func GitButlerSettings(path string) (target, push string, err error) {
 	target, push, _, err = gitButlerSettings(path)
 	return target, push, err
@@ -48,7 +51,11 @@ func gitButlerSettings(path string) (target, push, setupTarget string, err error
 	var t struct {
 		Branch string `json:"branch"`
 	}
-	if err := butJSON(path, &t, "config", "target", "--json"); err != nil {
+	setupTarget = SetupTarget(path)
+	switch err := butJSON(path, &t, "config", "target", "--json"); {
+	case errors.Is(err, errNoOutput): // no target yet
+		return "", "", setupTarget, nil
+	case err != nil:
 		return "", "", "", err
 	}
 	var p struct {
@@ -57,7 +64,6 @@ func gitButlerSettings(path string) (target, push, setupTarget string, err error
 	if err := butJSON(path, &p, "config", "push-remote", "--json"); err != nil {
 		return "", "", "", err
 	}
-	setupTarget = SetupTarget(path)
 	if t.Branch != setupTarget {
 		target = t.Branch
 	}
@@ -111,6 +117,10 @@ func (s *Status) readGitButler(gitDir string) {
 	}
 }
 
+// errNoOutput is butJSON's error when but printed nothing, as
+// `but config target --json` does before there's a target.
+var errNoOutput = errors.New("no output")
+
 // butJSON runs but in dir and decodes its JSON output into v. args end
 // with --json.
 func butJSON(dir string, v any, args ...string) error {
@@ -120,6 +130,9 @@ func butJSON(dir string, v any, args ...string) error {
 	out, err := cli.But(dir, args...)
 	if err != nil {
 		return err
+	}
+	if len(bytes.TrimSpace(out)) == 0 {
+		return fmt.Errorf("but %s: %w", strings.Join(args[:len(args)-1], " "), errNoOutput)
 	}
 	if err := json.Unmarshal(out, v); err != nil {
 		return fmt.Errorf("but %s: unexpected output: %w", strings.Join(args[:len(args)-1], " "), err)
