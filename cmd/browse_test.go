@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -158,5 +160,70 @@ func TestBrowseView(t *testing.T) {
 		if size[0] >= 60 && !strings.Contains(ansi.Strip(m.View().Content), "1 stash") {
 			t.Errorf("%dx%d: no details for the selected repo:\n%s", size[0], size[1], ansi.Strip(m.View().Content))
 		}
+	}
+}
+
+func TestBrowseSortRecent(t *testing.T) {
+	day := func(d int) time.Time { return time.Date(2024, 1, d, 12, 0, 0, 0, time.UTC) }
+	m, rs := browseWith(t, 100, 30, map[string]*repostatus.Status{
+		"/Users/me/Documents/vip-proj":     {Head: "main", LastChange: day(2)},
+		"/Users/me/Documents/acmeltd-site": {Head: "main"}, // no known change
+		"/Users/me/Projects/notes":         {Head: "main", LastChange: day(5)},
+	})
+	m.Update(key("down")) // acmeltd-site
+	m.Update(key("s"))
+	order := func() []string {
+		var names []string
+		for _, i := range m.visible {
+			names = append(names, m.rows[i].repo.Name())
+		}
+		return names
+	}
+	if got, want := order(), []string{"notes", "vip-proj", "acmeltd-site"}; !slices.Equal(got, want) {
+		t.Errorf("recent first: got %v, want %v", got, want)
+	}
+	if r := m.selected(); r == nil || r.repo.Path != rs[1].Path {
+		t.Errorf("selection didn't stay on acmeltd-site")
+	}
+	if strings.Contains(ansi.Strip(m.View().Content), "~/Documents\n") {
+		t.Error("folder headings shown when sorted by recent change")
+	}
+
+	m.Update(key("s"))
+	if got, want := order(), []string{"vip-proj", "acmeltd-site", "notes"}; !slices.Equal(got, want) {
+		t.Errorf("by folder again: got %v, want %v", got, want)
+	}
+}
+
+// TestBrowseSortRecentWhileInspecting checks repos move into place as
+// they're inspected, keeping the selection on the same repo.
+func TestBrowseSortRecentWhileInspecting(t *testing.T) {
+	rs := []config.Repo{{Path: "/Users/me/a"}, {Path: "/Users/me/b"}}
+	m := newBrowseModel(rs, false)
+	m.recent = true
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	m.Update(inspectedMsg{0, &repostatus.Status{Repo: rs[0], LastChange: time.Now().Add(-time.Hour)}})
+	m.Update(key("down")) // b, not inspected yet
+	m.Update(inspectedMsg{1, &repostatus.Status{Repo: rs[1], LastChange: time.Now()}})
+	if m.visible[0] != 1 {
+		t.Errorf("b changed most recently but isn't first: %v", m.visible)
+	}
+	if r := m.selected(); r == nil || r.repo.Path != rs[1].Path {
+		t.Errorf("selection didn't follow b to the top")
+	}
+}
+
+// TestBrowseSortRecentStartsAtTop checks that, until the user moves, the
+// selection stays on the most recently changed repo as repos sort into
+// place, rather than on the first in the config.
+func TestBrowseSortRecentStartsAtTop(t *testing.T) {
+	rs := []config.Repo{{Path: "/Users/me/a"}, {Path: "/Users/me/b"}}
+	m := newBrowseModel(rs, false)
+	m.recent = true
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	m.Update(inspectedMsg{0, &repostatus.Status{Repo: rs[0], LastChange: time.Now().Add(-time.Hour)}})
+	m.Update(inspectedMsg{1, &repostatus.Status{Repo: rs[1], LastChange: time.Now()}})
+	if r := m.selected(); r == nil || r.repo.Path != rs[1].Path {
+		t.Errorf("selection isn't on b, the most recently changed")
 	}
 }

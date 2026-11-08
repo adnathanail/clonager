@@ -115,6 +115,7 @@ enter cd · e VS Code · g GitButler · / filter · q quit
 |---|---|
 | ↑/↓ (or `k`/`j`), pgup/pgdown, home/end | move |
 | `/` | filter by name, folder or tag: enter keeps the filter, esc clears it |
+| `s` | switch between grouping by folder and listing the most recently changed first |
 | enter (or `c`) | cd to the repo, and exit |
 | `e` | open the repo in the `openIn` app (the file manager by default; see [`clonager`](#clonager)) |
 | `g` | open the repo in the GitButler app (for repos in a GitButler workspace) |
@@ -125,7 +126,15 @@ Clicking a repo selects it, and double-clicking cds to it.
 | Flag | |
 |---|---|
 | `-t`, `--tag <tag>` | only show repos with this tag (repeatable) |
+| `-s`, `--sort <order>` | `folder` (the default), or `recent` for the most recently changed first |
 | `-o`, `--offline` | don't check GitHub |
+
+Sorted by most recent change, the list shows how long ago each repo changed
+(`23m`, `7h`, `5d`). That's its newest commit on any local branch, by commit
+date (so rebasing or amending counts), or the last edit to a file with
+uncommitted changes, whichever is later. GitButler's own `gitbutler/*`
+branches don't count. An untracked folder only counts as changed when files
+are added to it or removed, not when a file inside it is edited.
 
 A program can't change the directory of the shell that started it, so
 cding needs the shell integration below, which the Home Manager module sets

@@ -87,6 +87,10 @@ type Status struct {
 	RemoteURLs map[string]string
 	GitButler  GitButler
 	LastFetch  time.Time // when the repo last fetched from any remote; zero if never
+	// LastChange is when the repo last changed locally, as far as can be
+	// told cheaply (see noteChange): its newest local commit, or edit to a
+	// file with uncommitted changes. Zero if neither is known.
+	LastChange time.Time
 
 	RemoteBranches []RemoteBranch // origin's branches, other than HEAD
 
@@ -255,6 +259,7 @@ func (s *Status) readWorkingTree(g git) error {
 	if err != nil {
 		return err
 	}
+	s.noteEdits(out)
 	for _, line := range strings.Split(out, "\n") {
 		switch {
 		case line == "":
@@ -293,7 +298,7 @@ func (s *Status) readBranches(g git) error {
 	}
 
 	out, err := g.run("for-each-ref",
-		"--format=%(refname:short)%00%(objectname)%00%(upstream:short)%00%(upstream:track,nobracket)", "refs/heads")
+		"--format=%(refname:short)%00%(objectname)%00%(upstream:short)%00%(upstream:track,nobracket)%00%(committerdate:unix)", "refs/heads")
 	if err != nil {
 		return err
 	}
@@ -301,8 +306,8 @@ func (s *Status) readBranches(g git) error {
 		if line == "" {
 			continue
 		}
-		f := strings.SplitN(line, "\x00", 4)
-		if len(f) != 4 {
+		f := strings.SplitN(line, "\x00", 5)
+		if len(f) != 5 {
 			continue
 		}
 		b := Branch{Name: f[0], Tip: f[1]}
@@ -311,6 +316,9 @@ func (s *Status) readBranches(g git) error {
 				s.hasGitButlerTarget = true
 			}
 			continue // GitButler's own bookkeeping branches
+		}
+		if sec, err := strconv.ParseInt(f[4], 10, 64); err == nil {
+			s.noteChange(time.Unix(sec, 0))
 		}
 		upstream, track := f[2], f[3]
 		switch {

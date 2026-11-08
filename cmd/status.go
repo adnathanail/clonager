@@ -656,15 +656,18 @@ func fetchAge(last, now time.Time) (age string, stale bool) {
 		return "never", true
 	}
 	d := max(0, now.Sub(last))
+	return shortAge(d), d >= staleFetch
+}
+
+// shortAge is d in short form: 23m, 7h, 5d.
+func shortAge(d time.Duration) string {
 	switch {
 	case d < time.Hour:
-		age = fmt.Sprintf("%dm", int(d.Minutes()))
+		return fmt.Sprintf("%dm", int(d.Minutes()))
 	case d < 24*time.Hour:
-		age = fmt.Sprintf("%dh", int(d.Hours()))
-	default:
-		age = fmt.Sprintf("%dd", int(d.Hours()/24))
+		return fmt.Sprintf("%dh", int(d.Hours()))
 	}
-	return age, d >= staleFetch
+	return fmt.Sprintf("%dd", int(d.Hours()/24))
 }
 
 // mergedHow describes how a merged branch got into the default branch.

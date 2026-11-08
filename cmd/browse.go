@@ -23,6 +23,7 @@ import (
 var browseFlags struct {
 	offline bool
 	tags    []string
+	sort    string
 }
 
 var browseCmd = &cobra.Command{
@@ -37,6 +38,7 @@ var browseCmd = &cobra.Command{
 func init() {
 	browseCmd.Flags().BoolVarP(&browseFlags.offline, "offline", "o", false, "don't check GitHub (default from alwaysOffline in settings.json)")
 	browseCmd.Flags().StringSliceVarP(&browseFlags.tags, "tag", "t", nil, "only repos with this tag (repeatable)")
+	browseCmd.Flags().StringVarP(&browseFlags.sort, "sort", "s", "folder", "folder, or recent for the most recently changed first")
 	rootCmd.AddCommand(browseCmd)
 }
 
@@ -60,12 +62,17 @@ func runBrowse(cmd *cobra.Command, args []string) error {
 		}
 		return errors.New("no repos configured in " + config.TildePath(cfg.Path))
 	}
+	if browseFlags.sort != "folder" && browseFlags.sort != "recent" {
+		return fmt.Errorf("--sort %q: must be folder or recent", browseFlags.sort)
+	}
 	// It's drawn on stderr, so stdout only ever gets the chosen folder.
 	if !liveTerminal(os.Stdin) || !liveTerminal(os.Stderr) {
 		return errors.New("browse needs a terminal")
 	}
 
 	m := newBrowseModel(repos, !offline(cmd, browseFlags.offline, settings))
+	m.recent = browseFlags.sort == "recent"
+	m.applyFilter()
 	if _, err := tea.NewProgram(m, tea.WithOutput(os.Stderr)).Run(); err != nil {
 		return err
 	}
@@ -86,11 +93,12 @@ func runBrowse(cmd *cobra.Command, args []string) error {
 // been inspected, and isn't read at all while GitHub is being checked for it
 // (in the background): rep is what's shown.
 type browseRow struct {
-	repo      config.Repo
-	status    *repostatus.Status // nil until inspected
-	rep       report
-	checking  bool
-	gitButler bool // in a GitButler workspace
+	repo       config.Repo
+	status     *repostatus.Status // nil until inspected
+	rep        report
+	checking   bool
+	gitButler  bool      // in a GitButler workspace
+	lastChange time.Time // Status.LastChange
 }
 
 func (r browseRow) cloned() bool { return r.status != nil && !r.status.Missing }
@@ -105,8 +113,10 @@ type browseModel struct {
 
 	filter    string
 	filtering bool  // typing the filter
-	visible   []int // the rows that match it
+	recent    bool  // most recently changed first, rather than by folder
+	visible   []int // the rows that match it, in the order shown
 	cursor    int   // index into visible
+	moved     bool  // whether the user has moved the cursor (or filtered)
 	offset    int   // first list line shown
 
 	width, height int
@@ -175,6 +185,13 @@ func (m *browseModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		row.status = msg.status
 		row.rep = buildReport(msg.status)
 		row.gitButler = msg.status.GitButler.Mode == repostatus.GitButlerActive
+		row.lastChange = msg.status.LastChange
+		if m.recent {
+			m.applyFilter() // to sort it into place
+			if !m.moved {
+				m.cursor = 0 // stay on the most recent until the user moves
+			}
+		}
 		if m.forge && row.cloned() && msg.status.Err == nil {
 			row.checking = true
 			m.checking++
@@ -235,6 +252,10 @@ func (m *browseModel) key(msg tea.KeyPressMsg) tea.Cmd {
 		m.move(len(m.rows))
 	case "/":
 		m.filtering = true
+	case "s":
+		m.recent = !m.recent
+		m.moved = true
+		m.applyFilter()
 	case "enter", "c":
 		return m.cd()
 	case "e":
@@ -289,6 +310,7 @@ func (m *browseModel) click(mouse tea.Mouse) tea.Cmd {
 	v := lineRows[line]
 	double := v == m.cursor && v == m.lastClickRow && time.Since(m.lastClick) < 400*time.Millisecond
 	m.cursor, m.lastClickRow, m.lastClick = v, v, time.Now()
+	m.moved = true
 	if double {
 		return m.cd()
 	}
@@ -296,11 +318,14 @@ func (m *browseModel) click(mouse tea.Mouse) tea.Cmd {
 }
 
 func (m *browseModel) move(by int) {
+	m.moved = true
 	m.cursor = max(0, min(len(m.visible)-1, m.cursor+by))
 }
 
 // applyFilter shows the rows whose name, folder or tags contain the filter,
-// ignoring case, keeping the selected repo selected if it still matches.
+// ignoring case, in config order (which groups them by folder) or most
+// recently changed first, keeping the selected repo selected if it still
+// matches.
 func (m *browseModel) applyFilter() {
 	var selected = -1
 	if m.cursor < len(m.visible) {
@@ -313,6 +338,12 @@ func (m *browseModel) applyFilter() {
 		if strings.Contains(text, f) {
 			m.visible = append(m.visible, i)
 		}
+	}
+	if m.recent {
+		// Repos not inspected yet, or with no known change, go last.
+		slices.SortStableFunc(m.visible, func(a, b int) int {
+			return m.rows[b].lastChange.Compare(m.rows[a].lastChange)
+		})
 	}
 	m.cursor = max(0, slices.Index(m.visible, selected))
 }
@@ -394,31 +425,36 @@ func (m *browseModel) listWidth() int {
 	if !m.wide() {
 		return m.width
 	}
-	// As listLines lays it out: marker, icon, the name padded to the
-	// longest, and the branch column.
+	// As listLines lays it out: marker, age when sorted by it, icon, the
+	// name padded to the longest, and the branch column.
 	nameW, headW := 0, 0
 	for _, r := range m.rows {
 		nameW = max(nameW, len(r.repo.Name()))
 		headW = max(headW, lipgloss.Width(r.rep.head))
 	}
 	w := 4 + nameW
+	if m.recent {
+		w += m.ageWidth() + 1
+	}
 	if headW > 0 {
 		w += 2 + headW
 	}
 	return min(w, m.width*45/100)
 }
 
-// listLines renders the list: a heading for each folder, then its repos.
-// lineRows gives, for each line, its index in visible (-1 for headings).
+// listLines renders the list: a heading for each folder, then its repos,
+// or when sorted by most recent change, just the repos, each with how long
+// ago that was. lineRows gives, for each line, its index in visible (-1 for
+// headings).
 func (m *browseModel) listLines() (lines []string, lineRows []int) {
-	nameW := 0
+	nameW, ageW := 0, m.ageWidth()
 	for _, i := range m.visible {
 		nameW = max(nameW, len(m.rows[i].repo.Name()))
 	}
 	group := ""
 	for v, i := range m.visible {
 		r := m.rows[i]
-		if dir := config.TildePath(filepath.Dir(r.repo.Path)); dir != group {
+		if dir := config.TildePath(filepath.Dir(r.repo.Path)); dir != group && !m.recent {
 			if group != "" {
 				lines, lineRows = append(lines, ""), append(lineRows, -1)
 			}
@@ -431,13 +467,35 @@ func (m *browseModel) listLines() (lines []string, lineRows []int) {
 			name = lipgloss.NewStyle().Reverse(true).Render(name)
 			marker = "▸ "
 		}
-		line := marker + m.icon(r) + " " + name
+		line := marker
+		if m.recent {
+			line += padLeft(styleDim.Render(changeAge(r.lastChange)), ageW) + " "
+		}
+		line += m.icon(r) + " " + name
 		if r.rep.head != "" {
 			line += "  " + r.rep.head
 		}
 		lines, lineRows = append(lines, line), append(lineRows, v)
 	}
 	return lines, lineRows
+}
+
+// changeAge is how long ago a repo last changed, in short form, or "" if
+// that isn't known.
+func changeAge(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return shortAge(max(0, time.Since(t)))
+}
+
+// ageWidth is the width of the age column when sorted by most recent change.
+func (m *browseModel) ageWidth() int {
+	w := 0
+	for _, r := range m.rows {
+		w = max(w, len(changeAge(r.lastChange)))
+	}
+	return w
 }
 
 // icon is a repo's status: a spinner while it's being inspected or checked.
@@ -503,6 +561,9 @@ func (m *browseModel) details(width int) []string {
 			if r.rep.fetch != "" {
 				line += styleDim.Render("  fetched ") + r.rep.fetch + styleDim.Render(" ago")
 			}
+			if age := changeAge(r.lastChange); age != "" {
+				line += styleDim.Render("  changed " + age + " ago")
+			}
 			fmt.Fprintln(&w, strings.TrimLeft(line, " "))
 		}
 		for _, i := range r.rep.issues {
@@ -536,6 +597,9 @@ func (m *browseModel) header() string {
 		}
 		parts = append(parts, styleBranch.Render(f)+styleDim.Render(fmt.Sprintf(" (%d)", len(m.visible))))
 	}
+	if m.recent {
+		parts = append(parts, "recently changed first")
+	}
 	spinner := styleDim.Render(spinnerFrames[m.frame%len(spinnerFrames)] + " ")
 	switch {
 	case m.inspecting > 0:
@@ -564,7 +628,11 @@ func (m *browseModel) footer() (message, keys string) {
 			hints = append(hints, "g GitButler")
 		}
 	}
-	hints = append(hints, "/ filter", "q quit")
+	sort := "s recent first"
+	if m.recent {
+		sort = "s by folder"
+	}
+	hints = append(hints, "/ filter", sort, "q quit")
 	return message, styleDim.Render(strings.Join(hints, " · "))
 }
 
