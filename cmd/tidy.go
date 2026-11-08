@@ -229,14 +229,14 @@ func needsTidy(repos []config.Repo, statuses map[string]*repostatus.Status) tidy
 // workspace: true, or its target branch and push remote.
 type gitButlerChange struct {
 	repo         config.Repo
-	target, push string // "" where they're what `but setup` picks
+	target, push string // "" where they're GitButler's defaults
 	err          error  // why they couldn't be read
 }
 
 // gitButlerChanges lists the repos in a GitButler workspace (by inWorkspace)
 // whose gitbutler setting tidy fills in, with their target and push remote
 // (by read): those without gitbutler: true, and those with it but neither
-// set, where the workspace's differ from `but setup`'s. Settings already in
+// set, where the workspace's differ from GitButler's defaults. Settings already in
 // the config are kept, even where the workspace has others.
 //
 // read is nil where they can't be read (without but): repos not yet marked

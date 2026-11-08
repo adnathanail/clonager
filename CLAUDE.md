@@ -171,15 +171,22 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   where that fails get `ssh: false` (`Repo.NoSSH`), except for network
   failures (`isNetworkError`), so being offline once can't mark them all.
 - **`config tidy` only ever adds `gitbutler: true`**, for repos in a
-  GitButler workspace. A repo marked but not in one is a request to set it up
-  (`clone` prints `but setup`), so it's never removed.
+  GitButler workspace. A repo marked but not in one (e.g. a fresh clone) is
+  one to use GitButler in, so it's never removed. GitButler (0.23+) needs no
+  setup: `clone` only prints `but config target` for recorded settings.
 - **GitButler's target branch and push remote are only recorded where they
-  differ from `but setup`'s** (`origin/HEAD`'s branch, and `origin`), as
+  differ from GitButler's defaults** (`origin/HEAD`'s branch, and `origin`), as
   `gitbutler: {target, push}` (`Repo.GitButlerTarget`/`GitButlerPush`).
   They're read with `but config target --json` and
   `but config push-remote --json` (`repostatus.GitButlerSettings`), not from
   the `gitbutler.project.*` git config keys GitButler stores them in, as
-  that storage has moved before.
+  that storage has moved before. Before GitButler needs a target, the first
+  prints nothing and the second fails: both mean the defaults. GitButler's
+  target is a local branch (`--json` shows its upstream), so a target on
+  another remote needs a local branch tracking it, and its default push
+  remote is the target's remote, not `origin`. The config's meaning doesn't
+  follow that: no `push` means `origin`, so `gitButlerTargetLines` passes
+  `--push-remote origin` for a target on another remote.
   `discover` and `tidy` fill them in; `tidy` never overwrites ones already
   in the config. `Inspect` only reads them with
   `Options.GitButlerSettings`, which `clone` sets. Status reads them

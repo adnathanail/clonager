@@ -161,8 +161,12 @@ func repoCloneLines(s *repostatus.Status, isEmpty func(string) bool, n *cloneCou
 
 	if d := gitButlerDriftOf(s.Repo, s); d.any() {
 		if d.target != "" {
-			lines = append(lines, comment("but -C "+path+" config target "+shellQuote(d.target)+
-				"  # the target is "+d.gotTarget+"; check which is right"))
+			for i, l := range gitButlerTargetLines(path, d.target, s.Repo.GitButlerPush) {
+				if i == 0 {
+					l += "  # the target is " + d.gotTarget + "; check which is right"
+				}
+				lines = append(lines, comment(l))
+			}
 			n.review++
 		}
 		if d.push != "" {
@@ -171,20 +175,42 @@ func repoCloneLines(s *repostatus.Status, isEmpty func(string) bool, n *cloneCou
 			n.review++
 		}
 	}
-	if s.Repo.GitButler && (fresh || s.GitButler.Mode != repostatus.GitButlerActive) {
-		lines = append(lines, comment("but -C "+path+" setup  # switches to GitButler's workspace branch"))
-		n.review++
-		// After the remotes, so a target on one of them exists by now.
-		switch r := s.Repo; {
-		case r.GitButlerTarget != "" && r.GitButlerPush != "":
-			lines = append(lines, comment("but -C "+path+" config target "+shellQuote(r.GitButlerTarget)+" --push-remote "+shellQuote(r.GitButlerPush)))
-		case r.GitButlerTarget != "":
-			lines = append(lines, comment("but -C "+path+" config target "+shellQuote(r.GitButlerTarget)))
-		case r.GitButlerPush != "":
-			lines = append(lines, comment("but -C "+path+" config push-remote "+shellQuote(r.GitButlerPush)))
+	// GitButler needs no setup, but a recorded target or push remote has
+	// to be set. After the remotes, so a target on one of them exists by now.
+	if r := s.Repo; r.GitButler && (fresh || s.GitButler.Mode != repostatus.GitButlerActive) &&
+		(r.GitButlerTarget != "" || r.GitButlerPush != "") {
+		for _, l := range gitButlerTargetLines(path, r.GitButlerTarget, r.GitButlerPush) {
+			lines = append(lines, comment(l))
 		}
+		n.review++
 	}
 	return lines
+}
+
+// gitButlerTargetLines are the commands that set a GitButler target branch
+// (e.g. upstream/main) and push remote for the repo at path (already
+// shell-quoted), as recorded in the config: "" for origin's HEAD, and for
+// origin. The target has to be a local branch: a target on another remote
+// takes a local branch of the same name tracking it. GitButler pushes to
+// the target's remote unless told otherwise, so with a target on another
+// remote, origin is given explicitly. A push remote alone has to be set
+// along with a target, so it's given origin's HEAD.
+func gitButlerTargetLines(path, target, push string) []string {
+	var lines []string
+	arg := `"$(git -C ` + path + ` symbolic-ref --short refs/remotes/origin/HEAD)"`
+	if target != "" {
+		remote, local, _ := strings.Cut(target, "/")
+		if push == "" && remote != "origin" {
+			push = "origin"
+		}
+		lines = append(lines, "git -C "+path+" branch --set-upstream-to="+shellQuote(target)+" "+shellQuote(local))
+		arg = shellQuote(local)
+	}
+	cmd := "but -C " + path + " config target " + arg
+	if push != "" {
+		cmd += " --push-remote " + shellQuote(push)
+	}
+	return append(lines, cmd)
 }
 
 // gitButlerDrift is where a GitButler workspace's target branch or push
@@ -200,8 +226,8 @@ func (d gitButlerDrift) any() bool { return d.target != "" || d.push != "" }
 // gitButlerDriftOf compares the workspace at s (once its settings are read,
 // see repostatus.Options.GitButlerSettings) with r's config entry. It's only for
 // entries with a target or push: for the rest, config tidy records the
-// workspace's. Either left out, in the config or the workspace, means what
-// `but setup` picks: origin's HEAD (GitButler.SetupTarget), and origin.
+// workspace's. Either left out, in the config or the workspace, means
+// GitButler's default: origin's HEAD (GitButler.SetupTarget), and origin.
 // Where origin's HEAD isn't set, a config entry with no target can't be
 // compared, so only the push remote is.
 func gitButlerDriftOf(r config.Repo, s *repostatus.Status) gitButlerDrift {

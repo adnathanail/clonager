@@ -25,9 +25,9 @@ type butStatus struct {
 	} `json:"stacks"`
 }
 
-// SetupTarget is the target branch `but setup` picks for the repo at path:
-// origin's HEAD (refs/remotes/origin/HEAD, which a fresh clone has), e.g.
-// origin/main. It's "" where that isn't set, as a clone made some other way
+// SetupTarget is the target branch GitButler defaults to for the repo at
+// path: origin's HEAD (refs/remotes/origin/HEAD, which a fresh clone has),
+// e.g. origin/main. It's "" where that isn't set, as a clone made some other way
 // may not have it. Where it's "", a target is always recorded, as a fresh
 // clone's origin/HEAD can't be known offline.
 func SetupTarget(path string) string {
