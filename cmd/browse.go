@@ -103,6 +103,7 @@ type browseRow struct {
 	checking   bool
 	gitButler  bool      // in a GitButler workspace
 	lastChange time.Time // Status.LastChange
+	folder     string    // the end of its folder, e.g. "Projects/" (see folderLabels)
 }
 
 func (r browseRow) cloned() bool { return r.status != nil && !r.status.Missing }
@@ -148,8 +149,9 @@ func newBrowseModel(repos []config.Repo, forge bool) *browseModel {
 		sem:        make(chan struct{}, max(4, runtime.NumCPU())),
 		inspecting: len(repos),
 	}
+	labels := folderLabels(repos)
 	for _, r := range repos {
-		m.rows = append(m.rows, browseRow{repo: r})
+		m.rows = append(m.rows, browseRow{repo: r, folder: labels[filepath.Dir(r.Path)]})
 	}
 	m.applyFilter()
 	return m
@@ -433,7 +435,7 @@ func (m *browseModel) listWidth() int {
 	// name padded to the longest, and the branch column.
 	nameW, headW := 0, 0
 	for _, r := range m.rows {
-		nameW = max(nameW, len(r.repo.Name()))
+		nameW = max(nameW, lipgloss.Width(m.rowName(r)))
 		headW = max(headW, lipgloss.Width(r.rep.head))
 	}
 	w := 4 + nameW
@@ -453,8 +455,19 @@ func (m *browseModel) listWidth() int {
 func (m *browseModel) listLines() (lines []string, lineRows []int) {
 	nameW, ageW := 0, m.ageWidth()
 	for _, i := range m.visible {
-		nameW = max(nameW, len(m.rows[i].repo.Name()))
+		nameW = max(nameW, lipgloss.Width(m.rowName(m.rows[i])))
 	}
+	// Before the name: the marker, the age when sorted by it, and the icon.
+	// The names are padded to line up, but no further than the list is wide,
+	// and the branch column comes after them only if there's enough room
+	// left to show some of it (it's in the details too).
+	prefixW := 2 + 2
+	if m.recent {
+		prefixW += ageW + 1
+	}
+	nameW = max(1, min(nameW, m.listWidth()-prefixW))
+	showHead := m.listWidth()-prefixW-nameW-2 >= minHeadWidth
+	fit := func(s string) string { return padRight(ansi.Truncate(s, nameW, "…"), nameW) }
 	group := ""
 	for v, i := range m.visible {
 		r := m.rows[i]
@@ -465,10 +478,19 @@ func (m *browseModel) listLines() (lines []string, lineRows []int) {
 			lines, lineRows = append(lines, styleHeading.Render(dir)), append(lineRows, -1)
 			group = dir
 		}
-		name := padRight(r.repo.Name(), nameW)
+		// Without folder headings, the folder goes before the name, so
+		// repos with the same name can be told apart.
+		var name string
+		switch {
+		case v == m.cursor:
+			name = lipgloss.NewStyle().Reverse(true).Render(fit(m.rowName(r)))
+		case m.recent:
+			name = fit(styleDim.Render(r.folder) + r.repo.Name())
+		default:
+			name = fit(r.repo.Name())
+		}
 		marker := "  "
 		if v == m.cursor {
-			name = lipgloss.NewStyle().Reverse(true).Render(name)
 			marker = "▸ "
 		}
 		line := marker
@@ -476,12 +498,62 @@ func (m *browseModel) listLines() (lines []string, lineRows []int) {
 			line += padLeft(styleDim.Render(changeAge(r.lastChange)), ageW) + " "
 		}
 		line += m.icon(r) + " " + name
-		if r.rep.head != "" {
+		if r.rep.head != "" && showHead {
 			line += "  " + r.rep.head
 		}
 		lines, lineRows = append(lines, line), append(lineRows, v)
 	}
 	return lines, lineRows
+}
+
+// minHeadWidth is the fewest columns the list shows a branch in, truncated.
+const minHeadWidth = 4
+
+// rowName is the repo's name as the list shows it: after its folder when
+// sorted by most recent change, as there are no folder headings then.
+func (m *browseModel) rowName(r browseRow) string {
+	if m.recent {
+		return r.folder + r.repo.Name()
+	}
+	return r.repo.Name()
+}
+
+// folderLabels gives each of the repos' folders a short label for the list
+// when it has no folder headings: as few of the folder's last parts as tell
+// it apart from the others, with a trailing slash ("Projects/", or
+// "Work/Projects/" and "~/Projects/" where both are there).
+func folderLabels(repos []config.Repo) map[string]string {
+	var dirs []string
+	for _, r := range repos {
+		if dir := filepath.Dir(r.Path); !slices.Contains(dirs, dir) {
+			dirs = append(dirs, dir)
+		}
+	}
+	parts := func(dir string) []string {
+		return strings.Split(config.TildePath(dir), string(filepath.Separator))
+	}
+	suffix := func(dir string, n int) string {
+		p := parts(dir)
+		return strings.Join(p[max(0, len(p)-n):], string(filepath.Separator)) + string(filepath.Separator)
+	}
+	labels := map[string]string{}
+	for _, dir := range dirs {
+		for n := 1; ; n++ {
+			label := suffix(dir, n)
+			clash := false
+			for _, other := range dirs {
+				if other != dir && suffix(other, n) == label {
+					clash = true
+					break
+				}
+			}
+			if !clash || n >= len(parts(dir)) {
+				labels[dir] = label
+				break
+			}
+		}
+	}
+	return labels
 }
 
 // changeAge is how long ago a repo last changed, in short form, or "" if
