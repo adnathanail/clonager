@@ -520,7 +520,9 @@ func (m *browseModel) details(width int) []string {
 	}
 	var lines []string
 	for _, l := range strings.Split(strings.TrimSuffix(w.String(), "\n"), "\n") {
-		lines = append(lines, strings.Split(ansi.Wrap(l, width, ""), "\n")...)
+		// lipgloss.Wrap closes styles at each break and reopens them on the
+		// next line (ansi.Wrap doesn't), so none leaks into the list beside it.
+		lines = append(lines, strings.Split(lipgloss.Wrap(l, width, ""), "\n")...)
 	}
 	return lines
 }

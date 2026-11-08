@@ -98,6 +98,47 @@ func TestBrowseFilter(t *testing.T) {
 	}
 }
 
+// TestBrowseViewStylesClosed checks no style is left on at the end of a
+// line, where it would carry into the next row's list column: as faint did
+// when the details pane wrapped a dim line mid-style.
+func TestBrowseViewStylesClosed(t *testing.T) {
+	long := &repostatus.Status{Head: "main", Branches: []repostatus.Branch{
+		{Name: "a-branch-with-a-long-name", Remote: "origin/a-branch-with-a-long-name", Ahead: 35},
+		{Name: "another-branch-with-a-long-name", Remote: "origin/another-branch-with-a-long-name", Ahead: 18},
+	}}
+	m, _ := browseWith(t, 90, 30, map[string]*repostatus.Status{
+		"/Users/me/Documents/vip-proj":     long,
+		"/Users/me/Documents/acmeltd-site": {Head: "main"},
+	})
+	for i, line := range strings.Split(m.View().Content, "\n") {
+		if open := openStyle(line); open != "" {
+			t.Errorf("line %d ends with %q still on: %q", i, open, line)
+		}
+	}
+}
+
+// openStyle is the SGR parameters still in effect at the end of line, ""
+// if it ends reset.
+func openStyle(line string) string {
+	var open []string
+	p := ansi.NewParser()
+	state := byte(0)
+	for len(line) > 0 {
+		seq, _, n, newState := ansi.DecodeSequence(line, state, p)
+		state = newState
+		if ansi.HasCsiPrefix(seq) && strings.HasSuffix(seq, "m") {
+			params := strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(seq, "\x1b["), "\x9b"), "m")
+			if params == "" || params == "0" {
+				open = nil
+			} else {
+				open = append(open, params)
+			}
+		}
+		line = line[n:]
+	}
+	return strings.Join(open, ";")
+}
+
 func TestBrowseView(t *testing.T) {
 	for _, size := range [][2]int{{120, 40}, {60, 20}, {20, 3}, {1, 1}} {
 		m, _ := browseWith(t, size[0], size[1], map[string]*repostatus.Status{
