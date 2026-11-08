@@ -131,7 +131,7 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - **clonager's own options** (as opposed to repos) go in
   `~/.config/clonager/settings.json` (`config.ReadSettings`), which the Home
   Manager module writes from its options (`configSource`, `discoverPaths`,
-  `openIn`, `alwaysOffline`), not in the YAML config. One file for all of them: don't add others.
+  `openIn`, `alwaysOffline`, `browseSort`), not in the YAML config. One file for all of them: don't add others.
 - **`cli.ConfigHook` is the one exception to the allowlist:** it runs the
   user's decrypt/encrypt commands with `sh -c`. Use it only for those.
   `cli.Open` (`open`/`xdg-open`, for `browse`'s `e` and `g`) isn't a

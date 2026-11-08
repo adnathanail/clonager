@@ -26,6 +26,7 @@ func TestReadSettings(t *testing.T) {
 		name, contents string
 		want           []string
 		openIn         string // "" for DefaultOpenIn
+		browseSort     string // "" for DefaultBrowseSort
 		offline        bool
 		err            string
 	}{
@@ -38,6 +39,8 @@ func TestReadSettings(t *testing.T) {
 		{name: "open in", contents: `{"openIn": "cursor"}`, openIn: "cursor"},
 		{name: "open in unknown", contents: `{"openIn": "emacs"}`, err: "openIn"},
 		{name: "always offline", contents: `{"alwaysOffline": true}`, offline: true},
+		{name: "browse sort", contents: `{"browseSort": "recent"}`, browseSort: "recent"},
+		{name: "browse sort unknown", contents: `{"browseSort": "name"}`, err: "browseSort"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -58,6 +61,8 @@ func TestReadSettings(t *testing.T) {
 				t.Errorf("got %q, want %q", got.DiscoverPaths, c.want)
 			case got.OpenIn != cmp.Or(c.openIn, DefaultOpenIn):
 				t.Errorf("got openIn %q, want %q", got.OpenIn, cmp.Or(c.openIn, DefaultOpenIn))
+			case got.BrowseSort != cmp.Or(c.browseSort, DefaultBrowseSort):
+				t.Errorf("got browseSort %q, want %q", got.BrowseSort, cmp.Or(c.browseSort, DefaultBrowseSort))
 			case got.AlwaysOffline != c.offline:
 				t.Errorf("got alwaysOffline %v, want %v", got.AlwaysOffline, c.offline)
 			}
