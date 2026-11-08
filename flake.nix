@@ -157,6 +157,18 @@
               '';
             };
 
+            browseSort = lib.mkOption {
+              type = lib.types.nullOr (lib.types.enum [ "folder" "recent" ]);
+              default = null;
+              example = "recent";
+              description = ''
+                The order `clonager browse` starts in: repos grouped by
+                folder, or the most recently changed first (`recent`).
+                `--sort` overrides it, and `s` switches while browsing.
+                Null means by folder.
+              '';
+            };
+
             enableShellIntegration = lib.mkOption {
               type = lib.types.bool;
               default = true;
@@ -209,7 +221,8 @@
                   }
                   // lib.optionalAttrs (cfg.discoverPaths != [ ]) { inherit (cfg) discoverPaths; }
                   // lib.optionalAttrs (cfg.openIn != null) { inherit (cfg) openIn; }
-                  // lib.optionalAttrs cfg.alwaysOffline { inherit (cfg) alwaysOffline; };
+                  // lib.optionalAttrs cfg.alwaysOffline { inherit (cfg) alwaysOffline; }
+                  // lib.optionalAttrs (cfg.browseSort != null) { inherit (cfg) browseSort; };
               in
               lib.mkIf (settings != { }) { text = builtins.toJSON settings; };
           };

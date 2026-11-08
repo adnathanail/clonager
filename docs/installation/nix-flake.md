@@ -15,6 +15,7 @@ fish and zsh completions for each. Its Home Manager module
 | `discoverPaths` | where `clonager config discover` looks when given no dirs |
 | `openIn` | what cmd-clicking a repo's name (or `e` in `clonager browse`) opens it in: `vscode`, `cursor`, `zed`, `files` (the file manager, the default) or `none` |
 | `alwaysOffline` | make `clonager` and `clonager prune` skip checking GitHub, as with `--offline` (default `false`); `config airlift` asks first instead |
+| `browseSort` | the order `clonager browse` starts in: `folder` (the default) or `recent` (the most recently changed first) |
 | `enableShellIntegration` | add `clonager shell-init` to zsh, bash and fish (those enabled with Home Manager), so `clonager browse` can cd (default `true`) |
 
 ## Applying config changes

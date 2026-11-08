@@ -38,7 +38,7 @@ var browseCmd = &cobra.Command{
 func init() {
 	browseCmd.Flags().BoolVarP(&browseFlags.offline, "offline", "o", false, "don't check GitHub (default from alwaysOffline in settings.json)")
 	browseCmd.Flags().StringSliceVarP(&browseFlags.tags, "tag", "t", nil, "only repos with this tag (repeatable)")
-	browseCmd.Flags().StringVarP(&browseFlags.sort, "sort", "s", "folder", "folder, or recent for the most recently changed first")
+	browseCmd.Flags().StringVarP(&browseFlags.sort, "sort", "s", "", "folder, or recent for the most recently changed first (default from browseSort in settings.json, else folder)")
 	rootCmd.AddCommand(browseCmd)
 }
 
@@ -62,8 +62,12 @@ func runBrowse(cmd *cobra.Command, args []string) error {
 		}
 		return errors.New("no repos configured in " + config.TildePath(cfg.Path))
 	}
-	if browseFlags.sort != "folder" && browseFlags.sort != "recent" {
-		return fmt.Errorf("--sort %q: must be folder or recent", browseFlags.sort)
+	sort := settings.BrowseSort
+	if cmd.Flags().Changed("sort") {
+		if !slices.Contains(config.BrowseSorts, browseFlags.sort) {
+			return fmt.Errorf("--sort %q: must be one of %s", browseFlags.sort, strings.Join(config.BrowseSorts, ", "))
+		}
+		sort = browseFlags.sort
 	}
 	// It's drawn on stderr, so stdout only ever gets the chosen folder.
 	if !liveTerminal(os.Stdin) || !liveTerminal(os.Stderr) {
@@ -71,7 +75,7 @@ func runBrowse(cmd *cobra.Command, args []string) error {
 	}
 
 	m := newBrowseModel(repos, !offline(cmd, browseFlags.offline, settings))
-	m.recent = browseFlags.sort == "recent"
+	m.recent = sort == "recent"
 	m.applyFilter()
 	if _, err := tea.NewProgram(m, tea.WithOutput(os.Stderr)).Run(); err != nil {
 		return err

@@ -126,8 +126,16 @@ Clicking a repo selects it, and double-clicking cds to it.
 | Flag | |
 |---|---|
 | `-t`, `--tag <tag>` | only show repos with this tag (repeatable) |
-| `-s`, `--sort <order>` | `folder` (the default), or `recent` for the most recently changed first |
+| `-s`, `--sort <order>` | `folder`, or `recent` for the most recently changed first (default from `browseSort` in settings.json, else `folder`) |
 | `-o`, `--offline` | don't check GitHub |
+
+To start sorted by most recent change every time, set `browseSort` in
+`~/.config/clonager/settings.json` (`programs.clonager.browseSort` with the
+Home Manager module):
+
+```json
+{ "browseSort": "recent" }
+```
 
 Sorted by most recent change, the list shows how long ago each repo changed
 (`23m`, `7h`, `5d`). That's its newest commit on any local branch, by commit

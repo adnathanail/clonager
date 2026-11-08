@@ -25,7 +25,17 @@ type Settings struct {
 	// AlwaysOffline makes status and prune skip GitHub, as if run with
 	// --offline, and airlift ask before checking it.
 	AlwaysOffline bool `json:"alwaysOffline,omitempty"`
+	// BrowseSort is the order browse starts in (see BrowseSorts); empty
+	// means DefaultBrowseSort.
+	BrowseSort string `json:"browseSort,omitempty"`
 }
+
+// BrowseSorts are the orders browse can list repos in: grouped by folder, or
+// the most recently changed first.
+var BrowseSorts = []string{"folder", "recent"}
+
+// DefaultBrowseSort is browse's order when BrowseSort isn't set.
+const DefaultBrowseSort = "folder"
 
 // OpenInApps are the values OpenIn can take: apps that open a folder from a
 // link, "files" for the file manager, and "none" for no links.
@@ -44,7 +54,7 @@ func SettingsPath() (string, error) {
 }
 
 // ReadSettings returns the Settings, empty if there's no settings file.
-// Paths come back with ~ expanded, and OpenIn set.
+// Paths come back with ~ expanded, and OpenIn and BrowseSort set.
 func ReadSettings() (Settings, error) {
 	var s Settings
 	path, err := SettingsPath()
@@ -53,7 +63,7 @@ func ReadSettings() (Settings, error) {
 	}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		s.OpenIn = DefaultOpenIn
+		s.OpenIn, s.BrowseSort = DefaultOpenIn, DefaultBrowseSort
 		return s, nil
 	}
 	if err != nil {
@@ -71,6 +81,11 @@ func ReadSettings() (Settings, error) {
 		s.OpenIn = DefaultOpenIn
 	} else if !slices.Contains(OpenInApps, s.OpenIn) {
 		return s, fmt.Errorf("%s: openIn: %q isn't one of %s", TildePath(path), s.OpenIn, strings.Join(OpenInApps, ", "))
+	}
+	if s.BrowseSort == "" {
+		s.BrowseSort = DefaultBrowseSort
+	} else if !slices.Contains(BrowseSorts, s.BrowseSort) {
+		return s, fmt.Errorf("%s: browseSort: %q isn't one of %s", TildePath(path), s.BrowseSort, strings.Join(BrowseSorts, ", "))
 	}
 	for i, p := range s.DiscoverPaths {
 		expanded, err := ExpandHome(p)
