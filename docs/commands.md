@@ -1,7 +1,8 @@
 # Commands
 
-`prune` and `clone` have one-letter shortcuts, shown in brackets in `--help`:
-`cg p` is `clonager prune` and `cg c` is `clonager clone`.
+`browse`, `prune` and `clone` have one-letter shortcuts, shown in brackets in
+`--help`: `cg b` is `clonager browse`, `cg p` is `clonager prune` and `cg c`
+is `clonager clone`.
 
 ## `clonager`
 
@@ -88,6 +89,64 @@ Home Manager module), and use `--offline=false` to check it anyway:
 ```json
 { "alwaysOffline": true }
 ```
+
+## `clonager browse`
+
+Opens a full-screen view of the configured repos, grouped by folder as in
+`clonager`, with the selected repo's status beside them (or below them in a
+terminal under 80 columns wide). Repos are inspected in the background, with
+a spinner beside each until it's done, and GitHub is then checked for each,
+as `clonager` does, unless `--offline` or `alwaysOffline` is set.
+
+```
+clonager · 4 repos
+~/Documents/ACME         │ vip-proj
+▸ ● vip-proj  ⧓ fix-auth │ ~/Documents/ACME/vip-proj
+  ✓ site      main       │ git@github.com:acmeltd/vip-proj.git
+                         │
+~/Documents/Uni          │ ⧓ fix-auth  fetched 2h ago
+  ✓ uni-work  main       │ • 3 uncommitted changes
+  ✗ thesis               │ • 1 stash
+
+enter cd · e VS Code · g GitButler · / filter · q quit
+```
+
+| Key | |
+|---|---|
+| ↑/↓ (or `k`/`j`), pgup/pgdown, home/end | move |
+| `/` | filter by name, folder or tag: enter keeps the filter, esc clears it |
+| enter (or `c`) | cd to the repo, and exit |
+| `e` | open the repo in the `openIn` app (the file manager by default; see [`clonager`](#clonager)) |
+| `g` | open the repo in the GitButler app (for repos in a GitButler workspace) |
+| `q`, esc | exit |
+
+Clicking a repo selects it, and double-clicking cds to it.
+
+| Flag | |
+|---|---|
+| `-t`, `--tag <tag>` | only show repos with this tag (repeatable) |
+| `-o`, `--offline` | don't check GitHub |
+
+A program can't change the directory of the shell that started it, so
+cding needs the shell integration below, which the Home Manager module sets
+up (`programs.clonager.enableShellIntegration`, on by default). Without it,
+enter prints the repo's folder and exits, so `cd "$(clonager browse)"`
+works too.
+
+### `clonager shell-init <zsh|bash|fish>`
+
+Prints the shell integration. Add it to your shell's startup file:
+
+```sh
+eval "$(clonager shell-init zsh)"    # ~/.zshrc
+eval "$(clonager shell-init bash)"   # ~/.bashrc
+clonager shell-init fish | source    # ~/.config/fish/config.fish
+```
+
+It defines shell functions named `clonager` and `cg` that run clonager as
+usual, with `CLONAGER_CD_FILE` set to a temporary file. When you pick a repo
+in `browse`, its folder is written there, and the function cds to it once
+browse exits. Every other command works as it does without the functions.
 
 ## `clonager prune`
 

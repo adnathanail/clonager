@@ -1,0 +1,14 @@
+Print the shell integration for zsh, bash or fish, which lets
+`clonager browse` cd to the repo you pick. Add it to your shell's startup
+file:
+
+  zsh (~/.zshrc):    `eval "$(clonager shell-init zsh)"`
+  bash (~/.bashrc):  `eval "$(clonager shell-init bash)"`
+  fish (config.fish): `clonager shell-init fish | source`
+
+The Home Manager module does this for you (`programs.clonager.enableShellIntegration`).
+
+It defines shell functions named `clonager` and `cg` that run the program
+as usual, with `CLONAGER_CD_FILE` set to a temporary file. When you pick a
+repo to cd to, browse writes its folder there, and the function cds to it
+once browse exits. Every other command works just as it does without them.

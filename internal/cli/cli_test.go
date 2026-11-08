@@ -74,6 +74,29 @@ func TestCheck(t *testing.T) {
 	}
 }
 
+func TestCheckOpen(t *testing.T) {
+	for _, u := range []string{
+		"file:///Users/me/vip-proj",
+		"vscode://file/Users/me/vip-proj?windowId=_blank",
+		"zed://file/Users/me/vip-proj",
+		"but://open?path=%2FUsers%2Fme%2Fvip-proj",
+	} {
+		if err := CheckOpen(u); err != nil {
+			t.Errorf("%s: unexpected error %v", u, err)
+		}
+	}
+	for _, u := range []string{
+		"/Users/me/vip-proj", // open would run an executable at a path
+		"https://example.com",
+		"x-man-page://rm",
+		"-a Terminal",
+	} {
+		if err := CheckOpen(u); !errors.Is(err, ErrNotAllowed) {
+			t.Errorf("%s: got %v, want ErrNotAllowed", u, err)
+		}
+	}
+}
+
 func TestRefusedBeforeRunning(t *testing.T) {
 	_, err := Git(t.TempDir(), "init")
 	if !errors.Is(err, ErrNotAllowed) {

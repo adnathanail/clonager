@@ -37,6 +37,7 @@ $ cg
 - Delete redundant data ([Read only](#read-only))
 - 'Airlift' the names of your current local branches, checking all local data has been removed, and clone repos (and airlifted branches) onto a new machine ([Read only](#read-only))
 - Links to open repos in your desired tool (e.g. VSCode)
+- Browse your repos in a full-screen view, to cd to one, or open it in your editor or GitButler
 - Integration with GitButler CLI (`but`)
     - Show applied branches
     - Show conflicted commits

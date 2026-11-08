@@ -13,8 +13,9 @@ fish and zsh completions for each. Its Home Manager module
 | `configFile` | the config, installed as `~/.config/clonager/config.yaml`. A path (`./clonager.yaml`) is copied into the Nix store; a string (`"/run/agenix/clonager-config"`) is linked to where it is |
 | `configSource` | where `clonager config` commands read and write the config: an absolute path to it in your checkout (a string, not a path, so it isn't copied into the store), or `decrypt`/`encrypt` commands (see [below](#keeping-the-config-encrypted)) |
 | `discoverPaths` | where `clonager config discover` looks when given no dirs |
-| `openIn` | what cmd-clicking a repo's name opens it in: `vscode`, `cursor`, `zed`, `files` (the file manager, the default) or `none` |
+| `openIn` | what cmd-clicking a repo's name (or `e` in `clonager browse`) opens it in: `vscode`, `cursor`, `zed`, `files` (the file manager, the default) or `none` |
 | `alwaysOffline` | make `clonager` and `clonager prune` skip checking GitHub, as with `--offline` (default `false`); `config airlift` asks first instead |
+| `enableShellIntegration` | add `clonager shell-init` to zsh, bash and fish (those enabled with Home Manager), so `clonager browse` can cd (default `true`) |
 
 ## Applying config changes
 
