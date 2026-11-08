@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"net/url"
+	"runtime"
 
 	"charm.land/lipgloss/v2"
 
@@ -37,10 +38,20 @@ func loadSettings() (config.Settings, error) {
 // when it's cmd- or ctrl-clicked, in terminals that support links (OSC 8).
 // Others show just the text, and it's stripped when output isn't a TTY.
 func folderLink(path, text string) string {
+	u := folderURL(path)
+	if u == "" {
+		return text
+	}
+	return lipgloss.NewStyle().Hyperlink(u).Render(text)
+}
+
+// folderURL is the URL that opens the folder at path in the openIn app, or
+// "" when openIn is "none".
+func folderURL(path string) string {
 	var u url.URL
 	switch openIn {
 	case "none":
-		return text
+		return ""
 	case "files":
 		u = url.URL{Scheme: "file", Path: path}
 	case "zed":
@@ -50,7 +61,25 @@ func folderLink(path, text string) string {
 		// folder open in the current one.
 		u = url.URL{Scheme: openIn, Host: "file", Path: path, RawQuery: "windowId=_blank"}
 	}
-	return lipgloss.NewStyle().Hyperlink(u.String()).Render(text)
+	return u.String()
+}
+
+// openInName is the openIn app's name, for saying where folderURL opens.
+func openInName() string {
+	switch openIn {
+	case "vscode":
+		return "VS Code"
+	case "cursor":
+		return "Cursor"
+	case "zed":
+		return "Zed"
+	case "files":
+		if runtime.GOOS == "darwin" {
+			return "Finder"
+		}
+		return "the file manager"
+	}
+	return openIn
 }
 
 // gitButlerLink makes text (styled as GitButler) a link that opens the repo
@@ -60,6 +89,11 @@ func gitButlerLink(path, text string) string {
 	if openIn == "none" {
 		return styleGB.Render(text)
 	}
+	return styleGB.Hyperlink(gitButlerURL(path)).Render(text)
+}
+
+// gitButlerURL is the URL that opens the repo at path in the GitButler app.
+func gitButlerURL(path string) string {
 	u := url.URL{Scheme: "but", Host: "open", RawQuery: url.Values{"path": {path}}.Encode()}
-	return styleGB.Hyperlink(u.String()).Render(text)
+	return u.String()
 }

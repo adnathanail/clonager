@@ -1,0 +1,18 @@
+Browse the configured repos, grouped by folder as in status, with the
+selected repo's status beside them. Repos are inspected in the background,
+then GitHub is checked for each (as status does, unless `--offline` or
+`alwaysOffline` in settings.json).
+
+Keys:
+  - up/down (or `k`/`j`), pgup/pgdown, home/end to move
+  - `/` to filter by name, folder or tag (enter keeps it, esc clears it)
+  - enter (or `c`) to cd to the repo and exit
+  - `e` to open it in the `openIn` app from settings.json (the file
+    manager by default)
+  - `g` to open it in the GitButler app, for repos in a GitButler workspace
+  - `q` or esc to exit
+Clicking a repo selects it, and double-clicking cds to it.
+
+A program can't change the directory of the shell that ran it, so cding
+needs the shell integration (see `clonager shell-init`), which the Home
+Manager module sets up. Without it, enter prints the folder instead.

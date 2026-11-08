@@ -23,7 +23,7 @@
 
           # Update when go.mod/go.sum change: set to pkgs.lib.fakeHash, build,
           # and copy the hash from the error.
-          vendorHash = "sha256-6dyl3X3ihl5krFdUa0+ryPBEPp65Y/IGyEYPiR+h6bY=";
+          vendorHash = "sha256-hDi4O5fnKmiAHuFPWck5JScoyVVE9rRpAYhU8wnvFzg=";
 
           env.CGO_ENABLED = 0;
           ldflags = [ "-s" "-w" "-X github.com/adnathanail/clonager/cmd.stampedVersion=${version}" ];
@@ -156,6 +156,17 @@
                 `clonager config airlift` can't skip it, so asks first.
               '';
             };
+
+            enableShellIntegration = lib.mkOption {
+              type = lib.types.bool;
+              default = true;
+              description = ''
+                Whether to add the shell integration (`clonager shell-init`)
+                to zsh, bash and fish, for those enabled with Home Manager
+                (`programs.zsh.enable` etc.), so that picking a repo in
+                `clonager browse` cds to it.
+              '';
+            };
           };
 
           config = lib.mkIf cfg.enable {
@@ -171,6 +182,16 @@
             ];
 
             home.packages = [ cfg.package ];
+
+            programs.zsh.initContent = lib.mkIf cfg.enableShellIntegration ''
+              eval "$(${lib.getExe cfg.package} shell-init zsh)"
+            '';
+            programs.bash.initExtra = lib.mkIf cfg.enableShellIntegration ''
+              eval "$(${lib.getExe cfg.package} shell-init bash)"
+            '';
+            programs.fish.interactiveShellInit = lib.mkIf cfg.enableShellIntegration ''
+              ${lib.getExe cfg.package} shell-init fish | source
+            '';
 
             xdg.configFile."clonager/config.yaml" = lib.mkIf (cfg.configFile != null) {
               source =

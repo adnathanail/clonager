@@ -46,7 +46,9 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   Keep each code span on one line. Rendering lives here. A bare `clonager` shows status
   (`status.go`: the root command's `RunE` and flags); there's no `status`
   subcommand. Everything that edits the config is under `clonager config`
-  (`config.go`): `discover.go`, `airlift.go` and `tidy.go`.
+  (`config.go`): `discover.go`, `airlift.go` and `tidy.go`. `browse.go` is
+  the full-screen view (Bubble Tea), and `shellinit.go` the shell functions
+  that let it cd.
 - `internal/config/` — parsing the YAML tree into a flat `[]Repo` (`config.go`)
   and editing it in place (`edit.go`)
 - `internal/repostatus/` — inspecting one clone: git state (`repostatus.go`),
@@ -63,9 +65,12 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - **clonager only ever reads.** It never changes a repo, remote, setting or
   file other than its own config (which the `config` subcommands edit); where
   something should change, it prints the command for the user to run
-  (`prune`, `clone`).
+  (`prune`, `clone`). The one other file it writes is the temporary file
+  the shell integration passes `browse` in `CLONAGER_CD_FILE`, to say which
+  folder to cd to.
 - **All external programs run through `internal/cli`** (`cli.Git`,
-  `cli.GitStdin`, `cli.GH`, `cli.But`, `cli.CanRead`, `cli.Installed`), which
+  `cli.GitStdin`, `cli.GH`, `cli.But`, `cli.CanRead`, `cli.Installed`,
+  `cli.Open`), which
   checks each call against the `allowed` list of read-only subcommands and
   refuses anything else before running it. Network access is limited to `gh`
   and `cli.CanRead` (`git ls-remote`, used only by `config tidy`). Need a new
@@ -124,6 +129,23 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   `openIn`, `alwaysOffline`), not in the YAML config. One file for all of them: don't add others.
 - **`cli.ConfigHook` is the one exception to the allowlist:** it runs the
   user's decrypt/encrypt commands with `sh -c`. Use it only for those.
+  `cli.Open` (`open`/`xdg-open`, for `browse`'s `e` and `g`) isn't a
+  subcommand allowlist either: it only takes URLs with the schemes in
+  `openSchemes` (the ones `folderURL` and `gitButlerURL` make), so it does
+  what clicking one of status's links would.
+- **`browse` can't cd itself**: a program can't change its parent shell's
+  directory. `shell-init` prints functions named `clonager` and `cg` that
+  run it with `CLONAGER_CD_FILE` set to a temp file and cd to what's written
+  there (the yazi/broot approach), so they wrap every command without
+  parsing arguments. Without it, `browse` prints the folder on stdout. It
+  draws on stderr, so stdout only ever carries the folder. The Home Manager
+  module adds the functions (`enableShellIntegration`). `TestShellInit`
+  runs them in bash, zsh and fish (where installed).
+- **`browse` reads a status only from Bubble Tea's `Update`**: inspection
+  and the GitHub check run as commands in the background, and a row's
+  `report` is rebuilt when each finishes. While `CheckForge` is running for
+  a repo, nothing reads its `Status` except `Repo` and `Missing`, which it
+  doesn't change.
 - **The config is edited as a `yaml.Node` tree** so comments and ordering
   survive. After any edit, `reparse()` re-validates through `Parse`, so an edit
   can't produce a config `Load` would reject. New keys go in alphabetically

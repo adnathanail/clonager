@@ -6,7 +6,8 @@
 // and anything not on it is refused before it runs. Add to the list only
 // subcommands, and flags, that can't modify anything. (ConfigHook, for the
 // user's own commands that read and store clonager's config, is the one
-// exception.)
+// exception. Open, which asks an app to show a folder, as clicking a link
+// would, has its own list of URL schemes.)
 package cli
 
 import (
@@ -15,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"slices"
 	"strings"
 	"syscall"
@@ -122,6 +124,42 @@ func ConfigHook(command string, stdin []byte) ([]byte, error) {
 		return nil, fmt.Errorf("%s: %w", command, err)
 	}
 	return stdout.Bytes(), nil
+}
+
+// openSchemes are the URL schemes Open will open: local folders (file), the
+// editors config.OpenInApps names, and GitButler (but).
+var openSchemes = []string{"file", "vscode", "cursor", "zed", "but"}
+
+// CheckOpen reports whether Open may open u.
+func CheckOpen(u string) error {
+	scheme, _, ok := strings.Cut(u, "://")
+	if !ok || !slices.Contains(openSchemes, scheme) {
+		return fmt.Errorf("open %s: %w (only %s URLs)", u, ErrNotAllowed, strings.Join(openSchemes, ", "))
+	}
+	return nil
+}
+
+// Open opens a URL that shows a local folder in an app (see openSchemes),
+// as clicking a link to it would, with `open` on macOS and `xdg-open`
+// elsewhere. It doesn't wait for the app.
+//
+// Like a link, this changes nothing itself: it only asks an app to show the
+// folder.
+func Open(u string) error {
+	if err := CheckOpen(u); err != nil {
+		return err
+	}
+	opener := "xdg-open"
+	if runtime.GOOS == "darwin" {
+		opener = "open"
+	}
+	cmd := exec.Command(opener, u)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("%s: %w", opener, err)
+	}
+	go func() { _ = cmd.Wait() }() // reap it
+	return nil
 }
 
 // ErrNotAllowed is returned for calls not on the allowlist.
