@@ -12,8 +12,8 @@ runs:
         # "<version>-<build>". The URL format and checksum come from Homebrew's
         # gitbutler cask (Casks/g/gitbutler.rb). update-gitbutler.yml bumps
         # them.
-        GITBUTLER_VERSION: 0.23.3-3347
-        GITBUTLER_SHA256: d5674565972f306a4c3e47c9d9502574cac9159bfebf0c2c0e9d54787dcd72e7
+        GITBUTLER_VERSION: 0.23.4-3353
+        GITBUTLER_SHA256: fe4e645173a72344ab2a3d709696073b37d239d29569635cb3f3cc6df24ee330
       run: |
         archive="$RUNNER_TEMP/GitButler.app.tar.gz"
         curl -fsSL -o "$archive" \
