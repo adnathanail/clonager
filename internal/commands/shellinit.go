@@ -30,9 +30,6 @@ func init() {
 // runs the program with CLONAGER_CD_FILE (cdFileEnv) set to a temporary
 // file, and cds to the folder browse writes there, if any. Every other
 // command runs as it would without it.
-//
-// `function cg` is used rather than `cg()`, as bash and zsh expand an alias
-// in `cg()` (say, an old alias cg=clonager), breaking the definition.
 func shellInit(shell string) (string, error) {
 	switch shell {
 	case "zsh", "bash":
