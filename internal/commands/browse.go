@@ -436,16 +436,16 @@ func (m *browseModel) listWidth() int {
 	if !m.wide() {
 		return m.width
 	}
-	// As listLines lays it out: marker, age when sorted by it, icon, the
-	// name padded to the longest, and the branch column.
+	// As listLines lays it out: marker, age, icon, the name padded to the
+	// longest, and the branch column.
 	nameW, headW := 0, 0
 	for _, r := range m.rows {
 		nameW = max(nameW, lipgloss.Width(m.rowName(r)))
 		headW = max(headW, lipgloss.Width(r.rep.head))
 	}
 	w := 4 + nameW
-	if m.recent {
-		w += m.ageWidth() + 1
+	if ageW := m.ageWidth(); ageW > 0 {
+		w += ageW + 1
 	}
 	if headW > 0 {
 		w += 2 + headW
@@ -454,20 +454,20 @@ func (m *browseModel) listWidth() int {
 }
 
 // listLines renders the list: a heading for each folder, then its repos,
-// or when sorted by most recent change, just the repos, each with how long
-// ago that was. lineRows gives, for each line, its index in visible (-1 for
+// or when sorted by most recent change, just the repos. Each repo has its
+// age (rowAge) before it. lineRows gives, for each line, its index in visible (-1 for
 // headings).
 func (m *browseModel) listLines() (lines []string, lineRows []int) {
 	nameW, ageW := 0, m.ageWidth()
 	for _, i := range m.visible {
 		nameW = max(nameW, lipgloss.Width(m.rowName(m.rows[i])))
 	}
-	// Before the name: the marker, the age when sorted by it, and the icon.
+	// Before the name: the marker, the age, and the icon.
 	// The names are padded to line up, but no further than the list is wide,
 	// and the branch column comes after them only if there's enough room
 	// left to show some of it (it's in the details too).
 	prefixW := 2 + 2
-	if m.recent {
+	if ageW > 0 {
 		prefixW += ageW + 1
 	}
 	nameW = max(1, min(nameW, m.listWidth()-prefixW))
@@ -499,8 +499,8 @@ func (m *browseModel) listLines() (lines []string, lineRows []int) {
 			marker = "▸ "
 		}
 		line := marker
-		if m.recent {
-			line += padLeft(styleDim.Render(changeAge(r.lastChange)), ageW) + " "
+		if ageW > 0 {
+			line += padLeft(m.rowAge(r), ageW) + " "
 		}
 		line += m.icon(r) + " " + name
 		if r.rep.head != "" && showHead {
@@ -571,11 +571,29 @@ func changeAge(t time.Time) string {
 	return shortAge(max(0, time.Since(t)))
 }
 
-// ageWidth is the width of the age column when sorted by most recent change.
+// rowAge is the age shown before a repo, as in status: how long ago it was
+// last fetched (yellow if over a month), or when sorted by most recent
+// change, last changed. The header says which (ageLabel).
+func (m *browseModel) rowAge(r browseRow) string {
+	if m.recent {
+		return styleDim.Render(changeAge(r.lastChange))
+	}
+	return r.rep.fetch
+}
+
+// ageLabel says what the ages before the repos are, as status's summary does.
+func (m *browseModel) ageLabel() string {
+	if m.recent {
+		return "◷ last change"
+	}
+	return "◷ last fetch"
+}
+
+// ageWidth is the width of the age column: 0 when no repo has an age yet.
 func (m *browseModel) ageWidth() int {
 	w := 0
 	for _, r := range m.rows {
-		w = max(w, len(changeAge(r.lastChange)))
+		w = max(w, lipgloss.Width(m.rowAge(r)))
 	}
 	return w
 }
@@ -682,6 +700,7 @@ func (m *browseModel) header() string {
 	if m.recent {
 		parts = append(parts, "recently changed first")
 	}
+	parts = append(parts, styleDim.Render(m.ageLabel()))
 	spinner := styleDim.Render(spinnerFrames[m.frame%len(spinnerFrames)] + " ")
 	switch {
 	case m.inspecting > 0:

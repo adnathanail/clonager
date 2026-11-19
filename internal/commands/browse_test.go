@@ -367,3 +367,22 @@ func TestBrowseWrapsKeys(t *testing.T) {
 		t.Errorf("list height changed from %d to %d with the selection", h, got)
 	}
 }
+
+// TestBrowseAges checks the age before each repo is the time since its last
+// fetch when grouped by folder, and since its last change when sorted by it,
+// with the header saying which.
+func TestBrowseAges(t *testing.T) {
+	now := time.Now()
+	m, _ := browseWith(t, 100, 20, map[string]*repostatus.Status{
+		"/Users/me/Documents/vip-proj": {Head: "main", RemoteURLs: map[string]string{"origin": "git@github.com:me/vip-proj.git"}, LastFetch: now.Add(-5 * 24 * time.Hour), LastChange: now.Add(-2 * time.Hour)},
+	})
+	view := ansi.Strip(m.View().Content)
+	if !strings.Contains(view, "◷ last fetch") || !strings.Contains(view, "5d ✓ vip-proj") {
+		t.Errorf("no time since the last fetch, grouped by folder:\n%s", view)
+	}
+	m.Update(key("s"))
+	view = ansi.Strip(m.View().Content)
+	if !strings.Contains(view, "◷ last change") || !strings.Contains(view, "2h ✓ Documents/vip-proj") {
+		t.Errorf("no time since the last change, sorted by it:\n%s", view)
+	}
+}

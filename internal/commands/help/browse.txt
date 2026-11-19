@@ -18,6 +18,10 @@ Keys:
   - `q` or esc to exit
 Clicking a repo selects it, and double-clicking cds to it.
 
+Before each repo is how long ago it was last fetched, as in status, or
+when sorted by recent change, how long ago it last changed; the header
+says which (◷ last fetch, or ◷ last change).
+
 A repo's last change is its newest commit on any local branch (by commit
 date, so rebasing counts), or the last edit to a file with uncommitted
 changes, whichever is later.
