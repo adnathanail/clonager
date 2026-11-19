@@ -273,7 +273,8 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - Git behaviour is tested against real throwaway repos built in `t.TempDir()`
   (see `merged_test.go`), with `GIT_CONFIG_GLOBAL=/dev/null` so the user's git
   config can't affect results. Prefer this over mocking git.
-- Tests that run `but` (`TestGitButlerSettings`) set `HOME` to a temp dir so
+- Tests that run `but` (`TestGitButlerSettings`, `TestGitButlerStatus`) set
+  up their repos with `butWorkspace`, which sets `HOME` to a temp dir so
   GitButler's project registry is a throwaway one, and skip without `but`,
   except where `CLONAGER_TEST_BUT` is set: macOS CI, which installs a pinned
   GitButler app for them. Linux CI and `nix build` skip them.
