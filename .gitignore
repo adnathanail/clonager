@@ -1,6 +1,6 @@
 .vscode/
 
-clonager
+/cg
 /dist/
 test-config.yaml
 /result

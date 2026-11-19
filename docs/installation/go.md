@@ -9,7 +9,7 @@ go install github.com/adnathanail/clonager/cmd/cg@latest
 Or from a checkout, as a static binary:
 
 ```sh
-CGO_ENABLED=0 go build -o clonager ./cmd/cg
+CGO_ENABLED=0 go build -o cg ./cmd/cg
 ```
 
 The Nix package also installs clonager as `cg`; with Go, add

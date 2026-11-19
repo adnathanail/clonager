@@ -34,22 +34,17 @@
 
           nativeBuildInputs = [ pkgs.installShellFiles ];
 
-          # The short name, and shell completions for both names (the zsh
-          # script completes whichever name was typed, so cg just needs
-          # adding to its #compdef line).
-          postInstall = ''
-            ln -s cg $out/bin/clonager
-          '' + pkgs.lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
-            installShellCompletion --cmd clonager \
-              --bash <($out/bin/clonager completion bash) \
-              --fish <($out/bin/clonager completion fish) \
-              --zsh <($out/bin/clonager completion zsh | sed '1s/^#compdef clonager$/#compdef clonager cg/')
+          postInstall = pkgs.lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
+            installShellCompletion --cmd cg \
+              --bash <($out/bin/cg completion bash) \
+              --fish <($out/bin/cg completion fish) \
+              --zsh <($out/bin/cg completion zsh)
           '';
 
           meta = {
             description = "Keep track of the git clones on your laptop";
             homepage = "https://github.com/adnathanail/clonager";
-            mainProgram = "clonager";
+            mainProgram = "cg";
           };
         };
       });

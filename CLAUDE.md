@@ -11,8 +11,8 @@ go test ./...
 go vet ./...
 gofmt -l .                      # should print nothing
 nix run nixpkgs#golangci-lint -- run ./...   # as CI does (.github/workflows/ci.yml)
-go build -o clonager ./cmd/cg   # CGO_ENABLED=0 for the static release binary
-./clonager -c test-config.yaml  # test-config.yaml is gitignored, local only
+go build -o cg ./cmd/cg         # CGO_ENABLED=0 for the static release binary
+./cg -c test-config.yaml        # test-config.yaml is gitignored, local only
 nix build                       # the flake package; runs the tests too
 ```
 
