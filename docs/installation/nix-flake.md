@@ -1,7 +1,7 @@
 # Nix flake
 
-The flake's package installs clonager as both `clonager` and `cg`, with bash,
-fish and zsh completions for each. Its Home Manager module
+The flake's package installs clonager as `cg`, with bash, fish and zsh
+completions. Its Home Manager module
 (`homeModules.default`) installs the package and the config; see the
 [README](../../README.md#with-nix) for an example. Its options, under
 `programs.clonager`:
@@ -11,20 +11,20 @@ fish and zsh completions for each. Its Home Manager module
 | `enable` | install clonager |
 | `package` | the clonager package to install (default this flake's) |
 | `configFile` | the config, installed as `~/.config/clonager/config.yaml`. A path (`./clonager.yaml`) is copied into the Nix store; a string (`"/run/agenix/clonager-config"`) is linked to where it is |
-| `configSource` | where `clonager config` commands read and write the config: an absolute path to it in your checkout (a string, not a path, so it isn't copied into the store), or `decrypt`/`encrypt` commands (see [below](#keeping-the-config-encrypted)) |
-| `discoverPaths` | where `clonager config discover` looks when given no dirs |
-| `openIn` | what cmd-clicking a repo's name (or `e` in `clonager browse`) opens it in: `vscode`, `cursor`, `zed`, `files` (the file manager, the default) or `none` |
-| `alwaysOffline` | make `clonager` and `clonager prune` skip checking GitHub, as with `--offline` (default `false`); `config airlift` asks first instead |
-| `browseSort` | the order `clonager browse` starts in: `folder` (the default) or `recent` (the most recently changed first) |
-| `browseHideFolders` | start `clonager browse`, when sorted by most recent change, with the folder before each repo's name hidden (default `false`) |
-| `enableShellIntegration` | add `clonager shell-init` to zsh, bash and fish (those enabled with Home Manager), so `clonager browse` can cd (default `true`) |
+| `configSource` | where `cg config` commands read and write the config: an absolute path to it in your checkout (a string, not a path, so it isn't copied into the store), or `decrypt`/`encrypt` commands (see [below](#keeping-the-config-encrypted)) |
+| `discoverPaths` | where `cg config discover` looks when given no dirs |
+| `openIn` | what cmd-clicking a repo's name (or `e` in `cg browse`) opens it in: `vscode`, `cursor`, `zed`, `files` (the file manager, the default) or `none` |
+| `alwaysOffline` | make `cg` and `cg prune` skip checking GitHub, as with `--offline` (default `false`); `config airlift` asks first instead |
+| `browseSort` | the order `cg browse` starts in: `folder` (the default) or `recent` (the most recently changed first) |
+| `browseHideFolders` | start `cg browse`, when sorted by most recent change, with the folder before each repo's name hidden (default `false`) |
+| `enableShellIntegration` | add `cg shell-init` to zsh, bash and fish (those enabled with Home Manager), so `cg browse` can cd (default `true`) |
 
 ## Applying config changes
 
 The installed config is a read-only copy, so it only changes when you rebuild.
-With `configSource` set, `clonager config discover` adds new repos to that
+With `configSource` set, `cg config discover` adds new repos to that
 file instead, so they show up as a diff in your config repo; rebuild to apply them.
-Until you do, `clonager` reminds you there are changes not applied yet.
+Until you do, `cg` reminds you there are changes not applied yet.
 Without `configSource`, the `config` commands refuse to touch a read-only
 config.
 
@@ -53,9 +53,9 @@ programs.clonager = {
 };
 ```
 
-Commands that change the config (`clonager config ...`) then decrypt it, make their
+Commands that change the config (`cg config ...`) then decrypt it, make their
 changes in memory, and encrypt it again, so the plaintext is never written to
 disk. `encrypt` only runs if something changed, since re-encrypting would
 change the encrypted file even when its contents are the same. Neither command
-may prompt; `clonager` runs `decrypt` too, to tell you about changes not
+may prompt; `cg` runs `decrypt` too, to tell you about changes not
 applied yet.

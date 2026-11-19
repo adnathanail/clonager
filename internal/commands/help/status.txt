@@ -7,9 +7,9 @@ Branches already merged into the default branch (as a merge, fast-forward,
 rebase or squash) are listed separately and don't need attention, as are
 `origin`'s merged branches.
 
-Repos in the `discoverPaths` (see `clonager config discover`) that aren't in
+Repos in the `discoverPaths` (see `cg config discover`) that aren't in
 the config are listed at the end, including ones with no `origin`, followed
-by what `clonager config tidy` has to do, as far as can be told offline:
+by what `cg config tidy` has to do, as far as can be told offline:
 HTTPS URLs to try switching to SSH, and airlifted branches. Neither with
 `--tag`.
 

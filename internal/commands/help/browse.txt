@@ -23,5 +23,5 @@ date, so rebasing counts), or the last edit to a file with uncommitted
 changes, whichever is later.
 
 A program can't change the directory of the shell that ran it, so cding
-needs the shell integration (see `clonager shell-init`), which the Home
+needs the shell integration (see `cg shell-init`), which the Home
 Manager module sets up. Without it, enter prints the folder instead.

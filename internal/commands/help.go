@@ -9,7 +9,7 @@ import (
 )
 
 // helpFiles are the commands' long help, in help/<command>.txt (status.txt
-// is the root command's, for a bare clonager). Code is marked with
+// is the root command's, for a bare cg). Code is marked with
 // backticks, as in Markdown, and styled by styleCode when help is shown.
 //
 //go:embed help/*.txt
@@ -40,11 +40,11 @@ func styleCode(text string) string {
 	})
 }
 
-// isClonagerCode reports whether code is a clonager command ("clonager
+// isClonagerCode reports whether code is a clonager command ("cg
 // config tidy", or just "config tidy") or flag ("--offline").
 func isClonagerCode(code string) bool {
 	first, _, _ := strings.Cut(code, " ")
-	if first == "clonager" || strings.HasPrefix(first, "-") {
+	if first == "cg" || strings.HasPrefix(first, "-") {
 		return true
 	}
 	for _, c := range rootCmd.Commands() {

@@ -1,10 +1,10 @@
 Print the shell integration for zsh, bash or fish, which lets
-`clonager browse` cd to the repo you pick. Add it to your shell's startup
+`cg browse` cd to the repo you pick. Add it to your shell's startup
 file:
 
-  zsh (~/.zshrc):    `eval "$(clonager shell-init zsh)"`
-  bash (~/.bashrc):  `eval "$(clonager shell-init bash)"`
-  fish (config.fish): `clonager shell-init fish | source`
+  zsh (~/.zshrc):    `eval "$(cg shell-init zsh)"`
+  bash (~/.bashrc):  `eval "$(cg shell-init bash)"`
+  fish (config.fish): `cg shell-init fish | source`
 
 The Home Manager module does this for you (`programs.clonager.enableShellIntegration`).
 

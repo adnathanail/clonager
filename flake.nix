@@ -58,7 +58,7 @@
       # Home Manager module: installs clonager and its config. The installed
       # config is read-only (a copy in the Nix store, or e.g. a secret agenix
       # decrypts), so it only changes on rebuild; with configSource set,
-      # `clonager config` edits the source in your checkout instead (directly,
+      # `cg config` edits the source in your checkout instead (directly,
       # or through decrypt and encrypt commands), for you to review and apply.
       homeModules.default = { config, lib, pkgs, ... }:
         let
@@ -112,7 +112,7 @@
                 }
               '';
               description = ''
-                Where commands that change the config (`clonager config ...`)
+                Where commands that change the config (`cg config ...`)
                 read and write it, as the installed config is read-only;
                 rebuild to apply their changes. Either an absolute path to the
                 config in your checkout (a string, not a path, so it isn't
@@ -126,7 +126,7 @@
               default = [ ];
               example = [ "~/Documents" "~/.config/nix-darwin" ];
               description = ''
-                Where `clonager config discover` looks when it's given no dirs.
+                Where `cg config discover` looks when it's given no dirs.
                 Absolute or ~ paths; any that don't exist are skipped.
               '';
             };
@@ -146,9 +146,9 @@
               type = lib.types.bool;
               default = false;
               description = ''
-                Whether `clonager` and `clonager prune` skip checking GitHub,
+                Whether `cg` and `cg prune` skip checking GitHub,
                 as with `--offline`. `--offline=false` checks it anyway.
-                `clonager config airlift` can't skip it, so asks first.
+                `cg config airlift` can't skip it, so asks first.
               '';
             };
 
@@ -157,7 +157,7 @@
               default = null;
               example = "recent";
               description = ''
-                The order `clonager browse` starts in: repos grouped by
+                The order `cg browse` starts in: repos grouped by
                 folder, or the most recently changed first (`recent`).
                 `--sort` overrides it, and `s` switches while browsing.
                 Null means by folder.
@@ -168,7 +168,7 @@
               type = lib.types.bool;
               default = false;
               description = ''
-                Whether `clonager browse`, when sorted by most recent change,
+                Whether `cg browse`, when sorted by most recent change,
                 starts with the folder before each repo's name hidden. `f`
                 shows or hides them while browsing.
               '';
@@ -178,10 +178,10 @@
               type = lib.types.bool;
               default = true;
               description = ''
-                Whether to add the shell integration (`clonager shell-init`)
+                Whether to add the shell integration (`cg shell-init`)
                 to zsh, bash and fish, for those enabled with Home Manager
                 (`programs.zsh.enable` etc.), so that picking a repo in
-                `clonager browse` cds to it.
+                `cg browse` cds to it.
               '';
             };
           };

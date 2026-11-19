@@ -7,11 +7,11 @@ push remote where they differ from GitButler's defaults. Repos without an
 
 A repo goes under the most specific top-level key that contains it. If none
 does, `<dir>` becomes a new top-level key. `<dir>` can also be a repo
-itself, e.g. `clonager config discover ~/.config/nix-darwin`.
+itself, e.g. `cg config discover ~/.config/nix-darwin`.
 
 With no `<dir>`, discover looks in the `discoverPaths` listed in
 `~/.config/clonager/settings.json` (which the Home Manager module writes
 from `programs.clonager.discoverPaths`), skipping any that don't exist.
 
-Repos are added with the URLs their remotes have; `clonager config tidy`
+Repos are added with the URLs their remotes have; `cg config tidy`
 switches them to SSH.

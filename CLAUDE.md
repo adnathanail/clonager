@@ -4,6 +4,11 @@ A Go CLI for managing the git clones on a laptop, driven by a YAML config at
 `~/.config/clonager/config.yaml`. User-facing docs are in README.md and `docs/`;
 keep them in sync when commands, flags or the config format change.
 
+The command is `cg`; the project is clonager. Where text means the command
+(`cg prune`, a bare `cg`), write `cg`; the repo, Go module, package, config
+folder, `CLONAGER_*` variables and `programs.clonager` keep the project's
+name. There's no `clonager` command, link or alias.
+
 ## Commands
 
 ```sh
@@ -46,11 +51,11 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - `internal/commands/` — Cobra commands (`root.go`, `prune.go`, `clone.go`), Lip Gloss
   styles (`style.go`) and the styled help template (`help.go`). Each
   command's long help is in `help/<command>.txt` (`status.txt` for a
-  bare `clonager`), embedded, with code in backticks. When help is shown, `styleCode` colours
-  clonager commands and flags like the command list, and other code dim.
-  Keep each code span on one line. Rendering lives here. A bare `clonager` shows status
+  bare `cg`), embedded, with code in backticks. When help is shown, `styleCode` colours
+  cg commands and flags like the command list, and other code dim.
+  Keep each code span on one line. Rendering lives here. A bare `cg` shows status
   (`status.go`: the root command's `RunE` and flags); there's no `status`
-  subcommand. Everything that edits the config is under `clonager config`
+  subcommand. Everything that edits the config is under `cg config`
   (`config.go`): `discover.go`, `airlift.go` and `tidy.go`. `browse.go` is
   the full-screen view (Bubble Tea), and `shellinit.go` the shell functions
   that let it cd.
@@ -90,10 +95,10 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - **Shell out to `git`, `but` and `gh`** rather than using libraries, so results
   match what the user sees and respect their git config.
 - **`prune` only prints commands; it must never delete anything itself.** Its
-  output must stay valid shell (`clonager prune | sh -n`), so everything that
+  output must stay valid shell (`cg prune | sh -n`), so everything that
   isn't a command is a `#` comment, and paths and branch names go through
   `shellQuote`/`shellPath`.
-- **Status (bare `clonager`) is read-only and never fetches.** Remote state
+- **Status (bare `cg`) is read-only and never fetches.** Remote state
   is as of the last fetch. Don't add commands to it that write refs or objects (e.g. `git
   merge-tree --write-tree`, `git fetch`).
 - **Status checks GitHub unless told not to** (`--offline`, or

@@ -12,8 +12,8 @@ var logo = []string{
 	`                          |___/`,
 }
 
-// banner is the logo with the version below it, shown by `clonager --help`
-// and `clonager --version`.
+// banner is the logo with the version below it, shown by `cg --help`
+// and `cg --version`.
 func banner() string {
 	return styleBranch.Render(strings.Join(logo, "\n")) + "\n" +
 		styleDim.Render("version "+version)
