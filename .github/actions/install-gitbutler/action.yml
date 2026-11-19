@@ -30,9 +30,10 @@ runs:
             ln -s "$RUNNER_TEMP/GitButler.app/Contents/MacOS/gitbutler-tauri" "$RUNNER_TEMP/bin/but"
             ;;
           Linux/X64)
-            curl -fsSL -o "$RUNNER_TEMP/bin/but" "$release/linux/x86_64/but"
-            echo "$GITBUTLER_LINUX_SHA256  $RUNNER_TEMP/bin/but" | sha256sum -c
-            chmod +x "$RUNNER_TEMP/bin/but"
+            download="$RUNNER_TEMP/but"
+            curl -fsSL -o "$download" "$release/linux/x86_64/but"
+            echo "$GITBUTLER_LINUX_SHA256  $download" | sha256sum -c
+            install -m 755 "$download" "$RUNNER_TEMP/bin/but"
             ;;
           *)
             echo "::error::No GitButler install for $RUNNER_OS/$RUNNER_ARCH runners"
