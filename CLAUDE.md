@@ -11,15 +11,15 @@ go test ./...
 go vet ./...
 gofmt -l .                      # should print nothing
 nix run nixpkgs#golangci-lint -- run ./...   # as CI does (.github/workflows/ci.yml)
-go build -o clonager .          # CGO_ENABLED=0 for the static release binary
+go build -o clonager ./cmd/cg   # CGO_ENABLED=0 for the static release binary
 ./clonager -c test-config.yaml  # test-config.yaml is gitignored, local only
 nix build                       # the flake package; runs the tests too
 ```
 
-Versions: `cmd/version.go` reports the tag for `go install`s of a tag, the
+Versions: `internal/commands/version.go` reports the tag for `go install`s of a tag, the
 commit hash for other installs, and "dev" for local builds (detected by Go
 having recorded `vcs.revision`). Nix builds have no git metadata, so the flake
-passes the version in with `-ldflags -X cmd.stampedVersion`: the contents of
+passes the version in with `-ldflags -X commands.stampedVersion`: the contents of
 `VERSION` if present, else the commit. `VERSION` only ever exists on release
 commits made by `.github/workflows/release.yml`, which are reachable from
 their tag but not from main. Never add `VERSION` to main.
@@ -42,10 +42,10 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 
 ## Layout
 
-- `main.go` → `cmd.Execute()`
-- `cmd/` — Cobra commands (`root.go`, `prune.go`, `clone.go`), Lip Gloss
+- `cmd/cg/main.go` → `commands.Execute()`
+- `internal/commands/` — Cobra commands (`root.go`, `prune.go`, `clone.go`), Lip Gloss
   styles (`style.go`) and the styled help template (`help.go`). Each
-  command's long help is in `cmd/help/<command>.txt` (`status.txt` for a
+  command's long help is in `help/<command>.txt` (`status.txt` for a
   bare `clonager`), embedded, with code in backticks. When help is shown, `styleCode` colours
   clonager commands and flags like the command list, and other code dim.
   Keep each code span on one line. Rendering lives here. A bare `clonager` shows status

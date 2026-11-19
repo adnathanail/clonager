@@ -26,7 +26,7 @@
           vendorHash = "sha256-bmXP27SGGXPAy/4mBEHgRuRIX8cpQFrGw9aRYMxikq8=";
 
           env.CGO_ENABLED = 0;
-          ldflags = [ "-s" "-w" "-X github.com/adnathanail/clonager/cmd.stampedVersion=${version}" ];
+          ldflags = [ "-s" "-w" "-X github.com/adnathanail/clonager/internal/commands.stampedVersion=${version}" ];
 
           # The tests build throwaway git repos. At runtime clonager uses the
           # git, gh and but on your PATH, so they aren't bundled.
@@ -38,7 +38,7 @@
           # script completes whichever name was typed, so cg just needs
           # adding to its #compdef line).
           postInstall = ''
-            ln -s clonager $out/bin/cg
+            ln -s cg $out/bin/clonager
           '' + pkgs.lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
             installShellCompletion --cmd clonager \
               --bash <($out/bin/clonager completion bash) \
