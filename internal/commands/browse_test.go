@@ -319,3 +319,51 @@ func TestBrowseGitButlerKey(t *testing.T) {
 		t.Errorf("b: got message %q, want it to say the repo isn't in GitButler", m.message)
 	}
 }
+
+func TestWrapHints(t *testing.T) {
+	hints := []string{"enter cd", "/ filter", "q quit"}
+	for _, tc := range []struct {
+		width int
+		want  []string
+	}{
+		{80, []string{"enter cd · / filter · q quit"}},
+		{19, []string{"enter cd · / filter", "q quit"}},
+		{18, []string{"enter cd", "/ filter · q quit"}},
+		{5, []string{"ente…", "/ fi…", "q qu…"}},
+	} {
+		var got []string
+		for _, l := range wrapHints(hints, tc.width) {
+			got = append(got, ansi.Strip(l))
+		}
+		if strings.Join(got, "\n") != strings.Join(tc.want, "\n") {
+			t.Errorf("width %d: got %q, want %q", tc.width, got, tc.want)
+		}
+	}
+}
+
+// TestBrowseWrapsKeys checks the key hints wrap onto more lines in a narrow
+// terminal, and that the list's height doesn't change as the selection
+// moves between repos with different keys.
+func TestBrowseWrapsKeys(t *testing.T) {
+	m, _ := browseWith(t, 30, 20, map[string]*repostatus.Status{
+		"/Users/me/Documents/vip-proj": {Head: "main"},
+		"/Users/me/Projects/notes":     nil,
+	})
+	view := ansi.Strip(m.View().Content)
+	for _, hint := range []string{"enter cd", "/ filter", "s sort", "q quit"} {
+		if !strings.Contains(view, hint) {
+			t.Errorf("no %q in:\n%s", hint, view)
+		}
+	}
+	if !strings.HasSuffix(view, "q quit") {
+		t.Errorf("keys aren't at the bottom:\n%s", view)
+	}
+	h := m.listHeight()
+	m.Update(key("down"))
+	if m.selected().cloned() {
+		t.Fatal("the second repo should be the one not cloned")
+	}
+	if got := m.listHeight(); got != h {
+		t.Errorf("list height changed from %d to %d with the selection", h, got)
+	}
+}
