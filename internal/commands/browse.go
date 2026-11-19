@@ -415,18 +415,17 @@ func (m *browseModel) open(gitButler bool) tea.Cmd {
 }
 
 // The screen is a header line, the list (with the selected repo's details
-// beside it, or below it in a narrow terminal), and two footer lines: what
-// happened, and the keys.
+// beside it, or below it in a narrow terminal), and the footer (footerLines):
+// what happened, and the keys, on as many lines as they need.
 const (
 	browseHeaderLines = 1
-	browseFooterLines = 2
 	browseWide        = 80 // columns from which the details go beside the list
 )
 
 func (m *browseModel) wide() bool { return m.width >= browseWide }
 
 func (m *browseModel) listHeight() int {
-	h := max(1, m.height-browseHeaderLines-browseFooterLines)
+	h := max(1, m.height-browseHeaderLines-m.footerLines())
 	if !m.wide() {
 		h = max(1, h/2)
 	}
@@ -693,21 +692,33 @@ func (m *browseModel) header() string {
 	return strings.Join(parts, styleDim.Render(" · "))
 }
 
-func (m *browseModel) footer() (message, keys string) {
+// footer is the footer's message line and its key hints, wrapped to the
+// terminal's width.
+func (m *browseModel) footer() (message string, keys []string) {
 	message = m.message
 	if message == "" && len(m.unreachable) > 0 {
 		message = forgeWarningLine(m.unreachable.String())
 	}
+	hints := m.hints(false)
 	if m.filtering {
-		return message, styleDim.Render("type to filter · enter keep · esc clear")
+		hints = browseFilterHints
 	}
+	return message, wrapHints(hints, m.width)
+}
+
+var browseFilterHints = []string{"type to filter", "enter keep", "esc clear"}
+
+// hints are the keys for the selected repo and the list, or with all, every
+// key that could be shown for any repo, which footerLines makes room for.
+func (m *browseModel) hints(all bool) []string {
 	var hints []string
-	if r := m.selected(); r != nil && r.cloned() {
+	r := m.selected()
+	if all || r != nil && r.cloned() {
 		hints = append(hints, "enter cd")
 		if openIn != "none" {
 			hints = append(hints, "e "+openInName())
 		}
-		if r.gitButler {
+		if all || r.gitButler {
 			hints = append(hints, "b GitButler")
 		}
 	}
@@ -715,8 +726,45 @@ func (m *browseModel) footer() (message, keys string) {
 	if m.recent {
 		hints = append(hints, "f folders")
 	}
-	hints = append(hints, "q quit")
-	return message, styleDim.Render(strings.Join(hints, " · "))
+	return append(hints, "q quit")
+}
+
+// footerLines is the number of lines the footer takes: the message, and
+// room for the most key hints that could be shown, so the list keeps its
+// height as the selection moves.
+func (m *browseModel) footerLines() int {
+	n := len(wrapHints(m.hints(true), m.width))
+	if m.filtering {
+		n = max(n, len(wrapHints(browseFilterHints, m.width)))
+	}
+	return 1 + n
+}
+
+// wrapHints joins hints with dots into dim lines of at most width columns,
+// breaking only between hints, and truncating any too wide for a line.
+func wrapHints(hints []string, width int) []string {
+	const sep = " · "
+	var lines []string
+	line := ""
+	for _, h := range hints {
+		h = ansi.Truncate(h, max(1, width), "…")
+		switch {
+		case line == "":
+			line = h
+		case lipgloss.Width(line+sep+h) <= width:
+			line += sep + h
+		default:
+			lines = append(lines, line)
+			line = h
+		}
+	}
+	if line != "" {
+		lines = append(lines, line)
+	}
+	for i, l := range lines {
+		lines[i] = styleDim.Render(l)
+	}
+	return lines
 }
 
 func (m *browseModel) View() tea.View {
@@ -742,7 +790,7 @@ func (m *browseModel) View() tea.View {
 		const gap = " │ "
 		detailW := max(1, m.width-listW-lipgloss.Width(gap))
 		details := m.details(detailW)
-		total := m.height - browseHeaderLines - browseFooterLines
+		total := m.height - browseHeaderLines - m.footerLines()
 		for i := range total {
 			left := strings.Repeat(" ", listW)
 			if i < len(lines) {
@@ -761,14 +809,18 @@ func (m *browseModel) View() tea.View {
 		}
 		body = append(body, styleDim.Render(strings.Repeat("─", m.width)))
 		details := m.details(m.width)
-		rest := max(0, m.height-browseHeaderLines-browseFooterLines-len(body))
+		rest := max(0, m.height-browseHeaderLines-m.footerLines()-len(body))
 		body = append(body, details[:min(rest, len(details))]...)
 	}
 
 	message, keys := m.footer()
 	out := []string{ansi.Truncate(m.header(), m.width, "…")}
 	out = append(out, body...)
-	out = append(out, ansi.Truncate(message, m.width, "…"), ansi.Truncate(keys, m.width, "…"))
+	for range m.footerLines() - 1 - len(keys) {
+		out = append(out, "")
+	}
+	out = append(out, ansi.Truncate(message, m.width, "…"))
+	out = append(out, keys...)
 	v.SetContent(strings.Join(out[:min(len(out), m.height)], "\n"))
 	return v
 }
