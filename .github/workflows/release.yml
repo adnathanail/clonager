@@ -81,7 +81,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           nix build -L
-          got=$(./result/bin/clonager --version | tail -n 1)
+          got=$(./result/bin/cg --version | tail -n 1)
           if [ "$got" != "version $VERSION" ]; then
             echo "::error::The build says '$got', expected 'version $VERSION'"
             exit 1

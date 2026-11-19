@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -19,7 +18,7 @@ import (
 var configPath string
 
 var rootCmd = &cobra.Command{
-	Use:           "clonager",
+	Use:           "cg",
 	Short:         "Manage your git clones",
 	Version:       version,
 	SilenceUsage:  true,
@@ -68,18 +67,7 @@ func Execute() int {
 	return exitOK
 }
 
-// progName is what clonager was run as: clonager, or cg (the Nix package's
-// short name, or an alias).
-func progName() string {
-	if len(os.Args) > 0 && filepath.Base(os.Args[0]) == "cg" {
-		return "cg"
-	}
-	return "clonager"
-}
-
 func init() {
-	rootCmd.Use = progName()
-
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "",
 		"config file (default $CLONAGER_CONFIG or ~/.config/clonager/config.yaml)")
 }

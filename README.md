@@ -118,7 +118,7 @@ For more info, see the [config docs](./docs/config.md), and the [commands docs](
 ```sh
 nix develop   # optional: a shell with go, goimports, golangci-lint, actionlint
 go test ./...
-go build -o clonager ./cmd/cg && ./clonager -c some-test-config.yaml
+go build -o cg ./cmd/cg && ./cg -c some-test-config.yaml
 ```
 
 `clonager --version` shows the release (e.g. `v0.2.0`) for an install of a

@@ -89,7 +89,7 @@ func runBrowse(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println(m.chosen)
 	if liveTerminal(os.Stdout) {
-		fmt.Fprintln(cmd.ErrOrStderr(), styleDim.Render("To cd there instead, set up the shell integration: see "+progName()+" shell-init --help"))
+		fmt.Fprintln(cmd.ErrOrStderr(), styleDim.Render("To cd there instead, set up the shell integration: see cg shell-init --help"))
 	}
 	return nil
 }
@@ -379,7 +379,7 @@ func (m *browseModel) cd() tea.Cmd {
 		m.message = "Still inspecting " + r.repo.Name() + "."
 		return nil
 	case !r.cloned():
-		m.message = r.repo.Name() + " isn't cloned (see " + progName() + " clone)."
+		m.message = r.repo.Name() + " isn't cloned (see cg clone)."
 		return nil
 	}
 	m.chosen = r.repo.Path
@@ -672,7 +672,7 @@ func (m *browseModel) details(width int) []string {
 }
 
 func (m *browseModel) header() string {
-	parts := []string{styleHeading.Render(progName()), plural(len(m.rows), "repo", "repos")}
+	parts := []string{styleHeading.Render("cg"), plural(len(m.rows), "repo", "repos")}
 	if m.filter != "" || m.filtering {
 		f := "/" + m.filter
 		if m.filtering {
@@ -723,7 +723,7 @@ func (m *browseModel) View() tea.View {
 	var v tea.View
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
-	v.WindowTitle = progName() + " browse"
+	v.WindowTitle = "cg browse"
 	if m.width == 0 {
 		return v
 	}
