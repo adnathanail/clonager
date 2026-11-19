@@ -11,6 +11,9 @@ name. There's no `clonager` command, link or alias.
 
 ## Commands
 
+The `justfile` has recipes for these (`just` lists them; `just check` runs
+the tests and every lint CI does). Keep it in step with CI.
+
 ```sh
 go test ./...
 go vet ./...
