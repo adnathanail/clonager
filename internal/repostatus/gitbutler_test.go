@@ -11,9 +11,13 @@ import (
 	"github.com/adnathanail/clonager/internal/config"
 )
 
-// TestGitButlerSettings sets up a real GitButler workspace, with HOME in a
-// temporary directory so GitButler's project registry is a throwaway one.
-func TestGitButlerSettings(t *testing.T) {
+// butWorkspace sets up a clone ("fork", of "up") for a real GitButler
+// workspace, with HOME in a temporary directory so GitButler's project
+// registry is a throwaway one. It skips without but, except where
+// CLONAGER_TEST_BUT is set. It returns the folders of both and a function
+// that runs a command in a folder, failing the test if it fails.
+func butWorkspace(t *testing.T) (up, fork string, run func(dir, name string, args ...string)) {
+	t.Helper()
 	if !cli.Installed("but") {
 		if os.Getenv("CLONAGER_TEST_BUT") != "" { // CI, where it should be
 			t.Fatal("but is not installed")
@@ -44,7 +48,7 @@ func TestGitButlerSettings(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	run := func(dir, name string, args ...string) {
+	run = func(dir, name string, args ...string) {
 		t.Helper()
 		cmd := exec.Command(name, args...)
 		cmd.Dir = dir
@@ -52,10 +56,17 @@ func TestGitButlerSettings(t *testing.T) {
 			t.Fatalf("%s %v: %v\n%s", name, args, err, out)
 		}
 	}
-	up, fork := filepath.Join(dir, "up"), filepath.Join(dir, "fork")
+	up, fork = filepath.Join(dir, "up"), filepath.Join(dir, "fork")
 	run(dir, "git", "init", "-q", "-b", "trunk", up)
 	run(up, "git", "commit", "-q", "--allow-empty", "-m", "init")
 	run(dir, "git", "clone", "-q", up, fork)
+	return up, fork, run
+}
+
+// TestGitButlerSettings checks the target and push remote read from a real
+// GitButler workspace, and when a repo counts as in GitButler.
+func TestGitButlerSettings(t *testing.T) {
+	up, fork, run := butWorkspace(t)
 	run(fork, "git", "remote", "add", "-f", "upstream", up)
 
 	check := func(wantTarget, wantPush string) {
@@ -90,4 +101,47 @@ func TestGitButlerSettings(t *testing.T) {
 	check("upstream/trunk", "")
 	run(fork, "but", "config", "push-remote", "upstream")
 	check("upstream/trunk", "upstream")
+}
+
+// TestGitButlerStatus checks what's read from `but status --json` for
+// branches in a real GitButler workspace: each branch's push status, and
+// conflicted commits. Fields that are renamed decode as empty without an
+// error, so this is what notices GitButler changing them.
+func TestGitButlerStatus(t *testing.T) {
+	up, fork, run := butWorkspace(t)
+	write := func(dir, contents string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, "file"), []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	type branch struct{ name, status string }
+	check := func(wantConflicted int, want ...branch) {
+		t.Helper()
+		s := Inspect(config.Repo{Path: fork}, Options{})
+		var got []branch
+		for _, b := range s.GitButler.Branches {
+			got = append(got, branch{b.Name, b.Status})
+		}
+		if s.Err != nil || s.GitButler.Err != nil || !slices.Equal(got, want) || s.GitButler.Conflicted != wantConflicted {
+			t.Errorf("got %v, %d conflicted (%v, %v); want %v, %d conflicted", got, s.GitButler.Conflicted, s.Err, s.GitButler.Err, want, wantConflicted)
+		}
+	}
+
+	run(fork, "but", "branch", "new", "feat")
+	check(0, branch{"feat", "completelyUnpushed"})
+	write(fork, "mine\n")
+	run(fork, "but", "commit", "-b", "feat", "-m", "mine")
+	check(0, branch{"feat", "completelyUnpushed"})
+	run(fork, "but", "push", "feat")
+	check(0, branch{"feat", "nothingToPush"})
+	write(fork, "mine, amended\n")
+	run(fork, "but", "amend", "-t", "feat", "file")
+	check(0, branch{"feat", "unpushedCommitsRequiringForce"})
+
+	write(up, "theirs\n")
+	run(up, "git", "add", "file")
+	run(up, "git", "commit", "-q", "-m", "theirs")
+	run(fork, "but", "pull")
+	check(1, branch{"feat", "unpushedCommitsRequiringForce"})
 }
