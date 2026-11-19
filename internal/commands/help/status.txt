@@ -26,4 +26,5 @@ not logged in), a warning says so. `--offline` skips it, as does
 Remote state is as of each repo's last fetch; clonager never fetches. The
 column before each repo shows how long ago that was (e.g. 23m, 7h, 5d),
 in yellow if over a month, or with `--sort recent`, how long ago the repo
-last changed. The summary line at the end says which.
+last changed. The summary line at the end starts by saying which
+(◷ last fetch, or ◷ last change).

@@ -736,7 +736,7 @@ func plural(n int, one, many string) string {
 // repos, or with recent, the most recently changed first (those with no
 // known change last), each with its folder before its name. The column
 // before each repo is how long ago it was last fetched, or with recent, last
-// changed, which the summary line says.
+// changed, which the summary line starts by saying (◷ for the ages).
 func writeReports(w *strings.Builder, reports []report, recent bool) {
 	// Repos that are fine are only shown with --all. Size the columns to the
 	// rows shown, not the hidden ones.
@@ -841,11 +841,11 @@ func writeReports(w *strings.Builder, reports []report, recent bool) {
 		summary = append(summary, styleError.Render(fmt.Sprintf("%d with errors", n)))
 	}
 	if len(shown) > 0 {
+		ages := "◷ last fetch"
 		if recent {
-			summary = append(summary, styleDim.Render("ages since last change"))
-		} else {
-			summary = append(summary, styleDim.Render("ages since last fetch"))
+			ages = "◷ last change"
 		}
+		summary = append([]string{styleDim.Render(ages)}, summary...)
 	}
 	fmt.Fprintln(w, strings.Join(summary, styleDim.Render(" · ")))
 }
