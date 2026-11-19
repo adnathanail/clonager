@@ -100,17 +100,20 @@ Opens a full-screen view of the configured repos, grouped by folder as in
 `cg`, with the selected repo's status beside them (or below them in a
 terminal under 80 columns wide). Repos are inspected in the background, with
 a spinner beside each until it's done, and GitHub is then checked for each,
-as `cg` does, unless `--offline` or `alwaysOffline` is set.
+as `cg` does, unless `--offline` or `alwaysOffline` is set. Before each
+repo is how long ago it was last fetched, as in `cg`, or when sorted by most
+recent change, how long ago it last changed. The header says which:
+`◷ last fetch` or `◷ last change`.
 
 ```
-cg · 4 repos
-~/Documents/ACME         │ vip-proj
-▸ ● vip-proj  ⧓ fix-auth │ ~/Documents/ACME/vip-proj
-  ✓ site      main       │ git@github.com:acmeltd/vip-proj.git
-                         │
-~/Documents/Uni          │ ⧓ fix-auth  fetched 2h ago
-  ✓ uni-work  main       │ • 3 uncommitted changes
-  ✗ thesis               │ • 1 stash
+cg · 4 repos · ◷ last fetch
+~/Documents/ACME            │ vip-proj
+▸ 2h ● vip-proj  ⧓ fix-auth │ ~/Documents/ACME/vip-proj
+  5d ✓ site      main       │ git@github.com:acmeltd/vip-proj.git
+                            │
+~/Documents/Uni             │ ⧓ fix-auth  fetched 2h ago
+  1d ✓ uni-work  main       │ • 3 uncommitted changes
+     ✗ thesis               │ • 1 stash
 
 enter cd · e VS Code · b GitButler · / filter · s sort · q quit
 ```
