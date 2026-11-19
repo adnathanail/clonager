@@ -26,31 +26,20 @@ func init() {
 	rootCmd.AddCommand(shellInitCmd)
 }
 
-// shellInit is the shell integration for shell: functions named clonager
-// and cg that run the program with CLONAGER_CD_FILE (cdFileEnv) set to a
-// temporary file, and cd to the folder browse writes there, if any. Every
-// other command runs as it would without them.
+// shellInit is the shell integration for shell: a function named cg that
+// runs the program with CLONAGER_CD_FILE (cdFileEnv) set to a temporary
+// file, and cds to the folder browse writes there, if any. Every other
+// command runs as it would without it.
 //
-// cg is only defined where a cg program is on the PATH (the Nix package
-// installs one), so that without one, cg still isn't found. That checks for
-// a program rather than using `command -v`, which an alias (say
-// cg=clonager, which reaches the clonager function anyway) also satisfies;
-// in fish, an alias is a function, which defining cg would replace.
-//
-// `function name` is used rather than `name()`, as bash and zsh expand an
-// alias in `name()` (e.g. alias cg=clonager), breaking the definition.
+// `function cg` is used rather than `cg()`, as bash and zsh expand an alias
+// in `cg()` (say, an old alias cg=clonager), breaking the definition.
 func shellInit(shell string) (string, error) {
-	var script string
 	switch shell {
 	case "zsh", "bash":
-		hasCg := `type -P cg >/dev/null` // bash
-		if shell == "zsh" {
-			hasCg = `(( $+commands[cg] ))`
-		}
-		script = `__clonager_cd() {
+		return `function cg {
   local file code dir
-  file="$(mktemp "${TMPDIR:-/tmp}/clonager.XXXXXX")" || { command "$@"; return; }
-  CLONAGER_CD_FILE="$file" command "$@"
+  file="$(mktemp "${TMPDIR:-/tmp}/clonager.XXXXXX")" || { command cg "$@"; return; }
+  CLONAGER_CD_FILE="$file" command cg "$@"
   code=$?
   dir="$(cat -- "$file")"
   rm -f -- "$file"
@@ -59,19 +48,15 @@ func shellInit(shell string) (string, error) {
   fi
   return "$code"
 }
-function clonager { __clonager_cd clonager "$@"; }
-if ` + hasCg + `; then
-  function cg { __clonager_cd cg "$@"; }
-fi
-`
+`, nil
 	case "fish":
-		script = `function __clonager_cd
+		return `function cg --wraps cg
     set -l file (mktemp "$TMPDIR/clonager.XXXXXX" 2>/dev/null; or mktemp /tmp/clonager.XXXXXX)
     or begin
-        command $argv
+        command cg $argv
         return
     end
-    CLONAGER_CD_FILE=$file command $argv
+    CLONAGER_CD_FILE=$file command cg $argv
     set -l code $status
     set -l dir (cat -- $file)
     rm -f -- $file
@@ -80,17 +65,7 @@ fi
     end
     return $code
 end
-function clonager --wraps clonager
-    __clonager_cd clonager $argv
-end
-if command -q cg
-    function cg --wraps cg
-        __clonager_cd cg $argv
-    end
-end
-`
-	default:
-		return "", fmt.Errorf("unknown shell %q: shell-init supports zsh, bash and fish", shell)
+`, nil
 	}
-	return script, nil
+	return "", fmt.Errorf("unknown shell %q: shell-init supports zsh, bash and fish", shell)
 }
