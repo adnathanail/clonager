@@ -70,7 +70,7 @@ column before each repo shows how long ago that was (`23m`, `7h`, `5d`), from
 any remote and including GitButler's background fetches; it's yellow if over a
 month, or `never`. With `--sort recent`, it shows how long ago the repo last
 changed instead (a commit on a local branch, or an edit to a file with
-uncommitted changes). The summary line at the end says which it is.
+uncommitted changes). The summary line at the end starts by saying which it is: `◷ last fetch` or `◷ last change`.
 
 It also checks GitHub, via `gh`: merged PRs (which catch merges git alone
 can't see), which of `origin`'s branches still exist, and whether the repo

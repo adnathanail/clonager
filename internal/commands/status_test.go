@@ -168,7 +168,7 @@ func TestWriteReportsRecent(t *testing.T) {
 	if !strings.Contains(got, "1h ● Documents/vip-proj") || strings.Contains(got, "9d") {
 		t.Errorf("not the time since the last change before each repo:\n%s", got)
 	}
-	if !strings.Contains(got, "ages since last change") {
+	if !strings.Contains(got, "◷ last change · 3 repos") {
 		t.Errorf("the summary doesn't say what the ages are:\n%s", got)
 	}
 	if reports[0].status.Repo.Name() != "vip-proj" {
@@ -181,7 +181,7 @@ func TestWriteReportsRecent(t *testing.T) {
 	if !strings.Contains(got, "/Projects\n") {
 		t.Errorf("no folder headings by folder:\n%s", got)
 	}
-	if !strings.Contains(got, "9d ● vip-proj") || !strings.Contains(got, "ages since last fetch") {
+	if !strings.Contains(got, "9d ● vip-proj") || !strings.Contains(got, "◷ last fetch · 3 repos") {
 		t.Errorf("not the time since the last fetch before each repo:\n%s", got)
 	}
 }
