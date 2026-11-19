@@ -8,9 +8,9 @@ _The logo was not 😉_
 
 Once you've got your software and OS config managed through Nix, the final gap between you and complete device statelessness is your data.
 
-For me, the only files stored directly on my device live in git repositories, synced off-machine. But, sometimes I forget to commit or push, and getting everything cloned into its proper home is annoying on a fresh OS install. This is where `clonager` comes in!
+For me, the only files stored directly on my device live in git repositories, synced off-machine. But, sometimes I forget to commit or push, and getting everything cloned into its proper home is annoying on a fresh OS install. This is where clonager comes in!
 
-`clonager` keeps track of your repos' statuses, with their locations managed in a config file. A single command shows you any repos with uncommitted files, unpushed commits, and any stashes. Also, with a single command, it will clone everything into the locations defined in the config, so you can hit the ground running on a new machine.
+clonager keeps track of your repos' statuses, with their locations managed in a config file. A single command shows you any repos with uncommitted files, unpushed commits, and any stashes. Also, with a single command, it will clone everything into the locations defined in the config, so you can hit the ground running on a new machine.
 
 ```
 $ cg
@@ -48,7 +48,7 @@ $ cg
 
 ### Read only
 
-Because this tool was created with AI, and is interacting with critical data, it does not execute any commands which modify your files by itself, except for `clonager`'s own config file. The allowed commands and subcommands are defined in [cli.go](./internal/cli/cli.go).
+Because this tool was created with AI, and is interacting with critical data, it does not execute any commands which modify your files by itself, except for clonager's own config file. The allowed commands and subcommands are defined in [cli.go](./internal/cli/cli.go).
 
 Functionality which needs to modify your files, like deleting branches and cloning, will just print the necessary commands to the terminal, for you to check and run yourself.
 
