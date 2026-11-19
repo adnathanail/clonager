@@ -3,13 +3,13 @@
 Requires Go 1.25+.
 
 ```sh
-go install github.com/adnathanail/clonager@latest
+go install github.com/adnathanail/clonager/cmd/cg@latest
 ```
 
 Or from a checkout, as a static binary:
 
 ```sh
-CGO_ENABLED=0 go build -o clonager .
+CGO_ENABLED=0 go build -o clonager ./cmd/cg
 ```
 
 The Nix package also installs clonager as `cg`; with Go, add
