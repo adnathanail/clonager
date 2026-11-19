@@ -734,7 +734,9 @@ func plural(n int, one, many string) string {
 
 // writeReports lists the reports, a heading for each folder then its
 // repos, or with recent, the most recently changed first (those with no
-// known change last), each with its folder before its name.
+// known change last), each with its folder before its name. The column
+// before each repo is how long ago it was last fetched, or with recent, last
+// changed, which the summary line says.
 func writeReports(w *strings.Builder, reports []report, recent bool) {
 	// Repos that are fine are only shown with --all. Size the columns to the
 	// rows shown, not the hidden ones.
@@ -761,12 +763,18 @@ func writeReports(w *strings.Builder, reports []report, recent bool) {
 		})
 	}
 	folder := func(r report) string { return labels[filepath.Dir(r.status.Repo.Path)] }
+	age := func(r report) string {
+		if recent {
+			return styleDim.Render(changeAge(r.status.LastChange))
+		}
+		return r.fetch
+	}
 
 	var nameW, headW, fetchW int
 	for _, r := range shown {
 		nameW = max(nameW, len(folder(r)+r.status.Repo.Name()))
 		headW = max(headW, lipgloss.Width(r.head))
-		fetchW = max(fetchW, lipgloss.Width(r.fetch))
+		fetchW = max(fetchW, lipgloss.Width(age(r)))
 	}
 
 	group := ""
@@ -799,7 +807,7 @@ func writeReports(w *strings.Builder, reports []report, recent bool) {
 		if recent {
 			name = styleDim.Render(folder(r)) + name
 		}
-		line := fmt.Sprintf("  %s %s %s  %s", padLeft(r.fetch, fetchW), icon, padRight(name, nameW), padRight(r.head, headW))
+		line := fmt.Sprintf("  %s %s %s  %s", padLeft(age(r), fetchW), icon, padRight(name, nameW), padRight(r.head, headW))
 		if len(parts) > 0 {
 			line += "  " + strings.Join(parts, styleDim.Render(" · "))
 		}
@@ -831,6 +839,13 @@ func writeReports(w *strings.Builder, reports []report, recent bool) {
 	}
 	if n := counts[sevError]; n > 0 {
 		summary = append(summary, styleError.Render(fmt.Sprintf("%d with errors", n)))
+	}
+	if len(shown) > 0 {
+		if recent {
+			summary = append(summary, styleDim.Render("ages since last change"))
+		} else {
+			summary = append(summary, styleDim.Render("ages since last fetch"))
+		}
 	}
 	fmt.Fprintln(w, strings.Join(summary, styleDim.Render(" · ")))
 }

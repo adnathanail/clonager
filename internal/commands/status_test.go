@@ -139,12 +139,13 @@ func TestUpdateSeparator(t *testing.T) {
 
 // TestWriteReportsRecent checks --sort recent lists the most recently
 // changed first, with no known change last, each with its folder before its
-// name rather than under a heading.
+// name rather than under a heading, and how long ago it changed rather than
+// was fetched.
 func TestWriteReportsRecent(t *testing.T) {
 	now := time.Now()
 	warn := []issue{{sev: sevWarn, text: "1 stash"}}
 	reports := []report{
-		{status: &repostatus.Status{Repo: config.Repo{Path: "/Users/me/Documents/vip-proj"}, LastChange: now.Add(-time.Hour)}, issues: warn},
+		{status: &repostatus.Status{Repo: config.Repo{Path: "/Users/me/Documents/vip-proj"}, LastChange: now.Add(-time.Hour)}, issues: warn, fetch: "9d"},
 		{status: &repostatus.Status{Repo: config.Repo{Path: "/Users/me/Projects/notes"}}, issues: warn},
 		{status: &repostatus.Status{Repo: config.Repo{Path: "/Users/me/Projects/acmeltd-site"}, LastChange: now.Add(-time.Minute)}, issues: warn},
 	}
@@ -164,13 +165,23 @@ func TestWriteReportsRecent(t *testing.T) {
 	if strings.Contains(got, "/Projects\n") {
 		t.Errorf("folder headings when sorted by recent change:\n%s", got)
 	}
+	if !strings.Contains(got, "1h ● Documents/vip-proj") || strings.Contains(got, "9d") {
+		t.Errorf("not the time since the last change before each repo:\n%s", got)
+	}
+	if !strings.Contains(got, "ages since last change") {
+		t.Errorf("the summary doesn't say what the ages are:\n%s", got)
+	}
 	if reports[0].status.Repo.Name() != "vip-proj" {
 		t.Error("the reports were reordered in place")
 	}
 
 	w.Reset()
 	writeReports(&w, reports, false)
-	if got := ansi.Strip(w.String()); !strings.Contains(got, "/Projects\n") {
+	got = ansi.Strip(w.String())
+	if !strings.Contains(got, "/Projects\n") {
 		t.Errorf("no folder headings by folder:\n%s", got)
+	}
+	if !strings.Contains(got, "9d ● vip-proj") || !strings.Contains(got, "ages since last fetch") {
+		t.Errorf("not the time since the last fetch before each repo:\n%s", got)
 	}
 }
