@@ -28,21 +28,21 @@ func helpText(name string) string {
 }
 
 // styleCode removes the backticks from text's code spans and styles them:
-// clonager commands and flags like the commands in help, anything else
+// cg commands and flags like the commands in help, anything else
 // (other programs' commands, paths, config) dim.
 func styleCode(text string) string {
 	return codeSpan.ReplaceAllStringFunc(text, func(span string) string {
 		code := span[1 : len(span)-1]
-		if isClonagerCode(code) {
+		if isCgCode(code) {
 			return styleBranch.Render(code)
 		}
 		return styleDim.Render(code)
 	})
 }
 
-// isClonagerCode reports whether code is a clonager command ("cg
+// isCgCode reports whether code is a cg command ("cg
 // config tidy", or just "config tidy") or flag ("--offline").
-func isClonagerCode(code string) bool {
+func isCgCode(code string) bool {
 	first, _, _ := strings.Cut(code, " ")
 	if first == "cg" || strings.HasPrefix(first, "-") {
 		return true
