@@ -116,10 +116,13 @@ For more info, see the [config docs](./docs/config.md), and the [commands docs](
 ## Development
 
 ```sh
-nix develop   # optional: a shell with go, goimports, golangci-lint, actionlint
-go test ./...
-go build -o cg ./cmd/cg && ./cg -c some-test-config.yaml
+nix develop   # optional: a shell with go, goimports, golangci-lint, actionlint, just
+just test     # go test ./...
+just check    # the tests, and the formatting, vet and lint checks CI runs
+just run      # build cg and run it with test-config.yaml (gitignored)
 ```
+
+`just` lists the rest.
 
 `cg --version` shows the release (e.g. `v0.2.0`) for an install of a
 release, the commit hash for an install of any other commit, and `dev` for a

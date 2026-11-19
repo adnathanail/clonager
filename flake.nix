@@ -51,7 +51,7 @@
 
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
-          packages = [ pkgs.go pkgs.gotools pkgs.golangci-lint pkgs.actionlint ];
+          packages = [ pkgs.go pkgs.gotools pkgs.golangci-lint pkgs.actionlint pkgs.just ];
         };
       });
 
