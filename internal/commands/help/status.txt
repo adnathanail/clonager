@@ -1,7 +1,8 @@
 Run without a command, clonager shows the configured repos that need
 attention: uncommitted changes, stashes, branches that aren't on a remote,
 branches with unpushed commits, and GitButler workspace state. `--all` also
-shows the ones that are fine.
+shows the ones that are fine. They're grouped by folder, or with
+`--sort recent`, listed with the most recently changed first.
 
 Branches already merged into the default branch (as a merge, fast-forward,
 rebase or squash) are listed separately and don't need attention, as are

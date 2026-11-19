@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/adnathanail/clonager/internal/config"
 	"github.com/adnathanail/clonager/internal/repostatus"
 )
 
@@ -133,5 +134,43 @@ func TestUpdateSeparator(t *testing.T) {
 		if ansi.StringWidth(got) != want || !strings.Contains(got, " Updated from GitHub ") || !strings.HasPrefix(got, "===") {
 			t.Errorf("updateSeparator(%d) = %q (%d wide), want %d wide", width, got, ansi.StringWidth(got), want)
 		}
+	}
+}
+
+// TestWriteReportsRecent checks --sort recent lists the most recently
+// changed first, with no known change last, each with its folder before its
+// name rather than under a heading.
+func TestWriteReportsRecent(t *testing.T) {
+	now := time.Now()
+	warn := []issue{{sev: sevWarn, text: "1 stash"}}
+	reports := []report{
+		{status: &repostatus.Status{Repo: config.Repo{Path: "/Users/me/Documents/vip-proj"}, LastChange: now.Add(-time.Hour)}, issues: warn},
+		{status: &repostatus.Status{Repo: config.Repo{Path: "/Users/me/Projects/notes"}}, issues: warn},
+		{status: &repostatus.Status{Repo: config.Repo{Path: "/Users/me/Projects/acmeltd-site"}, LastChange: now.Add(-time.Minute)}, issues: warn},
+	}
+	var w strings.Builder
+	writeReports(&w, reports, true)
+	got := ansi.Strip(w.String())
+	var names []string
+	for _, line := range strings.Split(got, "\n") {
+		if _, after, ok := strings.Cut(line, "● "); ok {
+			names = append(names, strings.Fields(after)[0])
+		}
+	}
+	want := []string{"Projects/acmeltd-site", "Documents/vip-proj", "Projects/notes"}
+	if strings.Join(names, " ") != strings.Join(want, " ") {
+		t.Errorf("got %q, want %q, in:\n%s", names, want, got)
+	}
+	if strings.Contains(got, "/Projects\n") {
+		t.Errorf("folder headings when sorted by recent change:\n%s", got)
+	}
+	if reports[0].status.Repo.Name() != "vip-proj" {
+		t.Error("the reports were reordered in place")
+	}
+
+	w.Reset()
+	writeReports(&w, reports, false)
+	if got := ansi.Strip(w.String()); !strings.Contains(got, "/Projects\n") {
+		t.Errorf("no folder headings by folder:\n%s", got)
 	}
 }

@@ -90,7 +90,7 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 	if c := statusCode(reports); c != exitOK {
 		blocked(c, "Repos need attention:")
 		var w strings.Builder
-		writeReports(&w, reports)
+		writeReports(&w, reports, false)
 		lipgloss.Print(w.String())
 	}
 	var unknown []string

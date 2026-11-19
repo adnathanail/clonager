@@ -7,7 +7,8 @@ is `cg clone`.
 ## `cg`
 
 With no command, clonager shows the configured repos that need attention
-(●) or have an error (✗), grouped by folder; `--all` also shows the ones that
+(●) or have an error (✗), grouped by folder (or, with `--sort recent`, the
+most recently changed first); `--all` also shows the ones that
 are fine (✓). After the name is the checked-out branch or, for a repo in a
 GitButler workspace, ⧓ (a stand-in for GitButler's logo) and its applied
 branches (or the checked-out branch, if none are applied). A repo is in a
@@ -62,6 +63,7 @@ It reports:
 | `-a`, `--all` | also show repos that are fine |
 | `-t`, `--tag <tag>` | only show repos with this tag (repeatable) |
 | `-o`, `--offline` | don't check GitHub |
+| `-s`, `--sort <order>` | `folder` (the default), or `recent` for the most recently changed first, each with its folder before its name |
 
 Remote state is as of each repo's last fetch: clonager never fetches. The
 column before each repo shows how long ago that was (`23m`, `7h`, `5d`), from

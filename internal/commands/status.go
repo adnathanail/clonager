@@ -28,6 +28,7 @@ var statusFlags struct {
 	all     bool
 	offline bool
 	tags    []string
+	sort    string
 }
 
 func init() {
@@ -37,11 +38,15 @@ func init() {
 	rootCmd.Flags().BoolVarP(&statusFlags.all, "all", "a", false, "also show repos that are fine")
 	rootCmd.Flags().BoolVarP(&statusFlags.offline, "offline", "o", false, "don't check GitHub (default from alwaysOffline in settings.json)")
 	rootCmd.Flags().StringSliceVarP(&statusFlags.tags, "tag", "t", nil, "only show repos with this tag (repeatable)")
+	rootCmd.Flags().StringVarP(&statusFlags.sort, "sort", "s", "folder", "folder, or recent for the most recently changed first")
 	rootCmd.Args = cobra.NoArgs
 	rootCmd.RunE = runStatus
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
+	if err := checkSort(statusFlags.sort); err != nil {
+		return err
+	}
 	settings, err := loadSettings()
 	if err != nil {
 		return err
@@ -60,7 +65,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	v := &statusView{cfg: cfg, statuses: inspectAll(repos, repostatus.Options{})}
+	v := &statusView{cfg: cfg, statuses: inspectAll(repos, repostatus.Options{}), recent: statusFlags.sort == "recent"}
 	v.pending, v.note = unapplied(cfg.Path)
 	if len(statusFlags.tags) == 0 {
 		dirs, _, err := settingsDirs(settings)
@@ -95,6 +100,14 @@ func offline(cmd *cobra.Command, flag bool, settings config.Settings) bool {
 	return settings.AlwaysOffline
 }
 
+// checkSort checks a --sort flag's value is one of config.BrowseSorts.
+func checkSort(sort string) error {
+	if !slices.Contains(config.BrowseSorts, sort) {
+		return fmt.Errorf("--sort %q: must be one of %s", sort, strings.Join(config.BrowseSorts, ", "))
+	}
+	return nil
+}
+
 // statusView is everything status shows, so it can be drawn again once
 // GitHub has been checked.
 type statusView struct {
@@ -105,6 +118,7 @@ type statusView struct {
 	showUntracked bool // and what config tidy has to do (not with --tag)
 	untracked     []untrackedRepo
 	forgeWarning  string // why GitHub couldn't be checked
+	recent        bool   // most recently changed first, rather than by folder
 }
 
 // render draws the view, and gives the exit code for it.
@@ -114,7 +128,7 @@ func (v *statusView) render() (string, int) {
 	for i, s := range v.statuses {
 		reports[i] = buildReport(s)
 	}
-	writeReports(&w, reports)
+	writeReports(&w, reports, v.recent)
 	code := statusCode(reports)
 	if v.showUntracked {
 		if writeUntracked(&w, v.untracked) {
@@ -718,7 +732,10 @@ func plural(n int, one, many string) string {
 	return fmt.Sprintf("%d %s", n, many)
 }
 
-func writeReports(w *strings.Builder, reports []report) {
+// writeReports lists the reports, a heading for each folder then its
+// repos, or with recent, the most recently changed first (those with no
+// known change last), each with its folder before its name.
+func writeReports(w *strings.Builder, reports []report, recent bool) {
 	// Repos that are fine are only shown with --all. Size the columns to the
 	// rows shown, not the hidden ones.
 	counts := map[severity]int{}
@@ -731,9 +748,23 @@ func writeReports(w *strings.Builder, reports []report) {
 		}
 	}
 
+	var labels map[string]string
+	if recent {
+		repos := make([]config.Repo, len(reports))
+		for i, r := range reports {
+			repos[i] = r.status.Repo
+		}
+		labels = folderLabels(repos)
+		shown = slices.Clone(shown)
+		slices.SortStableFunc(shown, func(a, b report) int {
+			return b.status.LastChange.Compare(a.status.LastChange)
+		})
+	}
+	folder := func(r report) string { return labels[filepath.Dir(r.status.Repo.Path)] }
+
 	var nameW, headW, fetchW int
 	for _, r := range shown {
-		nameW = max(nameW, len(r.status.Repo.Name()))
+		nameW = max(nameW, len(folder(r)+r.status.Repo.Name()))
 		headW = max(headW, lipgloss.Width(r.head))
 		fetchW = max(fetchW, lipgloss.Width(r.fetch))
 	}
@@ -742,7 +773,7 @@ func writeReports(w *strings.Builder, reports []report) {
 	for _, r := range shown {
 		sev := r.severity()
 
-		if dir := config.TildePath(filepath.Dir(r.status.Repo.Path)); dir != group {
+		if dir := config.TildePath(filepath.Dir(r.status.Repo.Path)); dir != group && !recent {
 			if group != "" {
 				fmt.Fprintln(w)
 			}
@@ -765,6 +796,9 @@ func writeReports(w *strings.Builder, reports []report) {
 			parts = append(parts, severityStyle(i.sev).Render(i.text))
 		}
 		name := folderLink(r.status.Repo.Path, r.status.Repo.Name())
+		if recent {
+			name = styleDim.Render(folder(r)) + name
+		}
 		line := fmt.Sprintf("  %s %s %s  %s", padLeft(r.fetch, fetchW), icon, padRight(name, nameW), padRight(r.head, headW))
 		if len(parts) > 0 {
 			line += "  " + strings.Join(parts, styleDim.Render(" · "))

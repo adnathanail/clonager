@@ -64,8 +64,8 @@ func runBrowse(cmd *cobra.Command, args []string) error {
 	}
 	sort := settings.BrowseSort
 	if cmd.Flags().Changed("sort") {
-		if !slices.Contains(config.BrowseSorts, browseFlags.sort) {
-			return fmt.Errorf("--sort %q: must be one of %s", browseFlags.sort, strings.Join(config.BrowseSorts, ", "))
+		if err := checkSort(browseFlags.sort); err != nil {
+			return err
 		}
 		sort = browseFlags.sort
 	}
