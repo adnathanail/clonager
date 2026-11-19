@@ -12,7 +12,9 @@ name. There's no `clonager` command, link or alias.
 ## Commands
 
 The `justfile` has recipes for these (`just` lists them; `just check` runs
-the tests and every lint CI does). Keep it in step with CI.
+the tests and every lint CI does). CI runs the same recipes, except
+golangci-lint, which it runs with `golangci-lint-action` (pinned, with
+annotations), so change a check in the justfile rather than in `ci.yml`.
 
 ```sh
 go test ./...

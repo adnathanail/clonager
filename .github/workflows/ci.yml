@@ -28,6 +28,7 @@ jobs:
         with:
           go-version: ${{ matrix.go == 'stable' && 'stable' || '' }}
           go-version-file: ${{ matrix.go == 'min' && 'go.mod' || '' }}
+      - uses: extractions/setup-just@v4
 
       # For the tests that run `but`. They skip without it, except where
       # CLONAGER_TEST_BUT is set.
@@ -51,10 +52,10 @@ jobs:
         env:
           CLONAGER_TEST_BUT: '1'
           CLONAGER_TEST_SHELLS: '1'
-        run: go test -race ./...
+        run: just test -race
 
       - name: Build static binary
-        run: CGO_ENABLED=0 go build -o cg ./cmd/cg
+        run: CGO_ENABLED=0 just build
 
   lint:
     name: Lint
@@ -64,22 +65,19 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+      - uses: extractions/setup-just@v4
 
       - name: gofmt
-        run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "Run gofmt -w on:"
-            echo "$unformatted"
-            exit 1
-          fi
+        run: just fmt-check
 
       - name: go mod tidy
-        run: go mod tidy -diff
+        run: just tidy-check
 
       - name: go vet
-        run: go vet ./...
+        run: just vet
 
+      # just golangci runs it from nixpkgs; the action pins the version and
+      # adds annotations and a cache.
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.14.0
@@ -90,7 +88,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
+      - uses: extractions/setup-just@v4
       # Builds the flake package (running the tests again inside the Nix
       # build), so a stale vendorHash is caught here rather than in nix-darwin.
       - name: nix build
-        run: nix build -L
+        run: just nix -L
