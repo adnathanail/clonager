@@ -1,4 +1,4 @@
-Record each repo's local branches in the config, so `clonager clone` can
+Record each repo's local branches in the config, so `cg clone` can
 recreate them on another laptop.
 
 Only a tidy laptop can be airlifted: first it checks `prune` has
@@ -10,9 +10,9 @@ Each repo's `branches` list is replaced with its current local branches,
 other than the default branch, which clone checks out anyway. Repos with
 none have their list removed.
 
-On the other laptop, `clonager clone` prints a `git branch` command for each
+On the other laptop, `cg clone` prints a `git branch` command for each
 listed branch that doesn't exist there yet. Once they're created,
-`clonager config tidy` removes them from the config.
+`cg config tidy` removes them from the config.
 
 Checking GitHub can't be skipped. If `alwaysOffline` is set in
 settings.json, airlift asks first; `--offline=false` checks without

@@ -308,16 +308,16 @@ func writeUntracked(w *strings.Builder, repos []untrackedRepo) bool {
 	}
 	switch {
 	case addable == len(repos):
-		fmt.Fprintln(w, styleDim.Render("Add them with clonager config discover."))
+		fmt.Fprintln(w, styleDim.Render("Add them with cg config discover."))
 	case addable > 0:
-		fmt.Fprintln(w, styleDim.Render("Add them with clonager config discover, once those without an origin have one."))
+		fmt.Fprintln(w, styleDim.Render("Add them with cg config discover, once those without an origin have one."))
 	default:
-		fmt.Fprintln(w, styleDim.Render("clonager config discover can add them once they have an origin."))
+		fmt.Fprintln(w, styleDim.Render("cg config discover can add them once they have an origin."))
 	}
 	return true
 }
 
-// writeTidy shows what clonager config tidy may have to do (see needsTidy)
+// writeTidy shows what cg config tidy may have to do (see needsTidy)
 // for the config, or its source waiting to be applied (pending, which may be
 // nil), and reports whether there's anything.
 func writeTidy(w *strings.Builder, cfg, pending *config.Config, statuses []*repostatus.Status) bool {
@@ -345,11 +345,11 @@ func writeTidy(w *strings.Builder, cfg, pending *config.Config, statuses []*repo
 	line(n.clones, "clone remote", "clone remotes", " to switch to SSH, as in the config")
 	line(n.gitbutler, "repo", "repos", " in a GitButler workspace, to mark gitbutler: true")
 	line(n.gbSettings, "GitButler workspace", "GitButler workspaces", " with a target branch or push remote to record in the config")
-	line(n.gbDrift, "GitButler workspace", "GitButler workspaces", " with a target branch or push remote other than the config's "+styleDim.Render("(see clonager clone)"))
+	line(n.gbDrift, "GitButler workspace", "GitButler workspaces", " with a target branch or push remote other than the config's "+styleDim.Render("(see cg clone)"))
 	line(n.landed, "airlifted branch", "airlifted branches", " now here, to remove from the config")
-	line(n.waiting, "airlifted branch", "airlifted branches", " to create here "+styleDim.Render("(see clonager clone)"))
+	line(n.waiting, "airlifted branch", "airlifted branches", " to create here "+styleDim.Render("(see cg clone)"))
 	if n.urls+n.clones+n.gitbutler+n.gbSettings+n.landed > 0 {
-		hint := "Run clonager config tidy."
+		hint := "Run cg config tidy."
 		if n.landed > 0 {
 			hint += " If this is the laptop the branches were airlifted from, delete its clones first."
 		}

@@ -33,7 +33,7 @@ jobs:
       # CLONAGER_TEST_BUT is set.
       - uses: ./.github/actions/install-gitbutler
 
-      # For the tests that run `clonager shell-init`'s output in each shell
+      # For the tests that run `cg shell-init`'s output in each shell
       # it supports (bash is on both runners already, and zsh on macOS).
       # They skip a shell that isn't installed, except where
       # CLONAGER_TEST_SHELLS is set.

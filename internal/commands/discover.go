@@ -131,7 +131,7 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 	printRows("Skipped", styleWarn.Render("!"), skipped)
 	lipgloss.Println(styleDim.Render(fmt.Sprintf("%d new · %d already configured · %d skipped", len(added), known, len(skipped))))
 	if butMissing {
-		lipgloss.Println(styleDim.Render("GitButler's CLI (but) isn't on your PATH, so target branches and push remotes weren't read, for clonager config tidy to fill in."))
+		lipgloss.Println(styleDim.Render("GitButler's CLI (but) isn't on your PATH, so target branches and push remotes weren't read, for cg config tidy to fill in."))
 	}
 
 	if discoverFlags.dryRun || len(added) == 0 {

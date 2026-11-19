@@ -55,7 +55,7 @@ Functionality which needs to modify your files, like deleting branches and cloni
 If you want to allow it to run commands unchecked, you can just pipe its output into the shell:
 
 ```shell
-clonager clone | sh
+cg clone | sh
 ```
 
 ## Install
@@ -84,9 +84,9 @@ inputs.clonager.url = "github:adnathanail/clonager";
     enable = true;
     # Installed as ~/.config/clonager/config.yaml, via the Nix store.
     configFile = ./clonager.yaml;
-    # The same file in your checkout, for `clonager config` to edit.
+    # The same file in your checkout, for `cg config` to edit.
     configSource = "${config.home.homeDirectory}/.config/nix-darwin/clonager.yaml";
-    # Where `clonager config discover` looks when given no dirs.
+    # Where `cg config discover` looks when given no dirs.
     discoverPaths = [ "~/Documents" "~/.config/nix-darwin" ];
     # What cmd-clicking a repo's name opens it in (default the file manager).
     openIn = "vscode";
@@ -105,10 +105,10 @@ See the [Go installation docs](./docs/installation/go.md).
 Build a config from the repos you already have:
 
 ```sh
-clonager config discover -n ~/Documents ~/Projects  # preview
-clonager config discover ~/Documents ~/Projects     # write the config
-clonager config tidy                                # switch URLs to SSH, etc.
-clonager
+cg config discover -n ~/Documents ~/Projects  # preview
+cg config discover ~/Documents ~/Projects     # write the config
+cg config tidy                                # switch URLs to SSH, etc.
+cg
 ```
 
 For more info, see the [config docs](./docs/config.md), and the [commands docs](./docs/commands.md).
@@ -121,7 +121,7 @@ go test ./...
 go build -o cg ./cmd/cg && ./cg -c some-test-config.yaml
 ```
 
-`clonager --version` shows the release (e.g. `v0.2.0`) for an install of a
+`cg --version` shows the release (e.g. `v0.2.0`) for an install of a
 release, the commit hash for an install of any other commit, and `dev` for a
 build from your own checkout.
 

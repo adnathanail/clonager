@@ -80,7 +80,7 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 	}
 
 	if script, n := pruneScript(statuses); n.exitCode() != exitOK {
-		blocked(n.exitCode(), "clonager prune has things to do:")
+		blocked(n.exitCode(), "cg prune has things to do:")
 		lipgloss.Print(script)
 	}
 	reports := make([]report, len(statuses))
@@ -117,7 +117,7 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if len(untracked) > 0 {
-		blocked(exitAttention, "Repos not in the config (clonager config discover adds them):")
+		blocked(exitAttention, "Repos not in the config (cg config discover adds them):")
 		for _, r := range untracked {
 			lipgloss.Println("  " + styleWarn.Render("?") + " " + folderLink(r.path, config.TildePath(r.path)))
 		}
@@ -157,9 +157,9 @@ func runAirlift(cmd *cobra.Command, args []string) error {
 		lipgloss.Println(styleDim.Render("Rebuild (e.g. darwin-rebuild switch) to apply it."))
 	}
 	if total > 0 {
-		lipgloss.Println(styleDim.Render("On the other laptop, clonager clone prints the commands to create them; " +
-			"once they're there, clonager config tidy removes them from the config."))
-		lipgloss.Println(styleWarn.Render("Don't run clonager config tidy on this laptop until these clones are deleted: " +
+		lipgloss.Println(styleDim.Render("On the other laptop, cg clone prints the commands to create them; " +
+			"once they're there, cg config tidy removes them from the config."))
+		lipgloss.Println(styleWarn.Render("Don't run cg config tidy on this laptop until these clones are deleted: " +
 			"it would remove them, as the branches still exist here."))
 	}
 	return nil

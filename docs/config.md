@@ -29,8 +29,8 @@ It's a YAML tree that mirrors your folders:
 - **A mapping with `url`** is a repo with options:
   - `remotes` — other remotes by name (`origin` comes from `url`)
   - `gitbutler: true` — the repo is used with GitButler. Set by
-    [`discover`](./commands.md#clonager-config-discover-dir) and
-    [`tidy`](./commands.md#clonager-config-tidy) for repos that are in one.
+    [`discover`](./commands.md#cg-config-discover-dir) and
+    [`tidy`](./commands.md#cg-config-tidy) for repos that are in one.
     Where the workspace's target branch or push remote differ from
     GitButler's defaults (origin's default branch, and `origin`), they're
     recorded in a mapping instead, which also means `true`:
@@ -40,14 +40,14 @@ It's a YAML tree that mirrors your folders:
       push: origin          # the remote GitButler pushes branches to
     ```
     Either can be left out.
-  - `tags` — labels for filtering, e.g. `clonager -t work`
+  - `tags` — labels for filtering, e.g. `cg -t work`
   - `mine: false` — the remote isn't yours to change, so clonager won't
-    suggest deleting branches there or changing its settings (see [`prune`](./commands.md#clonager-prune))
+    suggest deleting branches there or changing its settings (see [`prune`](./commands.md#cg-prune))
   - `branches` — local branches to recreate on another laptop, written by
-    [`airlift`](./commands.md#clonager-config-airlift): each a name, for the same-named branch on
+    [`airlift`](./commands.md#cg-config-airlift): each a name, for the same-named branch on
     `origin`, or `name: remote/branch`
   - `ssh: false` — the repo's HTTPS URLs can't be switched to SSH, written by
-    [`tidy`](./commands.md#clonager-config-tidy) so it doesn't try again
+    [`tidy`](./commands.md#cg-config-tidy) so it doesn't try again
 - **Any other mapping** is a folder, and can nest as deep as you like. A
   folder can set `mine: false` for every repo inside it; a repo can override
   it with `mine: true`.
@@ -56,5 +56,5 @@ A repo's path is its chain of keys, so `vip-proj` above lives at
 `~/Documents/ACME/vip-proj`. The option names (`url`, `remotes`, `gitbutler`,
 `tags`, `mine`, `branches`, `ssh`) can't be used as folder names, and repos can't contain other repos.
 
-clonager edits this file itself (see [`clonager config`](./commands.md#clonager-config)),
+clonager edits this file itself (see [`cg config`](./commands.md#cg-config)),
 keeping your comments and ordering.

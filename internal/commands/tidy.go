@@ -117,7 +117,7 @@ func checkSSH(changes []urlChange, canRead func(string) error) {
 // setURLCommands are the commands to switch clones to the SSH URLs in the
 // config, for remotes whose URL in the clone (from remoteURL, "" if there's
 // no clone or remote) is the HTTPS one it was switched from, now or by an
-// earlier tidy. Other differences are left for clonager clone to point out.
+// earlier tidy. Other differences are left for cg clone to point out.
 func setURLCommands(repos []config.Repo, remoteURL func(path, remote string) string) []string {
 	var out []string
 	for _, r := range repos {
@@ -162,7 +162,7 @@ func isNetworkError(err error) bool {
 	return slices.ContainsFunc(networkErrors, func(e string) bool { return strings.Contains(msg, e) })
 }
 
-// tidyNeeds is what clonager config tidy may have to do, as far as can be
+// tidyNeeds is what cg config tidy may have to do, as far as can be
 // told offline (see needsTidy).
 type tidyNeeds struct {
 	urls       int // HTTPS URLs that may switch to SSH
@@ -443,7 +443,7 @@ func runTidy(cmd *cobra.Command, args []string) error {
 	gbFailed.heading = "Couldn't read GitButler's target branch and push remote:"
 	gbUnrecorded.heading = "GitButler target branches and push remotes on remotes the config doesn't have:"
 	landed.heading = "Removed from the config, as they exist here:"
-	waiting.heading = "Airlifted branches not created here yet (clonager clone prints the commands):"
+	waiting.heading = "Airlifted branches not created here yet (cg clone prints the commands):"
 	failed.heading = "Couldn't check airlifted branches:"
 	if tidyFlags.dryRun {
 		switched.heading = "Would switch to SSH:"

@@ -12,9 +12,6 @@ Or from a checkout, as a static binary:
 CGO_ENABLED=0 go build -o cg ./cmd/cg
 ```
 
-The Nix package also installs clonager as `cg`; with Go, add
-`alias cg=clonager` to your shell's config to get the same.
-
 `git` must be on your `PATH`. [GitButler's `but` CLI](https://docs.gitbutler.com/cli-overview)
 is used for repos in a GitButler workspace, and [`gh`](https://cli.github.com)
-for checking GitHub; both are optional (`clonager --offline` doesn't use `gh`).
+for checking GitHub; both are optional (`cg --offline` doesn't use `gh`).

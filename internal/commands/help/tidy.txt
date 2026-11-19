@@ -11,10 +11,10 @@ Tidy up the config:
     branch and push remote where they differ from GitButler's defaults
     (those already in the config are kept). It's never removed from repos
     that aren't in a workspace, such as fresh clones.
-  - Branches recorded by `clonager config airlift` that now exist on this
+  - Branches recorded by `cg config airlift` that now exist on this
     laptop are removed from the config (a repo with nothing else set goes
     back to just its URL). The rest stay listed until they're created, which
-    `clonager clone` prints the commands for.
+    `cg clone` prints the commands for.
 
 Don't run it on the laptop branches were airlifted from until its clones are
 deleted: the branches still exist there, so it would remove them.

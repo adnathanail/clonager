@@ -56,13 +56,13 @@ func TestHelpTexts(t *testing.T) {
 
 func TestStyleCode(t *testing.T) {
 	for code, style := range map[string]lipgloss.Style{
-		"clonager config tidy": styleBranch,
-		"config tidy":          styleBranch,
-		"prune --offline":      styleBranch,
-		"--offline":            styleBranch,
-		"git branch -D":        styleDim,
-		"<dir>":                styleDim,
-		"gitbutler: true":      styleDim,
+		"cg config tidy":  styleBranch,
+		"config tidy":     styleBranch,
+		"prune --offline": styleBranch,
+		"--offline":       styleBranch,
+		"git branch -D":   styleDim,
+		"<dir>":           styleDim,
+		"gitbutler: true": styleDim,
 	} {
 		if got, want := styleCode("see `"+code+"`."), "see "+style.Render(code)+"."; got != want {
 			t.Errorf("%s: got %q, want %q", code, got, want)
