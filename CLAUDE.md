@@ -276,8 +276,9 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
 - Tests that run `but` (`TestGitButlerSettings`, `TestGitButlerStatus`) set
   up their repos with `butWorkspace`, which sets `HOME` to a temp dir so
   GitButler's project registry is a throwaway one, and skip without `but`,
-  except where `CLONAGER_TEST_BUT` is set: macOS CI, which installs a pinned
-  GitButler app for them. Linux CI and `nix build` skip them.
+  except where `CLONAGER_TEST_BUT` is set: CI, which installs a pinned
+  GitButler for them (the app on macOS, the standalone `but` binary on
+  Linux). `nix build` skips them.
 
 ## Docs and examples
 

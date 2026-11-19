@@ -7,7 +7,8 @@ name: Update GitButler
 # The latest version comes from the GitButler app's update endpoint, which
 # Homebrew's cask also checks. It isn't a documented API, but unlike the
 # GitHub release tags it includes the build number the download URL needs.
-# The SHA-256 is worked out by downloading the archive.
+# The SHA-256s are worked out by downloading the macOS app and the Linux
+# `but` binary.
 #
 # PRs made with the workflow's own token don't trigger other workflows, so CI
 # is started with workflow_dispatch (which is allowed) instead. Opening PRs
@@ -74,13 +75,15 @@ jobs:
           BRANCH: ${{ steps.check.outputs.branch }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          archive="$RUNNER_TEMP/GitButler.app.tar.gz"
-          curl -fsSL -o "$archive" \
-            "https://releases.gitbutler.com/releases/release/$LATEST/macos/aarch64/GitButler.app.tar.gz"
-          sha256=$(shasum -a 256 "$archive" | cut -d ' ' -f 1)
+          release="https://releases.gitbutler.com/releases/release/$LATEST"
+          curl -fsSL -o "$RUNNER_TEMP/GitButler.app.tar.gz" "$release/macos/aarch64/GitButler.app.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/but" "$release/linux/x86_64/but"
+          macos_sha256=$(shasum -a 256 "$RUNNER_TEMP/GitButler.app.tar.gz" | cut -d ' ' -f 1)
+          linux_sha256=$(shasum -a 256 "$RUNNER_TEMP/but" | cut -d ' ' -f 1)
           sed -i '' -E \
             -e "s/^( *GITBUTLER_VERSION: *).*$/\1$LATEST/" \
-            -e "s/^( *GITBUTLER_SHA256: *).*$/\1$sha256/" \
+            -e "s/^( *GITBUTLER_MACOS_SHA256: *).*$/\1$macos_sha256/" \
+            -e "s/^( *GITBUTLER_LINUX_SHA256: *).*$/\1$linux_sha256/" \
             .github/actions/install-gitbutler/action.yml
 
           version=${LATEST%-*}
