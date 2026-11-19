@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   update:
-    # For shasum and BSD sed, as in the install action.
+    # The steps below use BSD sed (`sed -i ''`) and `shasum`.
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
