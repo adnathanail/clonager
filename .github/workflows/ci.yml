@@ -38,14 +38,19 @@ jobs:
       # it supports (bash is on both runners already, and zsh on macOS).
       # They skip a shell that isn't installed, except where
       # CLONAGER_TEST_SHELLS is set.
+      - name: Install fish
+        if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+        run: brew install fish
+      # Cached in the Actions cache, so CI only depends on Ubuntu's package
+      # servers when the cache is empty. Bump `version` to refresh it.
       - name: Install fish and zsh
-        run: |
-          if [ "$RUNNER_OS" = macOS ]; then
-            brew install fish
-          else
-            sudo apt-get update
-            sudo apt-get install -y fish zsh
-          fi
+        if: runner.os == 'Linux'
+        uses: awalsh128/cache-apt-pkgs-action@v1.6.3
+        with:
+          packages: fish zsh
+          version: '1'
 
       # The tests build throwaway git repos, so they need git (on both runners).
       - name: Test
