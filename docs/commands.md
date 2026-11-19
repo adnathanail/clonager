@@ -170,7 +170,7 @@ eval "$(cg shell-init bash)"   # ~/.bashrc
 cg shell-init fish | source    # ~/.config/fish/config.fish
 ```
 
-It defines a shell function named `cg` that runs clonager as usual, with
+It defines a shell function named `cg` that runs the program as usual, with
 `CLONAGER_CD_FILE` set to a temporary file. When you pick a repo in
 `browse`, its folder is written there, and the function cds to it once
 browse exits. Every other command works as it does without the function.
