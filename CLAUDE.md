@@ -139,13 +139,13 @@ that walks the tree (like `TestOnlyPackageRunsPrograms`) must skip it.
   `openSchemes` (the ones `folderURL` and `gitButlerURL` make), so it does
   what clicking one of status's links would.
 - **`browse` can't cd itself**: a program can't change its parent shell's
-  directory. `shell-init` prints functions named `clonager` and `cg` (only
-  where a `cg` program is installed: not an alias) that run it with `CLONAGER_CD_FILE` set to a temp file and cd to what's written
-  there (the yazi/broot approach), so they wrap every command without
-  parsing arguments. Without it, `browse` prints the folder on stdout. It
+  directory. `shell-init` prints a function named `cg` that runs it with
+  `CLONAGER_CD_FILE` set to a temp file and cds to what's written there
+  (the yazi/broot approach), so it wraps every command without parsing
+  arguments. Without it, `browse` prints the folder on stdout. It
   draws on stderr, so stdout only ever carries the folder. The Home Manager
-  module adds the functions (`enableShellIntegration`). `TestShellInit`
-  runs them in bash, zsh and fish, skipping a shell that isn't installed
+  module adds the function (`enableShellIntegration`). `TestShellInit`
+  runs it in bash, zsh and fish, skipping a shell that isn't installed
   except where `CLONAGER_TEST_SHELLS` is set: CI, which installs them all.
 - **A repo's last change (`Status.LastChange`, for `browse --sort recent`)
   costs no extra git calls**: it's the newest committer date among local
