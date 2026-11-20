@@ -15,9 +15,9 @@ runs:
         # Homebrew's gitbutler cask (Casks/g/gitbutler.rb), and the Linux
         # `but` is in the same release folder. update-gitbutler.yml bumps
         # all three.
-        GITBUTLER_VERSION: 0.23.4-3353
-        GITBUTLER_MACOS_SHA256: fe4e645173a72344ab2a3d709696073b37d239d29569635cb3f3cc6df24ee330
-        GITBUTLER_LINUX_SHA256: e7a84eb2bc67fcd42bbd607d9442dbfc698e5b3af43c0a65efdf5168dca9d4ff
+        GITBUTLER_VERSION: 0.23.5-3373
+        GITBUTLER_MACOS_SHA256: 783a91ef5da43e28fab6b672bf9e65d0d49e9671489daaac9646c5429d9122f4
+        GITBUTLER_LINUX_SHA256: 5e4c746201121eec3bede41e6540d66f341e3e6d05c7ba0874435dfd7a42224a
       run: |
         release="https://releases.gitbutler.com/releases/release/$GITBUTLER_VERSION"
         mkdir -p "$RUNNER_TEMP/bin"
