@@ -23,7 +23,7 @@
 
           # Update when go.mod/go.sum change: set to pkgs.lib.fakeHash, build,
           # and copy the hash from the error.
-          vendorHash = "sha256-bmXP27SGGXPAy/4mBEHgRuRIX8cpQFrGw9aRYMxikq8=";
+          vendorHash = "sha256-zqxnnpdW77/6fJDIxIMFACWlv4fb7iqShgqwXIR9NuY=";
 
           env.CGO_ENABLED = 0;
           ldflags = [ "-s" "-w" "-X github.com/adnathanail/clonager/internal/commands.stampedVersion=${version}" ];
