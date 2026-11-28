@@ -75,7 +75,7 @@ jobs:
 
       # Build what's about to be released (running the tests), and check it
       # reports the right version, before anything is pushed.
-      - uses: cachix/install-nix-action@v31
+      - uses: cachix/install-nix-action@v32
       - name: Build and check the version
         env:
           VERSION: ${{ steps.version.outputs.version }}

@@ -28,7 +28,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
 
-      - uses: cachix/install-nix-action@v31
+      - uses: cachix/install-nix-action@v32
 
       - name: Work out vendorHash
         run: |

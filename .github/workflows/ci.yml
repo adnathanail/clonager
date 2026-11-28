@@ -47,7 +47,7 @@ jobs:
       # servers when the cache is empty. Bump `version` to refresh it.
       - name: Install fish and zsh
         if: runner.os == 'Linux'
-        uses: awalsh128/cache-apt-pkgs-action@v1.6.3
+        uses: awalsh128/cache-apt-pkgs-action@v2.0.0
         with:
           packages: fish zsh
           version: '1'
@@ -92,7 +92,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v31
+      - uses: cachix/install-nix-action@v32
       - uses: extractions/setup-just@v4
       # Builds the flake package (running the tests again inside the Nix
       # build), so a stale vendorHash is caught here rather than in nix-darwin.
